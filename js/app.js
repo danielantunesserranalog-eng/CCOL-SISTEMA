@@ -1,19 +1,24 @@
 // ==================== MÓDULO: NAVEGAÇÃO E INICIALIZAÇÃO ====================
 
 function initTabs() {
-    const tabs = document.querySelectorAll('.tab-btn');
+    // CORREÇÃO: O sistema agora procura pela classe moderna '.nav-item'
+    const tabs = document.querySelectorAll('.nav-item');
     const contents = document.querySelectorAll('.tab-content');
     
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
             const tabId = tab.getAttribute('data-tab');
+            
+            // Remove a classe ativa de todas as abas
             tabs.forEach(t => t.classList.remove('active'));
             contents.forEach(c => c.classList.remove('active'));
             
+            // Adiciona a classe ativa na aba clicada
             tab.classList.add('active');
             const activeContent = document.getElementById(`tab-${tabId}`);
             if (activeContent) activeContent.classList.add('active');
             
+            // Renderiza os dados consoante a aba aberta para poupar processamento
             if (tabId === 'motoristas') renderizarMotoristas();
             else if (tabId === 'caminhoes') renderizarConjuntos();
             else if (tabId === 'escala') renderizarEscala();
@@ -22,27 +27,23 @@ function initTabs() {
     });
 }
 
-function popularSelectTurnos() {
-    const turnosInfo = document.querySelector('.turnos-info');
-    if (turnosInfo) turnosInfo.innerHTML = `<div style="width:100%">⏱️ Escalas de 12 horas disponíveis.</div>`;
-}
-
 // INICIALIZAÇÃO PRINCIPAL DA APLICAÇÃO
 async function init() {
+    // 1. Inicializa o menu de navegação
     initTabs();
-    popularSelectTurnos();
     
-    // Carrega dados (DB + Backup Local) do estado.js
+    // 2. Carrega dados (DB + Backup Local) do estado.js
     await carregarDadosIniciais();
     
-    // Renderiza a interface
+    // 3. Renderiza a interface
     renderizarEscala();
     renderizarMotoristas();
     renderizarConjuntos();
     renderizarAlocacao();
     atualizarStats();
     
-    // Listeners Globais
+    // ==================== LISTENERS GLOBAIS DE BOTÕES ====================
+    
     const btnAddMotorista = document.getElementById('btnAddMotorista');
     if (btnAddMotorista) btnAddMotorista.addEventListener('click', adicionarMotorista);
     
