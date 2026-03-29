@@ -471,6 +471,7 @@ window.renderizarTrocaTurno = function() {
                             <td style="text-align: left; padding-left: 15px;"><strong>${m.nome}</strong></td>
                             <td>Conjunto ${m.conjuntoId || '-'}</td>
                             <td><strong style="color: var(--ccol-rust-bright);">${fimStr}</strong> ${avisoStatus}</td>
+                            <td>${m.cidade || '-'}</td>
                         </tr>
                     `;
                 }
@@ -481,6 +482,7 @@ window.renderizarTrocaTurno = function() {
                     <td style="text-align: left; padding-left: 15px; color: var(--ccol-blue-bright);"><strong>${m.nome}</strong></td>
                     <td><strong>${m.equipe || '-'}</strong></td>
                     <td>${m.turno || '-'}</td>
+                    <td>${m.cidade || '-'}</td>
                 </tr>
             `;
         } else if (emFolga) {
@@ -489,16 +491,130 @@ window.renderizarTrocaTurno = function() {
                     <td style="text-align: left; padding-left: 15px; color: #a1a1aa;"><strong>${m.nome}</strong></td>
                     <td><strong>${m.equipe || '-'}</strong></td>
                     <td><span style="background: rgba(255,255,255,0.08); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; border: 1px solid #444;">🔕 Não Incomodar</span></td>
+                    <td>${m.cidade || '-'}</td>
                 </tr>
             `;
         }
     });
 
-    if (htmlProximos === '') htmlProximos = '<tr><td colspan="3" style="padding: 20px; color: var(--text-secondary); text-align:center;">Ninguém trabalhando no momento.</td></tr>';
-    if (htmlSemCaminhao === '') htmlSemCaminhao = '<tr><td colspan="3" style="padding: 20px; color: var(--text-secondary); text-align:center;">Nenhum motorista de plantão sem caminhão.</td></tr>';
-    if (htmlFolga === '') htmlFolga = '<tr><td colspan="3" style="padding: 20px; color: var(--text-secondary); text-align:center;">Nenhum motorista de folga hoje.</td></tr>';
+    if (htmlProximos === '') htmlProximos = '<tr><td colspan="4" style="padding: 20px; color: var(--text-secondary); text-align:center;">Ninguém trabalhando no momento.</td></tr>';
+    if (htmlSemCaminhao === '') htmlSemCaminhao = '<tr><td colspan="4" style="padding: 20px; color: var(--text-secondary); text-align:center;">Nenhum motorista de plantão sem caminhão.</td></tr>';
+    if (htmlFolga === '') htmlFolga = '<tr><td colspan="4" style="padding: 20px; color: var(--text-secondary); text-align:center;">Nenhum motorista de folga hoje.</td></tr>';
 
     listaProximos.innerHTML = htmlProximos;
     listaSemCaminhao.innerHTML = htmlSemCaminhao;
     listaFolga.innerHTML = htmlFolga;
+};
+
+// ==================== IMPRESSÃO DO RELATÓRIO DO DIA ====================
+
+window.imprimirRelatorioTrabalhoHoje = function() {
+    const hojeStr = new Date().toISOString().split('T')[0];
+    
+    // Formata a data para exibir no título
+    const partes = hojeStr.split('-');
+    const dataFormatada = `${partes[2]}/${partes[1]}/${partes[0]}`;
+
+    let trabalhandoDia = [];
+    let trabalhandoNoite = [];
+
+    motoristas.forEach(m => {
+        if (m.masterDrive === 'Não' || m.destra === 'Não') return;
+        const escalaHoje = window.getEscalaDiaComputada(m, hojeStr);
+        const caminhaoHoje = escalaHoje ? escalaHoje.caminhao : 'F';
+        
+        if (caminhaoHoje !== 'F') {
+            const isDia = ['A', 'B', 'C'].includes(m.equipe);
+            if (isDia) trabalhandoDia.push({ ...m, caminhaoHoje });
+            else trabalhandoNoite.push({ ...m, caminhaoHoje });
+        }
+    });
+
+    // Ordenar pelo número do conjunto, e depois pelo nome do motorista
+    const sortFn = (a, b) => (a.conjuntoId || 999) - (b.conjuntoId || 999) || a.nome.localeCompare(b.nome);
+    trabalhandoDia.sort(sortFn);
+    trabalhandoNoite.sort(sortFn);
+
+    const buildTable = (titulo, lista) => {
+        if (lista.length === 0) return `<p style="text-align: center; color: #555;">Nenhum motorista alocado para este turno hoje.</p>`;
+        let html = `
+            <h3 style="margin-top: 30px; border-bottom: 2px solid #333; padding-bottom: 5px; font-size: 18px;">${titulo}</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+                <thead>
+                    <tr style="background-color: #f4f4f5; color: #333;">
+                        <th style="border: 1px solid #d4d4d8; padding: 10px; text-align: left;">Motorista</th>
+                        <th style="border: 1px solid #d4d4d8; padding: 10px; text-align: center;">Conjunto</th>
+                        <th style="border: 1px solid #d4d4d8; padding: 10px; text-align: center;">Placa Alocada</th>
+                        <th style="border: 1px solid #d4d4d8; padding: 10px; text-align: center;">Equipe</th>
+                        <th style="border: 1px solid #d4d4d8; padding: 10px; text-align: left;">Cidade / Base</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        lista.forEach(m => {
+            html += `
+                <tr>
+                    <td style="border: 1px solid #d4d4d8; padding: 8px;"><strong>${m.nome}</strong></td>
+                    <td style="border: 1px solid #d4d4d8; padding: 8px; text-align: center;">${m.conjuntoId || '-'}</td>
+                    <td style="border: 1px solid #d4d4d8; padding: 8px; text-align: center; font-weight: bold; color: #2563eb;">${m.caminhaoHoje}</td>
+                    <td style="border: 1px solid #d4d4d8; padding: 8px; text-align: center;">${m.equipe || '-'}</td>
+                    <td style="border: 1px solid #d4d4d8; padding: 8px;">${m.cidade || '-'}</td>
+                </tr>
+            `;
+        });
+        html += `</tbody></table>`;
+        return html;
+    };
+
+    const janelaImp = window.open('', '', 'width=900,height=700');
+    janelaImp.document.write(`
+        <html>
+            <head>
+                <title>Relatório de Escala Diária - ${dataFormatada}</title>
+                <style>
+                    body { font-family: 'Segoe UI', Arial, sans-serif; margin: 40px; color: #1f2937; }
+                    .print-header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #2563eb; padding-bottom: 20px; }
+                    .print-header h1 { margin: 0; color: #1e3a8a; font-size: 24px; }
+                    .print-header p { margin: 5px 0 0 0; color: #4b5563; font-size: 16px; }
+                    
+                    @media print {
+                        .no-print { display: none; }
+                        body { margin: 0; padding: 20px; }
+                    }
+                    
+                    .btn-print {
+                        background-color: #2563eb;
+                        color: white;
+                        border: none;
+                        padding: 12px 24px;
+                        font-size: 16px;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-weight: bold;
+                        box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+                    }
+                    .btn-print:hover { background-color: #1d4ed8; }
+                </style>
+            </head>
+            <body>
+                <div class="print-header">
+                    <h1>Serrana Florestal - Divisão CCOL</h1>
+                    <p><strong>Relatório Operacional: Escala de Trabalho Diária</strong></p>
+                    <p style="font-size: 14px; margin-top: 10px;">Data de Referência: <strong>${dataFormatada}</strong></p>
+                </div>
+                
+                ${buildTable('☀️ TURNO DO DIA (Equipes A, B e Folguista C)', trabalhandoDia)}
+                
+                <div style="margin-top: 40px;"></div>
+                
+                ${buildTable('🌙 TURNO DA NOITE (Equipes D, E e Folguista F)', trabalhandoNoite)}
+                
+                <div class="no-print" style="text-align: center; margin-top: 50px;">
+                    <button class="btn-print" onclick="window.print()">🖨️ Imprimir Agora</button>
+                    <p style="font-size: 12px; color: #6b7280; margin-top: 15px;">Dica: Salve em PDF ou envie direto para sua impressora.</p>
+                </div>
+            </body>
+        </html>
+    `);
+    janelaImp.document.close();
 };

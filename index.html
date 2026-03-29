@@ -228,9 +228,12 @@
             </div>
 
             <div class="tab-content" id="tab-troca">
-                <div class="action-bar">
+                <div class="action-bar" style="flex-wrap: wrap; gap: 15px;">
                     <h3 style="color: var(--text-primary); margin: 0; align-self: center;">⏱️ Painel em Tempo Real: Troca de Turno</h3>
-                    <button id="btnAtualizarTroca" class="btn-primary-blue" onclick="renderizarTrocaTurno()">🔄 Atualizar Painel</button>
+                    <div class="button-group" style="margin-left: auto;">
+                        <button id="btnImprimirRelatorioHoje" class="btn-primary-green" onclick="imprimirRelatorioTrabalhoHoje()">🖨️ Imprimir Escala de Hoje</button>
+                        <button id="btnAtualizarTroca" class="btn-primary-blue" onclick="renderizarTrocaTurno()">🔄 Atualizar Painel</button>
+                    </div>
                 </div>
 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
@@ -245,6 +248,7 @@
                                         <th>Motorista</th>
                                         <th>Conjunto</th>
                                         <th>Fim do Turno</th>
+                                        <th>Cidade</th>
                                     </tr>
                                 </thead>
                                 <tbody id="listaProximosTroca"></tbody>
@@ -263,6 +267,7 @@
                                         <th>Motorista</th>
                                         <th>Equipe</th>
                                         <th>Turno</th>
+                                        <th>Cidade</th>
                                     </tr>
                                 </thead>
                                 <tbody id="listaPlantaoSemCaminhao"></tbody>
@@ -281,6 +286,7 @@
                                         <th>Motorista</th>
                                         <th>Equipe</th>
                                         <th>Status</th>
+                                        <th>Cidade</th>
                                     </tr>
                                 </thead>
                                 <tbody id="listaFolga"></tbody>
