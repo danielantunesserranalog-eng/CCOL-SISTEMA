@@ -51,7 +51,10 @@
             <div class="tab-content active" id="tab-escala">
                 <div class="action-bar">
                     <div class="filter-group">
-                        <label for="filtroConjuntoEscala">Conjunto:</label>
+                        <label for="dataInicioEscala">Início da Escala:</label>
+                        <input type="date" id="dataInicioEscala" class="dark-select">
+                        
+                        <label for="filtroConjuntoEscala" style="margin-left: 10px;">Conjunto:</label>
                         <select id="filtroConjuntoEscala" class="dark-select">
                             <option value="todos">Todos</option>
                         </select>
@@ -225,7 +228,9 @@
         <footer class="main-footer">
             <p>&copy; 2026 Serrana Florestal - Divisão CCOL. Terminal v1.0 | <span id="statCaminhoes">0</span> Caminhões</p>
         </footer>
-    </div> <div id="modalEdicaoMotorista" class="modal-overlay">
+    </div> 
+    
+    <div id="modalEdicaoMotorista" class="modal-overlay">
         <div class="custom-modal">
             <div class="modal-header">
                 <h3>✏️ Editar Motorista</h3>

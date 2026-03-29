@@ -63,6 +63,20 @@ async function init() {
     initTabs();
     await carregarDadosIniciais();
     
+    // Listener para o filtro de data inicial da escala
+    const dataInicioInput = document.getElementById('dataInicioEscala');
+    if (dataInicioInput) {
+        // Define a data inicial padrão como o dia de hoje
+        const hojeStr = new Date().toISOString().split('T')[0];
+        dataInicioInput.value = hojeStr;
+        
+        // Atualiza a tabela imediatamente ao trocar o dia
+        dataInicioInput.addEventListener('change', (e) => {
+            currentDatas = getDatasSemana(e.target.value);
+            renderizarEscala();
+        });
+    }
+
     renderizarEscala();
     renderizarMotoristas();
     renderizarConjuntos();
@@ -90,7 +104,8 @@ async function init() {
 
     const refreshEscalaBtn = document.getElementById('refreshEscalaBtn');
     if (refreshEscalaBtn) refreshEscalaBtn.addEventListener('click', () => {
-        currentDatas = getDatasSemana(); 
+        const inputData = document.getElementById('dataInicioEscala');
+        currentDatas = getDatasSemana(inputData ? inputData.value : null); 
         renderizarEscala();
     });
 

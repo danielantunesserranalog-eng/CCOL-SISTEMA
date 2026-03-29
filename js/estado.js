@@ -15,13 +15,26 @@ for (let i = 0; i < 24; i++) {
     }
 }
 
-function getDatasSemana() {
-    const hoje = new Date();
+function getDatasSemana(dataInicialStr = null) {
+    // Se não passar data, tenta pegar do input, senão usa a data atual
+    let dataBase = new Date();
+    
+    if (dataInicialStr) {
+        dataBase = new Date(dataInicialStr + 'T00:00:00'); // Evita erro de fuso horário
+    } else {
+        const inputData = document.getElementById('dataInicioEscala');
+        if (inputData && inputData.value) {
+            dataBase = new Date(inputData.value + 'T00:00:00');
+        }
+    }
+
     const datas = [];
     const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    
+    // Mostra 7 dias a partir da data SELECIONADA
     for (let i = 0; i < 7; i++) {
-        const data = new Date(hoje);
-        data.setDate(hoje.getDate() + i);
+        const data = new Date(dataBase);
+        data.setDate(dataBase.getDate() + i);
         const dataStr = data.toISOString().split('T')[0];
         datas.push({
             dateKey: dataStr,
