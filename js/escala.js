@@ -1,6 +1,5 @@
 // ==================== MÓDULO: ESCALA & ALOCAÇÃO ====================
 
-// LÓGICA DE INTELIGÊNCIA EM TEMPO REAL (ON-THE-FLY)
 window.getStatusMotorista = function(m, dDate) {
     if (!m || !m.data_ancora) return 'F';
     const dataAncora = new Date(m.data_ancora + 'T00:00:00');
@@ -10,28 +9,22 @@ window.getStatusMotorista = function(m, dDate) {
 }
 
 window.getEscalaDiaComputada = function(motorista, dateKey) {
-    // 1. MANUAL: Se o usuário alterou na mão e salvou no banco, prevalece.
     if (escalas[motorista.id] && escalas[motorista.id][dateKey] && escalas[motorista.id][dateKey].status === 'manual') {
         return escalas[motorista.id][dateKey];
     }
-
-    // 2. BLOQUEIOS: Sem âncora, sem curso ou sem equipe = Folga F
     if (!motorista.data_ancora || motorista.masterDrive === 'Não' || motorista.destra === 'Não' || !motorista.equipe || motorista.equipe === '-') {
         return { caminhao: 'F', turno: motorista.turno };
     }
-
     const dDate = new Date(dateKey + 'T00:00:00');
     const statusMot = window.getStatusMotorista(motorista, dDate);
 
     if (statusMot === 'F') return { caminhao: 'F', turno: motorista.turno };
 
-    // 3. SE TRABALHA, QUAL CAMINHÃO PEGAR?
     const conjunto = conjuntos.find(c => c.id === motorista.conjuntoId);
     if (!conjunto || !conjunto.caminhoes) return { caminhao: 'F', turno: motorista.turno };
 
     let placa1 = conjunto.caminhoes.length > 0 ? (typeof conjunto.caminhoes[0] === 'string' ? conjunto.caminhoes[0] : conjunto.caminhoes[0].placa) : 'F';
     let placa2 = conjunto.caminhoes.length > 1 ? (typeof conjunto.caminhoes[1] === 'string' ? conjunto.caminhoes[1] : conjunto.caminhoes[1].placa) : placa1;
-
     let statusCaminhao = 'F';
 
     if (motorista.equipe === 'A' || motorista.equipe === 'D') statusCaminhao = placa1;
@@ -41,7 +34,6 @@ window.getEscalaDiaComputada = function(motorista, dateKey) {
         const fixoB = motoristas.find(mot => mot.conjuntoId === motorista.conjuntoId && mot.equipe === 'B');
         const statusA = window.getStatusMotorista(fixoA, dDate);
         const statusB = window.getStatusMotorista(fixoB, dDate);
-        
         if (statusA === 'F') statusCaminhao = placa1;
         else if (statusB === 'F') statusCaminhao = placa2;
         else statusCaminhao = placa1; 
@@ -51,12 +43,10 @@ window.getEscalaDiaComputada = function(motorista, dateKey) {
         const fixoE = motoristas.find(mot => mot.conjuntoId === motorista.conjuntoId && mot.equipe === 'E');
         const statusD = window.getStatusMotorista(fixoD, dDate);
         const statusE = window.getStatusMotorista(fixoE, dDate);
-        
         if (statusD === 'F') statusCaminhao = placa1;
         else if (statusE === 'F') statusCaminhao = placa2;
         else statusCaminhao = placa1;
     }
-
     return { caminhao: statusCaminhao, turno: motorista.turno, status: 'auto' };
 }
 
@@ -77,10 +67,7 @@ function renderizarEscala() {
 
     let html = '';
     const inputData = document.getElementById('dataInicioEscala');
-    
-    if (typeof getDatasSemana === 'function') {
-        currentDatas = getDatasSemana(inputData ? inputData.value : null);
-    }
+    if (typeof getDatasSemana === 'function') currentDatas = getDatasSemana(inputData ? inputData.value : null);
 
     let conjuntosRender = filtroSelec !== 'todos' ? conjuntos.filter(c => c.id == filtroSelec) : conjuntos;
 
@@ -88,11 +75,7 @@ function renderizarEscala() {
         const motoristasDoConjunto = motoristas.filter(m => m.conjuntoId === conj.id);
         if (motoristasDoConjunto.length === 0) return;
 
-        html += `
-        <div class="escala-conjunto-box">
-            <div class="escala-conjunto-numero">${conj.id}</div>
-            <div class="escala-conjunto-tabelas">
-        `;
+        html += `<div class="escala-conjunto-box"><div class="escala-conjunto-numero">${conj.id}</div><div class="escala-conjunto-tabelas">`;
 
         const grupoCaminhao1 = motoristasDoConjunto.filter(m => ['A', 'B', 'C'].includes(m.equipe)).sort((a, b) => a.equipe.localeCompare(b.equipe));
         const grupoCaminhao2 = motoristasDoConjunto.filter(m => ['D', 'E', 'F'].includes(m.equipe)).sort((a, b) => a.equipe.localeCompare(b.equipe));
@@ -117,9 +100,8 @@ function renderizarEscala() {
             grupo.forEach(m => {
                 const isBlocked = m.masterDrive === 'Não' || m.destra === 'Não';
                 const goStr = conj.caminhoes?.map(c => typeof c === 'string' ? '' : c.go).filter(go=>go).join(' e ') || '-';
-                
                 const isFolguista = (m.equipe === 'C' || m.equipe === 'F');
-                const tagFolguista = isFolguista ? `<span style="background:#f97316; color:#fff; font-size:0.65rem; font-weight:bold; padding:2px 5px; border-radius:4px; margin-left:8px; vertical-align:middle; letter-spacing:0.5px;">FOLGUISTA</span>` : '';
+                const tagFolguista = isFolguista ? `<span style="background:#f97316; color:#fff; font-size:0.65rem; font-weight:bold; padding:2px 5px; border-radius:4px; margin-left:8px; vertical-align:middle;">FOLGUISTA</span>` : '';
                 let displayTurno = isFolguista ? 'Misto' : (m.turno || '-');
 
                 tHtml += `<tr>`;
@@ -155,18 +137,6 @@ function renderizarEscala() {
                     });
                     opcoes += `</optgroup>`;
 
-                    const outrosConjuntos = conjuntos.filter(c => c.id !== conj.id);
-                    if (outrosConjuntos.length > 0) {
-                        opcoes += `<optgroup label="Outros Caminhões">`;
-                        outrosConjuntos.forEach(outro => {
-                            outro.caminhoes?.forEach(cam => {
-                                const placa = typeof cam === 'string' ? cam : cam.placa;
-                                opcoes += `<option value="${placa}" ${escala.caminhao === placa ? 'selected' : ''}>${placa}</option>`;
-                            });
-                        });
-                        opcoes += `</optgroup>`;
-                    }
-
                     tHtml += `<td class="${tdClass}" style="${estiloTdExtra}" title="${hoverTitle}"><select class="select-escala-excel" data-motorista="${m.id}" data-data="${d.dateKey}" ${isBlocked ? 'disabled' : ''} style="${estiloSelectExtra}">${isBlocked ? '<option value="F">Bloq</option>' : opcoes}</select></td>`;
                 });
                 tHtml += `</tr>`;
@@ -178,7 +148,6 @@ function renderizarEscala() {
         html += renderTable(grupoCaminhao1, true);
         html += renderTable(grupoCaminhao2, grupoCaminhao1.length === 0);
         html += renderTable(outros, grupoCaminhao1.length === 0 && grupoCaminhao2.length === 0);
-        
         html += `</div></div>`;
     });
 
@@ -196,7 +165,6 @@ function handleEscalaChange(e) {
     const m = motoristas.find(mot => mot.id === motoristaId);
     if(m) {
         if (!escalas[motoristaId]) escalas[motoristaId] = {};
-        
         escalas[motoristaId][data] = { turno: m.turno, caminhao: novoCaminhao, status: 'manual' };
         select.closest('td').className = novoCaminhao === 'F' ? 'celula-folga' : 'celula-trabalho';
         
@@ -217,8 +185,7 @@ function renderizarAlocacao() {
     const motoristasOrdenados = [...motoristas].sort((a, b) => {
         const conjA = a.conjuntoId || 999999;
         const conjB = b.conjuntoId || 999999;
-
-        if (conjA !== conjB) { return conjA - conjB; }
+        if (conjA !== conjB) return conjA - conjB; 
         return a.nome.localeCompare(b.nome);
     });
 
@@ -230,13 +197,12 @@ function renderizarAlocacao() {
         const currentConjunto = m.conjuntoId || 'sem_conjunto';
 
         if (currentConjunto !== lastConjunto) {
-            // AQUI ESTÁ O NOME DA SEÇÃO ALTERADO PARA ATENDER SUA MELHORIA
             const tituloConjunto = m.conjuntoId ? `🚛 CONJUNTO ${m.conjuntoId}` : `🚨 MOTORISTAS NÃO LIBERADOS (Reserva / Falta / Atestado / Novatos)`;
-            const btnReset = m.conjuntoId ? `<button onclick="resetarCicloConjunto(${m.conjuntoId})" style="float: right; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #ef4444; padding: 4px 12px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-weight: bold; transition: all 0.2s;">🔄 ZERAR CICLO</button>` : '';
+            const btnReset = m.conjuntoId ? `<button onclick="resetarCicloConjunto(${m.conjuntoId})" style="float: right; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #ef4444; padding: 4px 12px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-weight: bold;">🔄 ZERAR CICLO</button>` : '';
 
             html += `
                 <tr style="background-color: rgba(255, 255, 255, 0.05); border-top: 2px solid rgba(255,255,255,0.1); border-bottom: 1px solid rgba(255,255,255,0.1);">
-                    <td colspan="5" style="text-align: left; padding-left: 15px; font-weight: 800; color: #3b82f6; padding-top: 12px; padding-bottom: 12px; font-size: 0.95rem; letter-spacing: 1.5px; vertical-align: middle;">
+                    <td colspan="5" style="text-align: left; padding-left: 15px; font-weight: 800; color: #3b82f6; padding-top: 12px; padding-bottom: 12px; font-size: 0.95rem;">
                         ${tituloConjunto}
                         ${btnReset}
                     </td>
@@ -304,8 +270,9 @@ function updateAlocacao(e) {
     renderizarAlocacao();
 }
 
-window.resetarCicloConjunto = function(conjuntoId) {
-    if (!confirm(`Deseja realmente ZERAR as datas de todos os motoristas do Conjunto ${conjuntoId}?\nEles voltarão para o status azul "Ajustar Ciclo".`)) return;
+window.resetarCicloConjunto = async function(conjuntoId) {
+    if(currentUser.role !== 'Admin') { alert('⛔ Acesso Negado: Apenas Administradores podem zerar o ciclo de um conjunto.'); return; }
+    if (!confirm(`Deseja ZERAR as datas do Conjunto ${conjuntoId}?`)) return;
 
     motoristas.forEach(m => {
         if (m.conjuntoId === conjuntoId && m.data_ancora) {
@@ -313,6 +280,9 @@ window.resetarCicloConjunto = function(conjuntoId) {
             db.updateMotorista(m.id, { data_ancora: null });
         }
     });
+
+    await db.addLog('Reset de Ciclo', `Datas âncora removidas para todos do Conjunto ${conjuntoId}.`);
+    if(typeof renderizarLogs === 'function') renderizarLogs();
 
     salvarBackupLocal();
     renderizarAlocacao();
@@ -329,10 +299,7 @@ window.abrirModalEscalaManual = function(id) {
 
     document.getElementById('manualMotId').value = m.id;
     document.getElementById('manualMotNome').innerText = m.nome;
-    
-    let nomeEquipe = m.equipe;
-    if(m.equipe === 'C' || m.equipe === 'F') nomeEquipe += " (Folguista)";
-    document.getElementById('manualMotEquipe').innerText = nomeEquipe;
+    document.getElementById('manualMotEquipe').innerText = m.equipe + (m.equipe === 'C' || m.equipe === 'F' ? " (Folguista)" : "");
     
     let dia1 = new Date();
     if (m.data_ancora) dia1 = new Date(m.data_ancora + 'T00:00:00');
@@ -357,15 +324,14 @@ window.atualizarPreviewManual = function() {
     for(let i = 0; i < 6; i++) {
         let d = new Date(dBase);
         d.setDate(d.getDate() + i);
-        
         let isTrab = i < 4; 
         let txt = isTrab ? 'TRAB' : 'FOLGA';
         let icon = isTrab ? '🚚' : '🛋️';
-        let colorBg = isTrab ? 'rgba(59, 130, 246, 0.15)' : 'rgba(249, 115, 22, 0.15)';
         let colorBorder = isTrab ? '#3b82f6' : '#f97316';
+        let colorBg = isTrab ? 'rgba(59, 130, 246, 0.15)' : 'rgba(249, 115, 22, 0.15)';
         
-        html += `<div style="background: ${colorBg}; border: 1px solid ${colorBorder}; padding: 12px 10px; border-radius: 8px; flex: 1; text-align: center; min-width: 60px;">
-            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 5px;">${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}</div>
+        html += `<div style="background: ${colorBg}; border: 1px solid ${colorBorder}; padding: 12px 10px; border-radius: 8px; flex: 1; text-align: center;">
+            <div style="font-size: 0.8rem; margin-bottom: 5px;">${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}</div>
             <div style="font-size: 1.8rem; margin-bottom: 5px;">${icon}</div>
             <div style="font-size: 0.85rem; font-weight: 800; color: ${colorBorder};">${txt}</div>
         </div>`;
@@ -389,18 +355,23 @@ window.salvarEscalaManual = function() {
 }
 
 window.gerarEscala4x2 = async function(silencioso = false) {
+    if(currentUser.role !== 'Admin') { alert('⛔ Acesso Negado: Apenas Administradores podem usar a Geração Automática.'); return; }
     if (!silencioso && !confirm("Atenção: A inteligência do sistema agora limpa todos os resíduos do banco de dados (que causam lentidão) e aplica a escala matemática baseada na data ajustada (âncora). Confirmar?")) return;
     
     await db.limparApenasEscalas();
+    await db.addLog('Escala', 'Escala Automática 4x2 e limpeza de banco disparadas.');
+    if(typeof renderizarLogs === 'function') renderizarLogs();
+
     escalas = {};
     motoristas.forEach(m => { escalas[m.id] = {}; });
     salvarBackupLocal();
 
     renderizarEscala(); 
-    if (!silencioso) alert(`Sucesso! Banco de dados limpo e escala perfeita reconstruída on-the-fly!`);
+    if (!silencioso) alert(`Sucesso! Banco de dados limpo e escala perfeita reconstruída!`);
 }
 
-window.zerarEscala = function() {
+window.zerarEscala = async function() {
+    if(currentUser.role !== 'Admin') { alert('⛔ Acesso Negado: Apenas Administradores podem excluir a grade de Escalas.'); return; }
     if (!confirm("Isso apagará todas as edições manuais que você fez diretamente na grade. Continuar?")) return;
     window.gerarEscala4x2(true);
 }
@@ -430,11 +401,8 @@ window.renderizarTrocaTurno = function() {
         const caminhaoHoje = escalaHoje ? escalaHoje.caminhao : 'F';
         const statusEscala = escalaHoje ? escalaHoje.status : 'auto';
 
-        let trabalhando = false;
-        let plantaoSemCaminhao = false;
-        let emFolga = false;
+        let trabalhando = false, plantaoSemCaminhao = false, emFolga = false;
 
-        // AQUI ESTÁ A MÁGICA: Se ele não tem conjunto (novato/falta/atestado) ou está bloqueado, vai forçado pro Plantão
         if (!m.conjuntoId || isBlocked) {
             plantaoSemCaminhao = true;
         } else if (statusEscala === 'manual') {
@@ -458,63 +426,33 @@ window.renderizarTrocaTurno = function() {
                     let diferenca = tempoFimTotais - minutosAtuaisTotais;
                     if (diferenca < -720) diferenca += (24 * 60); 
 
-                    // Remove os atrasados, só mostra quem tem diferença >= 0
                     if (diferenca >= 0) {
-                        let avisoStatus = '';
-                        if(diferenca <= 120) {
-                            avisoStatus = `<span style="color: #fb923c; font-size: 0.75rem;">(Falta ${diferenca}m)</span>`;
-                        } else {
-                            avisoStatus = `<span style="color: var(--text-secondary); font-size: 0.75rem;">(Ativo)</span>`;
-                        }
-
-                        htmlProximos += `
-                            <tr>
-                                <td style="text-align: left; padding-left: 15px;"><strong>${m.nome}</strong></td>
-                                <td>Conjunto ${m.conjuntoId || '-'}</td>
-                                <td><strong style="color: var(--ccol-rust-bright);">${fimStr}</strong> ${avisoStatus}</td>
-                                <td>${m.cidade || '-'}</td>
-                            </tr>
-                        `;
+                        let avisoStatus = diferenca <= 120 ? `<span style="color: #fb923c;">(Falta ${diferenca}m)</span>` : `<span style="color: var(--text-secondary);">(Ativo)</span>`;
+                        htmlProximos += `<tr><td><strong>${m.nome}</strong></td><td>Conj. ${m.conjuntoId}</td><td><strong style="color: var(--ccol-rust-bright);">${fimStr}</strong> <span style="font-size:0.75rem;">${avisoStatus}</span></td><td>${m.cidade || '-'}</td></tr>`;
                     }
                 }
             }
         } else if (plantaoSemCaminhao) {
-            // Etiquetas visuais para bater o olho e saber quem é o problema
             let tags = [];
             if (isBlocked) tags.push(`<span style="background: rgba(239, 68, 68, 0.1); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; margin-left: 5px;">Bloqueado</span>`);
             if (!m.conjuntoId) tags.push(`<span style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; margin-left: 5px;">Reserva/Inativo</span>`);
 
-            htmlSemCaminhao += `
-                <tr>
-                    <td style="text-align: left; padding-left: 15px; color: var(--ccol-blue-bright);"><strong>${m.nome}</strong> ${tags.join('')}</td>
-                    <td><strong>${m.equipe && m.equipe !== '-' ? m.equipe : 'N/A'}</strong></td>
-                    <td>${m.turno && m.turno !== '-' ? m.turno : 'N/A'}</td>
-                    <td>${m.cidade || '-'}</td>
-                </tr>
-            `;
+            htmlSemCaminhao += `<tr><td style="color: var(--ccol-blue-bright);"><strong>${m.nome}</strong> ${tags.join('')}</td><td><strong>${m.equipe && m.equipe !== '-' ? m.equipe : 'N/A'}</strong></td><td>${m.turno && m.turno !== '-' ? m.turno : 'N/A'}</td><td>${m.cidade || '-'}</td></tr>`;
         } else if (emFolga) {
-            htmlFolga += `
-                <tr>
-                    <td style="text-align: left; padding-left: 15px; color: #a1a1aa;"><strong>${m.nome}</strong></td>
-                    <td><strong>${m.equipe || '-'}</strong></td>
-                    <td><span style="background: rgba(255,255,255,0.08); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; border: 1px solid #444;">🔕 Não Incomodar</span></td>
-                    <td>${m.cidade || '-'}</td>
-                </tr>
-            `;
+            htmlFolga += `<tr><td style="color: #a1a1aa;"><strong>${m.nome}</strong></td><td><strong>${m.equipe || '-'}</strong></td><td><span style="background: rgba(255,255,255,0.08); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; border: 1px solid #444;">🔕 Não Incomodar</span></td><td>${m.cidade || '-'}</td></tr>`;
         }
     });
 
-    if (htmlProximos === '') htmlProximos = '<tr><td colspan="4" style="padding: 20px; color: var(--text-secondary); text-align:center;">Ninguém próximo da troca neste momento.</td></tr>';
-    if (htmlSemCaminhao === '') htmlSemCaminhao = '<tr><td colspan="4" style="padding: 20px; color: var(--text-secondary); text-align:center;">Nenhum motorista de plantão ou inativo.</td></tr>';
-    if (htmlFolga === '') htmlFolga = '<tr><td colspan="4" style="padding: 20px; color: var(--text-secondary); text-align:center;">Nenhum motorista de folga hoje.</td></tr>';
+    if (htmlProximos === '') htmlProximos = '<tr><td colspan="4" style="text-align:center;">Ninguém próximo da troca.</td></tr>';
+    if (htmlSemCaminhao === '') htmlSemCaminhao = '<tr><td colspan="4" style="text-align:center;">Nenhum motorista de plantão.</td></tr>';
+    if (htmlFolga === '') htmlFolga = '<tr><td colspan="4" style="text-align:center;">Nenhum motorista de folga hoje.</td></tr>';
 
     listaProximos.innerHTML = htmlProximos;
     listaSemCaminhao.innerHTML = htmlSemCaminhao;
     listaFolga.innerHTML = htmlFolga;
 };
 
-// ==================== IMPRESSÃO DO RELATÓRIO DO DIA ====================
-
+// ==================== IMPRESSÃO DO RELATÓRIO ====================
 window.imprimirRelatorioTrabalhoHoje = function() {
     const hojeStr = new Date().toISOString().split('T')[0];
     const partes = hojeStr.split('-');
@@ -527,108 +465,32 @@ window.imprimirRelatorioTrabalhoHoje = function() {
         if (m.masterDrive === 'Não' || m.destra === 'Não') return;
         const escalaHoje = window.getEscalaDiaComputada(m, hojeStr);
         const caminhaoHoje = escalaHoje ? escalaHoje.caminhao : 'F';
-        
         if (caminhaoHoje !== 'F') {
             const isDia = ['A', 'B', 'C'].includes(m.equipe);
-            
-            // CAPTURA O HORÁRIO FINAL DA TROCA DE TURNO
-            let fimTurno = '-';
-            if (m.turno && m.turno !== '-') {
-                fimTurno = m.turno.split('-')[1] || m.turno;
-            }
-            
+            let fimTurno = m.turno && m.turno !== '-' ? (m.turno.split('-')[1] || m.turno) : '-';
             if (isDia) trabalhandoDia.push({ ...m, caminhaoHoje, fimTurno });
             else trabalhandoNoite.push({ ...m, caminhaoHoje, fimTurno });
         }
     });
 
-    // Ordenar pelo número do conjunto, e depois pelo nome do motorista
     const sortFn = (a, b) => (a.conjuntoId || 999) - (b.conjuntoId || 999) || a.nome.localeCompare(b.nome);
-    trabalhandoDia.sort(sortFn);
-    trabalhandoNoite.sort(sortFn);
+    trabalhandoDia.sort(sortFn); trabalhandoNoite.sort(sortFn);
 
     const buildTable = (titulo, lista) => {
-        if (lista.length === 0) return `<p style="text-align: center; color: #555;">Nenhum motorista alocado para este turno hoje.</p>`;
-        let html = `
-            <h3 style="margin-top: 30px; border-bottom: 2px solid #333; padding-bottom: 5px; font-size: 18px;">${titulo}</h3>
-            <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
-                <thead>
-                    <tr style="background-color: #f4f4f5; color: #333;">
-                        <th style="border: 1px solid #d4d4d8; padding: 10px; text-align: left;">Motorista</th>
-                        <th style="border: 1px solid #d4d4d8; padding: 10px; text-align: center;">Conjunto</th>
-                        <th style="border: 1px solid #d4d4d8; padding: 10px; text-align: center;">Placa Alocada</th>
-                        <th style="border: 1px solid #d4d4d8; padding: 10px; text-align: center;">Horário de Troca</th>
-                        <th style="border: 1px solid #d4d4d8; padding: 10px; text-align: center;">Equipe</th>
-                        <th style="border: 1px solid #d4d4d8; padding: 10px; text-align: left;">Cidade / Base</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
+        if (lista.length === 0) return `<p style="text-align: center; color: #555;">Nenhum motorista alocado.</p>`;
+        let html = `<h3 style="margin-top: 30px; border-bottom: 2px solid #333; padding-bottom: 5px;">${titulo}</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px;">
+                <tr style="background-color: #f4f4f5;"><th style="border: 1px solid #d4d4d8; padding: 10px; text-align: left;">Motorista</th><th style="border: 1px solid #d4d4d8; padding: 10px;">Conjunto</th><th style="border: 1px solid #d4d4d8; padding: 10px;">Placa Alocada</th><th style="border: 1px solid #d4d4d8; padding: 10px;">Horário Troca</th><th style="border: 1px solid #d4d4d8; padding: 10px;">Equipe</th><th style="border: 1px solid #d4d4d8; padding: 10px; text-align: left;">Base</th></tr><tbody>`;
         lista.forEach(m => {
-            html += `
-                <tr>
-                    <td style="border: 1px solid #d4d4d8; padding: 8px;"><strong>${m.nome}</strong></td>
-                    <td style="border: 1px solid #d4d4d8; padding: 8px; text-align: center;">${m.conjuntoId || '-'}</td>
-                    <td style="border: 1px solid #d4d4d8; padding: 8px; text-align: center; font-weight: bold; color: #2563eb;">${m.caminhaoHoje}</td>
-                    <td style="border: 1px solid #d4d4d8; padding: 8px; text-align: center; font-weight: bold; color: #ea580c;">${m.fimTurno}</td>
-                    <td style="border: 1px solid #d4d4d8; padding: 8px; text-align: center;">${m.equipe || '-'}</td>
-                    <td style="border: 1px solid #d4d4d8; padding: 8px;">${m.cidade || '-'}</td>
-                </tr>
-            `;
+            html += `<tr><td style="border: 1px solid #d4d4d8; padding: 8px;"><strong>${m.nome}</strong></td><td style="border: 1px solid #d4d4d8; padding: 8px; text-align: center;">${m.conjuntoId || '-'}</td><td style="border: 1px solid #d4d4d8; padding: 8px; text-align: center; font-weight: bold; color: #2563eb;">${m.caminhaoHoje}</td><td style="border: 1px solid #d4d4d8; padding: 8px; text-align: center; font-weight: bold; color: #ea580c;">${m.fimTurno}</td><td style="border: 1px solid #d4d4d8; padding: 8px; text-align: center;">${m.equipe || '-'}</td><td style="border: 1px solid #d4d4d8; padding: 8px;">${m.cidade || '-'}</td></tr>`;
         });
-        html += `</tbody></table>`;
-        return html;
+        return html + `</tbody></table>`;
     };
 
     const janelaImp = window.open('', '', 'width=900,height=700');
-    janelaImp.document.write(`
-        <html>
-            <head>
-                <title>Relatório de Escala Diária - ${dataFormatada}</title>
-                <style>
-                    body { font-family: 'Segoe UI', Arial, sans-serif; margin: 40px; color: #1f2937; }
-                    .print-header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #2563eb; padding-bottom: 20px; }
-                    .print-header h1 { margin: 0; color: #1e3a8a; font-size: 24px; }
-                    .print-header p { margin: 5px 0 0 0; color: #4b5563; font-size: 16px; }
-                    
-                    @media print {
-                        .no-print { display: none; }
-                        body { margin: 0; padding: 20px; }
-                    }
-                    
-                    .btn-print {
-                        background-color: #2563eb;
-                        color: white;
-                        border: none;
-                        padding: 12px 24px;
-                        font-size: 16px;
-                        border-radius: 6px;
-                        cursor: pointer;
-                        font-weight: bold;
-                        box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
-                    }
-                    .btn-print:hover { background-color: #1d4ed8; }
-                </style>
-            </head>
-            <body>
-                <div class="print-header">
-                    <h1>Serrana Florestal - Divisão CCOL</h1>
-                    <p><strong>Relatório Operacional: Escala de Trabalho Diária</strong></p>
-                    <p style="font-size: 14px; margin-top: 10px;">Data de Referência: <strong>${dataFormatada}</strong></p>
-                </div>
-                
-                ${buildTable('☀️ TURNO DO DIA (Equipes A, B e Folguista C)', trabalhandoDia)}
-                
-                <div style="margin-top: 40px;"></div>
-                
-                ${buildTable('🌙 TURNO DA NOITE (Equipes D, E e Folguista F)', trabalhandoNoite)}
-                
-                <div class="no-print" style="text-align: center; margin-top: 50px;">
-                    <button class="btn-print" onclick="window.print()">🖨️ Imprimir Agora</button>
-                    <p style="font-size: 12px; color: #6b7280; margin-top: 15px;">Dica: Salve em PDF ou envie direto para sua impressora.</p>
-                </div>
-            </body>
-        </html>
-    `);
+    janelaImp.document.write(`<html><head><title>Escala Diária - ${dataFormatada}</title><style>body { font-family: sans-serif; margin: 40px; } .print-header { text-align: center; border-bottom: 2px solid #2563eb; padding-bottom: 20px; } @media print { .no-print { display: none; } body { margin: 0; padding: 20px; } }</style></head><body>
+        <div class="print-header"><h1>Serrana Florestal - CCOL</h1><p><strong>Relatório: Escala Diária</strong></p><p>Data: <strong>${dataFormatada}</strong></p></div>
+        ${buildTable('☀️ TURNO DO DIA (Equipes A, B e C)', trabalhandoDia)} <br> ${buildTable('🌙 TURNO DA NOITE (Equipes D, E e F)', trabalhandoNoite)}
+        <div class="no-print" style="text-align: center; margin-top: 50px;"><button style="padding: 10px 20px; background: #2563eb; color: #fff; border: none; cursor: pointer;" onclick="window.print()">Imprimir Agora</button></div></body></html>`);
     janelaImp.document.close();
 };

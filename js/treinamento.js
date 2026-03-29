@@ -1,4 +1,4 @@
-// ==================== MÓDULO: TREINAMENTO MASTER DRIVE (VIA BANCO DE DADOS) ====================
+// ==================== MÓDULO: TREINAMENTO MASTER DRIVE ====================
 
 const listaViagemAssistida = [
     { nome: "JOSÉ FERREIRA DE OLIVEIRA", class: "C", viagens: "1 VIAGEM" },
@@ -153,11 +153,16 @@ window.adicionarInstrutor = function() {
     }
 }
 
-window.removerInstrutor = function(index) {
+window.removerInstrutor = async function(index) {
+    if(currentUser && currentUser.role !== 'Admin') { alert('⛔ Acesso Negado: Apenas Administradores podem excluir instrutores.'); return; }
     if(confirm("Remover este instrutor?")) {
         const nomeParaRemover = instrutoresMaster[index];
         instrutoresMaster.splice(index, 1);
-        db.deleteInstrutor(nomeParaRemover); 
+        await db.deleteInstrutor(nomeParaRemover); 
+        
+        await db.addLog('Exclusão de Instrutor', `O Instrutor ${nomeParaRemover} foi removido do sistema.`);
+        if(typeof renderizarLogs === 'function') renderizarLogs();
+        
         renderizarInstrutores();
     }
 }
@@ -167,14 +172,13 @@ window.renderizarCronogramaTreinamento = function() {
     
     const tbody = document.getElementById('tabelaTreinamentos');
     const tbodyConcluidos = document.getElementById('tabelaConcluidos');
-    const tbodyPendentes = document.getElementById('tabelaPendentes'); // NOVO: Tabela de pendentes
+    const tbodyPendentes = document.getElementById('tabelaPendentes'); 
     if (!tbody || !tbodyConcluidos || !tbodyPendentes) return;
 
     if (cronogramaTreinamento.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" style="padding: 30px; text-align: center; color: var(--text-secondary);">Nenhum treinamento agendado no momento.</td></tr>';
     } else {
         cronogramaTreinamento.sort((a, b) => a.data.localeCompare(b.data));
-
         tbody.innerHTML = cronogramaTreinamento.map(t => `
             <tr style="background-color: rgba(255,255,255,0.02);">
                 <td><strong style="font-size: 1.05rem;">${t.dataTexto}</strong><br><span style="font-size:0.75rem; color:var(--text-secondary);">${t.data} - ${t.turno}</span></td>
@@ -189,7 +193,6 @@ window.renderizarCronogramaTreinamento = function() {
         `).join('');
     }
 
-    // --- LÓGICA DA TABELA DE PENDENTES ---
     let alunosPendentes = listaViagemAssistida.filter(req => {
         const jaConcluido = treinamentosConcluidos.some(c => strNormalize(c.motoristaNome) === strNormalize(req.nome));
         const jaAgendado = cronogramaTreinamento.some(a => strNormalize(a.motoristaNome) === strNormalize(req.nome));
@@ -209,16 +212,12 @@ window.renderizarCronogramaTreinamento = function() {
         `).join('');
     }
 
-    // --- LÓGICA DA TABELA DE CONCLUÍDOS ---
     if (treinamentosConcluidos.length === 0) {
-        tbodyConcluidos.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: var(--text-secondary);">Nenhum treinamento foi marcado como concluído ainda.</td></tr>';
+        tbodyConcluidos.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: var(--text-secondary);">Nenhum treinamento concluído.</td></tr>';
     } else {
         treinamentosConcluidos.sort((a, b) => new Date(b.dataConclusao) - new Date(a.dataConclusao));
-
         tbodyConcluidos.innerHTML = treinamentosConcluidos.map(t => {
-            const dt = new Date(t.dataConclusao);
-            const dataFormatada = dt.toLocaleDateString('pt-BR');
-            
+            const dataFormatada = new Date(t.dataConclusao).toLocaleDateString('pt-BR');
             return `
             <tr style="background-color: rgba(61, 220, 132, 0.05);">
                 <td><strong style="color: var(--ccol-green-bright);">${dataFormatada}</strong></td>
@@ -231,10 +230,18 @@ window.renderizarCronogramaTreinamento = function() {
     }
 }
 
-window.removerTreinamento = function(id) {
-    if(confirm("Deseja cancelar o agendamento deste treinamento?")) {
+window.removerTreinamento = async function(id) {
+    if(currentUser && currentUser.role !== 'Admin') { alert('⛔ Acesso Negado: Apenas Administradores podem excluir agendamentos.'); return; }
+    if(confirm("Deseja cancelar e EXCLUIR este treinamento?")) {
+        const treinoCancelado = cronogramaTreinamento.find(t => t.id === id);
         cronogramaTreinamento = cronogramaTreinamento.filter(t => t.id !== id);
-        db.deleteTreinamento(id); 
+        await db.deleteTreinamento(id); 
+        
+        if (treinoCancelado) {
+            await db.addLog('Exclusão de Treinamento', `Agendamento de ${treinoCancelado.motoristaNome} com Instrutor ${treinoCancelado.instrutor} foi cancelado.`);
+            if(typeof renderizarLogs === 'function') renderizarLogs();
+        }
+
         renderizarCronogramaTreinamento();
         if(typeof renderizarEscala === 'function') renderizarEscala();
     }
@@ -245,13 +252,10 @@ window.concluirTreinamento = function(id) {
         const treinamento = cronogramaTreinamento.find(t => t.id === id);
         if (treinamento) {
             cronogramaTreinamento = cronogramaTreinamento.filter(t => t.id !== id);
-            
             treinamento.dataConclusao = new Date().toISOString();
             treinamento.status = 'concluido';
-            
             treinamentosConcluidos.push(treinamento);
             db.upsertTreinamento(treinamento); 
-            
             renderizarCronogramaTreinamento();
             if(typeof renderizarEscala === 'function') renderizarEscala();
         }
@@ -259,26 +263,14 @@ window.concluirTreinamento = function(id) {
 }
 
 window.gerarTreinamentoAuto = function() {
-    if(instrutoresMaster.length === 0) { 
-        alert('⚠️ Adicione pelo menos um Instrutor Master Drive no painel ao lado primeiro!'); 
-        return; 
-    }
-
+    if(instrutoresMaster.length === 0) { alert('⚠️ Adicione um Instrutor Master Drive primeiro!'); return; }
     const dataInicioInput = document.getElementById('treinamentoDataInicio').value;
     const instrutorSelecionado = document.getElementById('treinamentoInstrutor').value;
     const turnoSelecionado = document.getElementById('treinamentoTurno').value;
 
-    if(!dataInicioInput) {
-        alert('⚠️ Selecione a Data de Início para agendar o treinamento!');
-        return;
-    }
-
-    if(!instrutorSelecionado) {
-        alert('⚠️ Selecione qual Instrutor aplicará o treinamento!');
-        return;
-    }
+    if(!dataInicioInput) { alert('⚠️ Selecione a Data de Início!'); return; }
+    if(!instrutorSelecionado) { alert('⚠️ Selecione qual Instrutor!'); return; }
     
-    // Gera 7 dias a partir da data de início escolhida pelo usuário
     const dias = [];
     const dataBase = new Date(dataInicioInput + 'T00:00:00');
     const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -286,11 +278,7 @@ window.gerarTreinamentoAuto = function() {
         const data = new Date(dataBase);
         data.setDate(dataBase.getDate() + i);
         const dataStr = data.toISOString().split('T')[0];
-        dias.push({
-            dateKey: dataStr,
-            diaTexto: diasSemana[data.getDay()],
-            diaNum: `${String(data.getDate()).padStart(2, '0')}/${String(data.getMonth()+1).padStart(2, '0')}`
-        });
+        dias.push({ dateKey: dataStr, diaTexto: diasSemana[data.getDay()], diaNum: `${String(data.getDate()).padStart(2, '0')}/${String(data.getMonth()+1).padStart(2, '0')}` });
     }
     
     let alunosPendentes = listaViagemAssistida.filter(req => {
@@ -299,45 +287,27 @@ window.gerarTreinamentoAuto = function() {
         return !jaConcluido && !jaAgendado;
     });
 
-    if(alunosPendentes.length === 0) {
-        alert('✅ Todos os motoristas da Lista do PDF já foram agendados ou concluídos!');
-        return;
-    }
+    if(alunosPendentes.length === 0) { alert('✅ Todos já agendados!'); return; }
 
-    let msgConfirm = `Existem ${alunosPendentes.length} motoristas aguardando agendamento.\n\nDeseja distribuir para o instrutor ${instrutorSelecionado} a partir do dia ${dias[0].diaNum}?`;
-    if (turnoSelecionado !== 'Todos') {
-        msgConfirm += `\n(Aplicando filtro para agendar apenas quem é do turno do ${turnoSelecionado})`;
-    }
-    
-    if(!confirm(msgConfirm)) return;
+    if(!confirm(`Existem ${alunosPendentes.length} motoristas pendentes.\nGerar agendamentos para ${instrutorSelecionado}?`)) return;
 
     let agendamentosNovos = 0;
-
     dias.forEach(dia => {
-        let alunoEscolhido = null;
-        let infoPDF = null;
-        
+        let alunoEscolhido = null, infoPDF = null;
         for(let i = 0; i < alunosPendentes.length; i++) {
             let reqPDF = alunosPendentes[i];
             let motSistema = motoristas.find(m => strNormalize(m.nome).includes(strNormalize(reqPDF.nome)) || strNormalize(reqPDF.nome).includes(strNormalize(m.nome)));
-            
             if (motSistema) {
                 const equipeMot = motSistema.equipe || '-';
                 const isDia = ['A', 'B', 'C'].includes(equipeMot);
                 const isNoite = ['D', 'E', 'F'].includes(equipeMot);
-
                 if (turnoSelecionado === 'Dia' && !isDia) continue;
                 if (turnoSelecionado === 'Noite' && !isNoite) continue;
 
                 let escalaDia = window.getEscalaDiaComputada(motSistema, dia.dateKey);
                 if(escalaDia && escalaDia.caminhao !== 'F') {
-                    // Verifica se o instrutor selecionado já está ocupado neste dia
-                    const instrutorOcupado = cronogramaTreinamento.some(t => t.data === dia.dateKey && t.instrutor === instrutorSelecionado && t.status === 'agendado');
-                    
-                    if (!instrutorOcupado) {
-                        alunoEscolhido = motSistema;
-                        infoPDF = reqPDF;
-                        break;
+                    if (!cronogramaTreinamento.some(t => t.data === dia.dateKey && t.instrutor === instrutorSelecionado && t.status === 'agendado')) {
+                        alunoEscolhido = motSistema; infoPDF = reqPDF; break;
                     }
                 }
             }
@@ -345,22 +315,13 @@ window.gerarTreinamentoAuto = function() {
         
         if(alunoEscolhido && infoPDF) {
             const novoTreino = {
-                id: Date.now().toString() + Math.random().toString(),
-                data: dia.dateKey,
-                dataTexto: dia.diaNum,
-                instrutor: instrutorSelecionado, 
-                motoristaId: alunoEscolhido.id,
-                motoristaNome: infoPDF.nome,
-                classificacao: infoPDF.class,
-                viagens: infoPDF.viagens,
-                turno: alunoEscolhido.turno || 'Misto',
-                status: 'agendado',
-                dataConclusao: null
+                id: Date.now().toString() + Math.random().toString(), data: dia.dateKey, dataTexto: dia.diaNum,
+                instrutor: instrutorSelecionado, motoristaId: alunoEscolhido.id, motoristaNome: infoPDF.nome,
+                classificacao: infoPDF.class, viagens: infoPDF.viagens, turno: alunoEscolhido.turno || 'Misto',
+                status: 'agendado', dataConclusao: null
             };
-
             cronogramaTreinamento.push(novoTreino);
             db.upsertTreinamento(novoTreino); 
-            
             alunosPendentes = alunosPendentes.filter(p => strNormalize(p.nome) !== strNormalize(infoPDF.nome));
             agendamentosNovos++;
         }
@@ -368,10 +329,6 @@ window.gerarTreinamentoAuto = function() {
     
     renderizarCronogramaTreinamento();
     if(typeof renderizarEscala === 'function') renderizarEscala(); 
-    
-    if (agendamentosNovos > 0) {
-        alert(`🎉 Sucesso! Foram agendados e salvos no banco ${agendamentosNovos} novos treinamentos com o Instrutor ${instrutorSelecionado}.`);
-    } else {
-        alert(`⚠️ Nenhum agendamento foi feito. \nO Instrutor pode estar ocupado nesses dias ou os motoristas da lista não têm dias de trabalho agendados neste período/turno selecionado.`);
-    }
+    if (agendamentosNovos > 0) alert(`🎉 Foram agendados ${agendamentosNovos} novos treinamentos.`);
+    else alert(`⚠️ Nenhum agendamento foi feito.`);
 }

@@ -3,15 +3,12 @@
 let currentUser = null;
 let listaUsuarios = [];
 
-// Função nativa para criar Hash SHA-256 da senha
 async function hashPassword(password) {
     const msgBuffer = new TextEncoder().encode(password);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
-
-// ---------------- LOGIN E ACESSO ----------------
 
 window.realizarLogin = async function() {
     const userStr = document.getElementById('loginUser').value.trim().toUpperCase();
@@ -77,29 +74,21 @@ function iniciarSistemaAutorizado() {
     document.getElementById('loggedUserName').innerText = currentUser.username;
     document.getElementById('loggedUserRole').innerText = currentUser.role;
 
-    // --- CONTROLE DE ACESSO (PERMISSÕES) ---
-    const btnConfig = document.getElementById('navConfigBtn');
     if (currentUser.role === 'Admin') {
-        btnConfig.style.display = 'block';
-        carregarUsuarios(); // Puxa a lista de usuários para o painel de admin
-    } else {
-        btnConfig.style.display = 'none'; // Esconde menu configurações para Controlador
+        carregarUsuarios();
+        renderizarLogs();
     }
 
-    // Dispara a carga da aplicação original (em app.js)
-    if (typeof initDashboard === 'function') {
-        initDashboard();
-    }
+    if (typeof initDashboard === 'function') initDashboard();
 }
 
-// Escuta a tecla ENTER no login
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('loginPass')?.addEventListener('keypress', function (e) {
         if (e.key === 'Enter') realizarLogin();
     });
 });
 
-// ---------------- GERENCIAMENTO DE USUÁRIOS (APENAS ADMIN) ----------------
+// ---------------- GERENCIAMENTO E LOGS (APENAS ADMIN) ----------------
 
 window.carregarUsuarios = async function() {
     listaUsuarios = await db.getUsuarios();
@@ -127,8 +116,8 @@ window.renderizarTabelaUsuarios = function() {
             <td>${u.role}</td>
             <td>${statusBadge}</td>
             <td>
-                <button onclick="resetarSenhaUsuario(${u.id})" ${isCurrent ? 'disabled' : ''} style="background: rgba(255,255,255,0.05); border: 1px solid #666; color: #fff; padding: 5px 10px; border-radius: 4px; cursor: ${isCurrent ? 'not-allowed' : 'pointer'}; font-size: 0.75rem;" title="Voltar a senha para 12345">🔄 Resetar Senha</button>
-                <button onclick="excluirUsuario(${u.id})" ${isCurrent ? 'disabled' : ''} style="background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #ef4444; padding: 5px 10px; border-radius: 4px; cursor: ${isCurrent ? 'not-allowed' : 'pointer'}; font-size: 0.75rem; margin-left: 5px;" title="Excluir Usuário">🗑️ Excluir</button>
+                <button onclick="resetarSenhaUsuario(${u.id})" ${isCurrent ? 'disabled' : ''} style="background: rgba(255,255,255,0.05); border: 1px solid #666; color: #fff; padding: 5px 10px; border-radius: 4px; cursor: ${isCurrent ? 'not-allowed' : 'pointer'}; font-size: 0.75rem;">🔄 Resetar</button>
+                <button onclick="excluirUsuario(${u.id})" ${isCurrent ? 'disabled' : ''} style="background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #ef4444; padding: 5px 10px; border-radius: 4px; cursor: ${isCurrent ? 'not-allowed' : 'pointer'}; font-size: 0.75rem; margin-left: 5px;">🗑️ Excluir</button>
             </td>
         </tr>
     `}).join('');
@@ -138,35 +127,23 @@ window.adicionarUsuario = async function() {
     const nome = document.getElementById('novoUsername').value.trim().toUpperCase();
     const role = document.getElementById('novoUserRole').value;
 
-    if (!nome) { alert('Digite o nome de usuário (Ex: JOAO.SILVA)'); return; }
+    if (!nome) { alert('Digite o nome de usuário'); return; }
     if (listaUsuarios.some(u => u.username === nome)) { alert('⚠️ Este usuário já existe!'); return; }
 
-    // O Hash gerado equivale à senha padrão "12345"
     const hashPadrao = "5994471abb01112afcc18159f6cc74b4f511b99806da59b3caf5a9c173cacfc5";
 
-    const novoUser = {
-        username: nome,
-        senha_hash: hashPadrao,
-        role: role,
-        primeiro_acesso: true
-    };
-
     try {
-        await db.addUsuario(novoUser);
+        await db.addUsuario({ username: nome, senha_hash: hashPadrao, role: role, primeiro_acesso: true });
         document.getElementById('novoUsername').value = '';
         alert(`✅ Usuário ${nome} criado com sucesso!\nSenha provisória: 12345`);
         carregarUsuarios();
-    } catch(e) {
-        console.error(e);
-        alert('Erro ao criar usuário no banco de dados.');
-    }
+    } catch(e) { alert('Erro ao criar usuário.'); }
 }
 
 window.resetarSenhaUsuario = async function(id) {
     const u = listaUsuarios.find(x => x.id === id);
     if (!u) return;
-
-    if(confirm(`Tem certeza que deseja RESETAR a senha de ${u.username} para "12345"?\nEle será forçado a trocar a senha novamente.`)) {
+    if(confirm(`Resetar a senha de ${u.username} para "12345"?`)) {
         const hashPadrao = "5994471abb01112afcc18159f6cc74b4f511b99806da59b3caf5a9c173cacfc5";
         await db.updateUsuarioSenhaEReset(id, hashPadrao);
         alert(`A senha de ${u.username} foi resetada para 12345.`);
@@ -176,11 +153,29 @@ window.resetarSenhaUsuario = async function(id) {
 
 window.excluirUsuario = async function(id) {
     const u = listaUsuarios.find(x => x.id === id);
-    if (!u) return;
-
-    if(confirm(`🚨 ATENÇÃO: Deseja EXCLUIR permanentemente o acesso do usuário ${u.username}?`)) {
+    if(confirm(`🚨 ATENÇÃO: Deseja EXCLUIR o acesso do usuário ${u.username}?`)) {
         await db.deleteUsuario(id);
         alert('Usuário excluído.');
         carregarUsuarios();
     }
+}
+
+window.renderizarLogs = async function() {
+    const logs = await db.getLogs();
+    const tbody = document.getElementById('listaLogs');
+    if (!tbody) return;
+
+    if (logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">Nenhum registro de exclusão.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = logs.map(l => `
+        <tr>
+            <td style="color: var(--text-secondary); font-size: 0.8rem;">${new Date(l.data_hora).toLocaleString('pt-BR')}</td>
+            <td style="color: var(--ccol-blue-bright); font-weight: bold;">${l.usuario}</td>
+            <td><span style="background: rgba(239, 68, 68, 0.1); color: #ef4444; padding: 3px 6px; border-radius: 4px; font-size: 0.75rem; border: 1px solid #ef4444;">${l.acao}</span></td>
+            <td style="text-align: left; font-size: 0.85rem;">${l.detalhes}</td>
+        </tr>
+    `).join('');
 }

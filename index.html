@@ -68,6 +68,12 @@
                     <img src="assets/logo.png" alt="Serrana Florestal Logo" class="company-logo-img">
                 </div>
 
+                <div class="quick-stats-header">
+                    <div class="q-stat" title="Motoristas Disponíveis / Sem Conjunto">🛋️ <span id="statDisponiveis">0</span></div>
+                    <div class="q-stat" title="Total de Conjuntos">🚛 <span id="statConjuntos">0</span></div>
+                    <div class="q-stat" title="Motoristas Cadastrados">👨‍✈️ <span id="statMotoristas">0</span></div>
+                </div>
+
                 <div class="user-badge" style="background: rgba(255,255,255,0.05); padding: 5px 15px; border-radius: 20px; border: 1px solid var(--border-dim); display: flex; align-items: center; gap: 8px;">
                     <span style="font-size: 1.2rem;">👤</span>
                     <div style="display: flex; flex-direction: column; line-height: 1.2;">
@@ -77,10 +83,6 @@
                     <button onclick="fazerLogout()" style="background: none; border: none; color: #ef4444; font-size: 1.2rem; cursor: pointer; margin-left: 5px;" title="Sair do Sistema">🚪</button>
                 </div>
 
-                <div class="quick-stats-header">
-                    <div class="q-stat" title="Total de Conjuntos">🚛 <span id="statConjuntos">0</span></div>
-                    <div class="q-stat" title="Motoristas Cadastrados">👨‍✈️ <span id="statMotoristas">0</span></div>
-                </div>
             </div>
         </header>
 
@@ -96,7 +98,7 @@
                 </div>
             </div>
 
-            <button id="navConfigBtn" class="nav-item" data-tab="config" style="display: none;">⚙️ Configurações</button>
+            <button id="navConfigBtn" class="nav-item" data-tab="config">⚙️ Configurações</button>
             
             <button class="nav-item" data-tab="troca">⏱️ Painel de Troca</button>
             <button class="nav-item" data-tab="treinamento">🎓 Treinamento</button>
@@ -333,26 +335,25 @@
                 </div>
 
                 <div class="content-panel">
-                    <div class="panel-header"><h3>⚙️ Manutenção do Sistema</h3></div>
-                    <div class="config-grid">
-                        <div class="config-card-dark">
-                            <h4>Horários Proibidos de Troca</h4>
-                            <div class="proibidos-badges">
-                                <span>23:00</span><span>00:00</span><span>01:00</span>
-                            </div>
-                        </div>
-                        <div class="config-card-dark actions-card">
-                            <h4>Gerenciamento de Dados</h4>
-                            <p>Cuidado: Estas ações não podem ser desfeitas.</p>
-                            <div class="config-btns">
-                                <button id="btnExportData" class="btn-secondary-dark">📥 Exportar JSON</button>
-                                <button id="btnImportData" class="btn-secondary-dark">📤 Importar</button>
-                                <input type="file" id="importFile" accept=".json" style="display: none;">
-                                <button id="btnResetData" class="btn-danger-block">⚠️ Resetar Tudo</button>
-                            </div>
-                        </div>
+                    <div class="panel-header">
+                        <h3 style="color: var(--ccol-rust-bright);">📜 Logs de Segurança e Exclusão</h3>
+                    </div>
+                    <div class="table-modern-wrapper" style="max-height: 350px; overflow-y: auto;">
+                        <table class="data-table-modern">
+                            <thead>
+                                <tr>
+                                    <th>Data e Hora</th>
+                                    <th>Usuário Responsável</th>
+                                    <th>Ação Realizada</th>
+                                    <th style="text-align: left;">Detalhes da Exclusão</th>
+                                </tr>
+                            </thead>
+                            <tbody id="listaLogs">
+                                </tbody>
+                        </table>
                     </div>
                 </div>
+
             </div>
 
             <div class="tab-content" id="tab-troca">

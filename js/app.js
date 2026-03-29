@@ -9,6 +9,12 @@ function initTabs() {
             const tabId = tab.getAttribute('data-tab');
             if(!tabId) return; 
             
+            // --- BLOQUEIO DA ABA DE CONFIGURAÇÃO PARA NÃO-ADMINS ---
+            if (tabId === 'config' && currentUser && currentUser.role !== 'Admin') {
+                alert('⛔ Acesso Restrito: Apenas Administradores podem acessar as configurações e logs do sistema.');
+                return; // Impede a abertura da aba
+            }
+            
             document.querySelectorAll('.nav-item, .dropdown-item').forEach(t => t.classList.remove('active'));
             contents.forEach(c => c.classList.remove('active'));
             
@@ -54,13 +60,19 @@ window.atualizarStats = function() {
     const statConjuntos = document.getElementById('statConjuntos');
     const statCaminhoes = document.getElementById('statCaminhoes');
     const statMotoristas = document.getElementById('statMotoristas');
+    const statDisponiveis = document.getElementById('statDisponiveis');
     
     if (statConjuntos) statConjuntos.innerText = conjuntos.length;
     if (statCaminhoes) statCaminhoes.innerText = conjuntos.reduce((acc, c) => acc + (c.caminhoes?.length || 0), 0);
     if (statMotoristas) statMotoristas.innerText = motoristas.length;
+    
+    // Calcula quantos não estão amarrados em um conjunto
+    if (statDisponiveis) {
+        const qtdeDisponiveis = motoristas.filter(m => !m.conjuntoId).length;
+        statDisponiveis.innerText = qtdeDisponiveis;
+    }
 }
 
-// ESTA FUNÇÃO AGORA SÓ É CHAMADA PELO auth.js QUANDO O LOGIN É APROVADO
 window.initDashboard = async function() {
     initTabs();
     await carregarDadosIniciais();

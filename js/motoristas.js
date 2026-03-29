@@ -30,8 +30,6 @@ function renderizarMotoristas() {
     const termoBusca = document.getElementById('searchMotorista')?.value.toLowerCase() || '';
     
     if (!tbody) return;
-
-    // Atualiza as opções do select de Conjuntos dinamicamente
     popularSelectsConjuntoMotorista();
 
     let html = '';
@@ -43,7 +41,6 @@ function renderizarMotoristas() {
     }
 
     motoristasFiltrados.forEach(m => {
-        // Exibição de Tags Visuais Baseadas no Conjunto e Situação
         let tags = [];
         if (!m.conjuntoId) {
             tags.push('<span style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; padding: 3px 6px; border-radius: 4px; font-size: 0.65rem; border: 1px solid #f59e0b;">Disponível / Reserva</span>');
@@ -70,61 +67,44 @@ function renderizarMotoristas() {
 
 document.getElementById('searchMotorista')?.addEventListener('input', renderizarMotoristas);
 
-// ==================== CADASTRAR MOTORISTA ====================
 document.getElementById('btnAddMotorista')?.addEventListener('click', async () => {
     const nome = document.getElementById('motoristaNome').value.trim();
-    const masterDrive = document.getElementById('motoristaMasterDrive').value;
-    const destra = document.getElementById('motoristaDestra').value;
-    const cidade = document.getElementById('motoristaCidade').value;
-    
-    // Novos campos adicionados para automatizar a vida
-    const conjuntoId = document.getElementById('motoristaConjunto').value;
-    const equipe = document.getElementById('motoristaEquipe').value;
-    const turno = document.getElementById('motoristaTurno').value;
-    const dataAncora = document.getElementById('motoristaDataAncora').value;
-
-    if (!nome) { 
-        alert('⚠️ Digite o nome completo do motorista!'); 
-        return; 
-    }
+    if (!nome) { alert('⚠️ Digite o nome completo do motorista!'); return; }
 
     const novoMotorista = {
         id: Date.now(), 
         nome: nome,
-        masterDrive: masterDrive,
-        destra: destra,
-        cidade: cidade,
-        conjuntoId: conjuntoId ? parseInt(conjuntoId) : null,
-        equipe: equipe || '-',
-        turno: turno || '-',
-        data_ancora: dataAncora || null
+        masterDrive: document.getElementById('motoristaMasterDrive').value,
+        destra: document.getElementById('motoristaDestra').value,
+        cidade: document.getElementById('motoristaCidade').value,
+        conjuntoId: document.getElementById('motoristaConjunto').value ? parseInt(document.getElementById('motoristaConjunto').value) : null,
+        equipe: document.getElementById('motoristaEquipe').value || '-',
+        turno: document.getElementById('motoristaTurno').value || '-',
+        data_ancora: document.getElementById('motoristaDataAncora').value || null
     };
 
     motoristas.push(novoMotorista);
     await db.addMotorista(novoMotorista);
     salvarBackupLocal();
 
-    // Limpa o formulário
     document.getElementById('motoristaNome').value = '';
     document.getElementById('motoristaDataAncora').value = '';
     document.getElementById('motoristaConjunto').value = '';
     document.getElementById('motoristaEquipe').value = '-';
     document.getElementById('motoristaTurno').value = '-';
     
-    // Atualiza as interfaces instantaneamente
     renderizarMotoristas();
     if(typeof renderizarAlocacao === 'function') renderizarAlocacao();
     if(typeof renderizarEscala === 'function') renderizarEscala();
     
-    alert('✅ Motorista cadastrado e alocado na escala com sucesso!');
+    alert('✅ Motorista cadastrado com sucesso!');
 });
 
-// ==================== EDITAR E TRANSFERIR ====================
 window.abrirModalEdicao = function(id) {
     const m = motoristas.find(mot => mot.id === id);
     if (!m) return;
 
-    popularSelectsConjuntoMotorista(); // Garante que a lista de frotas tá atualizada
+    popularSelectsConjuntoMotorista(); 
 
     document.getElementById('editMotoristaId').value = m.id;
     document.getElementById('editMotoristaNome').value = m.nome;
@@ -132,7 +112,6 @@ window.abrirModalEdicao = function(id) {
     document.getElementById('editMotoristaDestra').value = m.destra;
     document.getElementById('editMotoristaCidade').value = m.cidade || '';
     
-    // Preenche os campos de Alocação Rápidos
     document.getElementById('editMotoristaConjunto').value = m.conjuntoId || '';
     document.getElementById('editMotoristaEquipe').value = m.equipe || '-';
     document.getElementById('editMotoristaTurno').value = m.turno || '-';
@@ -156,39 +135,37 @@ window.salvarEdicaoMotorista = async function() {
     m.cidade = document.getElementById('editMotoristaCidade').value;
     
     const conjVal = document.getElementById('editMotoristaConjunto').value;
-    m.conjuntoId = conjVal ? parseInt(conjVal) : null; // Se vazio, vira null (sai da frota e fica de plantão)
+    m.conjuntoId = conjVal ? parseInt(conjVal) : null; 
     m.equipe = document.getElementById('editMotoristaEquipe').value;
     m.turno = document.getElementById('editMotoristaTurno').value;
     m.data_ancora = document.getElementById('editMotoristaDataAncora').value || null;
 
-    // Salva direto no banco
     await db.updateMotorista(id, {
-        nome: m.nome,
-        masterDrive: m.masterDrive,
-        destra: m.destra,
-        cidade: m.cidade,
-        conjuntoId: m.conjuntoId,
-        equipe: m.equipe,
-        turno: m.turno,
-        data_ancora: m.data_ancora
+        nome: m.nome, masterDrive: m.masterDrive, destra: m.destra, cidade: m.cidade,
+        conjuntoId: m.conjuntoId, equipe: m.equipe, turno: m.turno, data_ancora: m.data_ancora
     });
     
     salvarBackupLocal();
     fecharModalEdicao();
     
-    // Recarrega todos os painéis
     renderizarMotoristas();
     if(typeof renderizarAlocacao === 'function') renderizarAlocacao();
     if(typeof renderizarEscala === 'function') renderizarEscala();
     if(typeof renderizarTrocaTurno === 'function') renderizarTrocaTurno();
     
-    alert('🔄 Cadastro modificado e transferências aplicadas com sucesso!');
+    alert('🔄 Modificações aplicadas com sucesso!');
 };
 
 window.excluirMotorista = async function(id) {
-    if (!confirm('⚠️ Tem certeza que deseja excluir DE VEZ este motorista do sistema?')) return;
+    if(currentUser && currentUser.role !== 'Admin') { alert('⛔ Acesso Negado: Apenas Administradores podem excluir motoristas.'); return; }
     
-    motoristas = motoristas.filter(m => m.id !== id);
+    const m = motoristas.find(mot => mot.id === id);
+    if (!confirm(`⚠️ Deseja excluir DE VEZ o motorista ${m ? m.nome : ''} do sistema?`)) return;
+    
+    await db.addLog('Exclusão de Motorista', `Motorista removido: ${m.nome} (ID: ${id})`);
+    if(typeof renderizarLogs === 'function') renderizarLogs();
+
+    motoristas = motoristas.filter(x => x.id !== id);
     if (typeof escalas !== 'undefined' && escalas[id]) delete escalas[id];
     
     await db.deleteMotorista(id);

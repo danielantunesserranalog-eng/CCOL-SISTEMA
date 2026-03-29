@@ -1,10 +1,9 @@
-// Configuração do Supabase fornecida
 const supabaseUrl = 'https://ihgiyxzxdldqmrkziijl.supabase.co';
 const supabaseKey = 'sb_publishable_JpMZhW5ZrFKBr7m9KXBkoQ_cpxy1k3x';
 const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
 const db = {
-    // --- SISTEMA DE LOGIN E USUÁRIOS ---
+    // --- LOGIN E USUÁRIOS ---
     async getUsuarioByUsername(username) {
         const { data, error } = await supabaseClient.from('usuarios').select('*').eq('username', username).single();
         if (error) return null;
@@ -18,14 +17,23 @@ const db = {
         return data || [];
     },
     async addUsuario(usuario) {
-        const { error } = await supabaseClient.from('usuarios').insert([usuario]);
-        if (error) throw error;
+        await supabaseClient.from('usuarios').insert([usuario]);
     },
     async updateUsuarioSenhaEReset(id, senha_hash) {
         await supabaseClient.from('usuarios').update({ senha_hash: senha_hash, primeiro_acesso: true }).eq('id', id);
     },
     async deleteUsuario(id) {
         await supabaseClient.from('usuarios').delete().eq('id', id);
+    },
+
+    // --- LOGS DE SEGURANÇA ---
+    async getLogs() {
+        const { data } = await supabaseClient.from('logs_exclusao').select('*').order('data_hora', { ascending: false }).limit(50);
+        return data || [];
+    },
+    async addLog(acao, detalhes) {
+        if (!currentUser) return;
+        await supabaseClient.from('logs_exclusao').insert([{ usuario: currentUser.username, acao, detalhes }]);
     },
 
     // --- CONJUNTOS ---
