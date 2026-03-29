@@ -46,6 +46,7 @@
 
             <button class="nav-item" data-tab="config">⚙️ Configurações</button>
             <button class="nav-item" data-tab="troca">⏱️ Painel de Troca</button>
+            <button class="nav-item" data-tab="treinamento">🎓 Treinamento</button>
         </nav>
 
         <main class="main-content">
@@ -270,6 +271,79 @@
                     </div>
                 </div>
             </div>
+
+            <div class="tab-content" id="tab-treinamento">
+                <div class="action-bar">
+                    <h3 style="color: var(--text-primary); margin: 0; align-self: center;">🎓 Cronograma de Treinamento: Master Drive</h3>
+                    <div class="button-group">
+                        <button class="btn-primary-green" onclick="gerarTreinamentoAuto()">⚡ Gerar Cronograma Automático</button>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 2.5fr; gap: 20px;">
+                    
+                    <div class="content-panel">
+                        <div class="panel-header">
+                            <h3>👨‍🏫 Instrutores</h3>
+                        </div>
+                        <div style="padding: 15px;">
+                            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 10px;">
+                                Adicione os instrutores.
+                            </p>
+                            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                <input type="text" id="novoInstrutorNome" placeholder="Nome do Instrutor" class="dark-select" style="flex:1;">
+                                <button class="btn-primary-blue" onclick="adicionarInstrutor()">➕ Add</button>
+                            </div>
+                            <ul id="listaInstrutores" style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px;">
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="content-panel">
+                        <div class="panel-header">
+                            <h3 style="color: var(--ccol-rust-bright);">⏳ Agendados / Pendentes (Base PDF)</h3>
+                        </div>
+                        <div class="table-modern-wrapper">
+                            <table class="data-table-modern">
+                                <thead>
+                                    <tr>
+                                        <th>Data Prevista</th>
+                                        <th>Instrutor</th>
+                                        <th>Motorista</th>
+                                        <th>Viagens Necessárias</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabelaTreinamentos">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="content-panel" style="margin-top: 20px;">
+                    <div class="panel-header">
+                        <h3 style="color: var(--ccol-green-bright);">✅ Treinamentos Concluídos</h3>
+                    </div>
+                    <div class="table-modern-wrapper">
+                        <table class="data-table-modern">
+                            <thead>
+                                <tr>
+                                    <th>Data de Conclusão</th>
+                                    <th>Motorista</th>
+                                    <th>Classificação</th>
+                                    <th>Instrutor</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaConcluidos">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
         </main>
         
         <footer class="main-footer">
@@ -376,6 +450,7 @@
     <script src="js/motoristas.js"></script>
     <script src="js/conjuntos.js"></script>
     <script src="js/escala.js"></script>
+    <script src="js/treinamento.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

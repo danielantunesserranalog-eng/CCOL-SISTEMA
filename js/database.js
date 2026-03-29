@@ -57,7 +57,35 @@ const db = {
         if (error) console.error('Erro deleteEscalasPorMotorista:', error);
     },
     
-    // Função para deletar todos os dados (útil pro reset)
+    // --- TREINAMENTOS E INSTRUTORES (NOVOS) ---
+    async getInstrutores() {
+        const { data, error } = await supabaseClient.from('instrutores').select('*');
+        if (error) console.error('Erro getInstrutores:', error);
+        return data || [];
+    },
+    async addInstrutor(instrutor) {
+        const { error } = await supabaseClient.from('instrutores').insert([instrutor]);
+        if (error) console.error('Erro addInstrutor:', error);
+    },
+    async deleteInstrutor(nome) {
+        const { error } = await supabaseClient.from('instrutores').delete().eq('nome', nome);
+        if (error) console.error('Erro deleteInstrutor:', error);
+    },
+    async getTreinamentos() {
+        const { data, error } = await supabaseClient.from('treinamentos').select('*');
+        if (error) console.error('Erro getTreinamentos:', error);
+        return data || [];
+    },
+    async upsertTreinamento(treinamento) {
+        const { error } = await supabaseClient.from('treinamentos').upsert([treinamento]);
+        if (error) console.error('Erro upsertTreinamento:', error);
+    },
+    async deleteTreinamento(id) {
+        const { error } = await supabaseClient.from('treinamentos').delete().eq('id', id);
+        if (error) console.error('Erro deleteTreinamento:', error);
+    },
+
+    // Função para deletar todos os dados
     async limparTudo() {
         await supabaseClient.from('escalas').delete().neq('id', '0');
         await supabaseClient.from('motoristas').delete().neq('id', 0);

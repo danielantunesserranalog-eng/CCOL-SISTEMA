@@ -35,6 +35,7 @@ function initTabs() {
             else if (tabId === 'escala') renderizarEscala();
             else if (tabId === 'alocacao') renderizarAlocacao();
             else if (tabId === 'troca') renderizarTrocaTurno();
+            else if (tabId === 'treinamento') renderizarCronogramaTreinamento();
         });
     });
 
@@ -63,6 +64,11 @@ function initTabs() {
 async function init() {
     initTabs();
     await carregarDadosIniciais();
+    
+    // Carrega os dados do módulo de Treinamento Master Drive (via Supabase)
+    if(typeof carregarDadosTreinamento === 'function') {
+        await carregarDadosTreinamento(); 
+    }
     
     // Listener para o filtro de data inicial da escala
     const dataInicioInput = document.getElementById('dataInicioEscala');
