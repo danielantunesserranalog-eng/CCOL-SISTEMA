@@ -12,7 +12,7 @@ function initTabs() {
             // --- BLOQUEIO DA ABA DE CONFIGURAÇÃO PARA NÃO-ADMINS ---
             if (tabId === 'config' && currentUser && currentUser.role !== 'Admin') {
                 alert('⛔ Acesso Restrito: Apenas Administradores podem acessar as configurações e logs do sistema.');
-                return; // Impede a abertura da aba
+                return; 
             }
             
             document.querySelectorAll('.nav-item, .dropdown-item').forEach(t => t.classList.remove('active'));
@@ -31,7 +31,7 @@ function initTabs() {
             
             if (tabId === 'motoristas') renderizarMotoristas();
             else if (tabId === 'caminhoes') renderizarConjuntos();
-            else if (tabId === 'escala') renderizarEscala();
+            else if (tabId === 'escala') window.renderizarEscala();
             else if (tabId === 'alocacao') renderizarAlocacao();
             else if (tabId === 'troca') renderizarTrocaTurno();
             else if (tabId === 'treinamento') renderizarCronogramaTreinamento();
@@ -66,7 +66,6 @@ window.atualizarStats = function() {
     if (statCaminhoes) statCaminhoes.innerText = conjuntos.reduce((acc, c) => acc + (c.caminhoes?.length || 0), 0);
     if (statMotoristas) statMotoristas.innerText = motoristas.length;
     
-    // Calcula quantos não estão amarrados em um conjunto
     if (statDisponiveis) {
         const qtdeDisponiveis = motoristas.filter(m => !m.conjuntoId).length;
         statDisponiveis.innerText = qtdeDisponiveis;
@@ -85,14 +84,9 @@ window.initDashboard = async function() {
     if (dataInicioInput) {
         const hojeStr = new Date().toISOString().split('T')[0];
         dataInicioInput.value = hojeStr;
-        
-        dataInicioInput.addEventListener('change', (e) => {
-            currentDatas = getDatasSemana(e.target.value);
-            renderizarEscala();
-        });
     }
 
-    renderizarEscala();
+    window.renderizarEscala();
     renderizarMotoristas();
     renderizarConjuntos();
     renderizarAlocacao();
@@ -106,20 +100,4 @@ window.initDashboard = async function() {
     
     const searchMotorista = document.getElementById('searchMotorista');
     if (searchMotorista) searchMotorista.addEventListener('input', renderizarMotoristas);
-    
-    const btnGerar = document.getElementById('btnGerarEscalaAuto');
-    if (btnGerar) btnGerar.addEventListener('click', gerarEscala4x2);
-    
-    const btnZerar = document.getElementById('btnZerarEscala');
-    if (btnZerar) btnZerar.addEventListener('click', zerarEscala);
-    
-    const filtroConjunto = document.getElementById('filtroConjuntoEscala');
-    if (filtroConjunto) filtroConjunto.addEventListener('change', renderizarEscala);
-
-    const refreshEscalaBtn = document.getElementById('refreshEscalaBtn');
-    if (refreshEscalaBtn) refreshEscalaBtn.addEventListener('click', () => {
-        const inputData = document.getElementById('dataInicioEscala');
-        currentDatas = getDatasSemana(inputData ? inputData.value : null); 
-        renderizarEscala();
-    });
 }

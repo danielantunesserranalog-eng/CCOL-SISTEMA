@@ -50,15 +50,28 @@ window.getEscalaDiaComputada = function(motorista, dateKey) {
     return { caminhao: statusCaminhao, turno: motorista.turno, status: 'auto' };
 }
 
-function renderizarEscala() {
+window.renderizarEscala = function() {
     const container = document.getElementById('escalaContainer');
-    const filtroSelec = document.getElementById('filtroConjuntoEscala')?.value || 'todos';
-    if (!container) return;
-
     const filtroSelectEl = document.getElementById('filtroConjuntoEscala');
-    if (filtroSelectEl && filtroSelectEl.options.length <= 1) {
-        conjuntos.forEach(c => filtroSelectEl.innerHTML += `<option value="${c.id}">Conjunto ${c.id}</option>`);
+    
+    // ATUALIZA O SELECT DE CONJUNTOS DE FORMA SEGURA E DINÂMICA
+    if (filtroSelectEl) {
+        const valAtual = filtroSelectEl.value;
+        let optHtml = '<option value="todos">Todos</option>';
+        conjuntos.forEach(c => optHtml += `<option value="${c.id}">Conjunto ${c.id}</option>`);
+        if (filtroSelectEl.innerHTML !== optHtml) {
+            filtroSelectEl.innerHTML = optHtml;
+            if (conjuntos.some(c => c.id.toString() === valAtual)) {
+                filtroSelectEl.value = valAtual;
+            } else {
+                filtroSelectEl.value = 'todos';
+            }
+        }
     }
+
+    const filtroSelec = filtroSelectEl ? filtroSelectEl.value : 'todos';
+
+    if (!container) return;
 
     if (motoristas.length === 0) {
         container.innerHTML = '<p style="padding: 20px; text-align: center;">Nenhum motorista cadastrado.</p>';
@@ -67,15 +80,29 @@ function renderizarEscala() {
 
     let html = '';
     const inputData = document.getElementById('dataInicioEscala');
-    if (typeof getDatasSemana === 'function') currentDatas = getDatasSemana(inputData ? inputData.value : null);
+    
+    if (typeof getDatasSemana === 'function') {
+        window.currentDatas = getDatasSemana(inputData ? inputData.value : null);
+    }
 
-    let conjuntosRender = filtroSelec !== 'todos' ? conjuntos.filter(c => c.id == filtroSelec) : conjuntos;
+    // AQUI O FILTRO COMPARA CORRETAMENTE A STRING DO SELECT COM O ID DO BANCO
+    let conjuntosRender = filtroSelec !== 'todos' ? conjuntos.filter(c => c.id.toString() === filtroSelec.toString()) : conjuntos;
+
+    if (conjuntosRender.length === 0) {
+        container.innerHTML = '<p style="padding: 20px; text-align: center;">Nenhum conjunto encontrado para este filtro.</p>';
+        return;
+    }
 
     conjuntosRender.forEach(conj => {
         const motoristasDoConjunto = motoristas.filter(m => m.conjuntoId === conj.id);
-        if (motoristasDoConjunto.length === 0) return;
 
         html += `<div class="escala-conjunto-box"><div class="escala-conjunto-numero">${conj.id}</div><div class="escala-conjunto-tabelas">`;
+
+        // SE O CONJUNTO EXISTE MAS NÃO TEM NINGUÉM LÁ, MOSTRA UMA MENSAGEM AMIGÁVEL
+        if (motoristasDoConjunto.length === 0) {
+            html += `<p style="padding: 15px; color: #555;">Nenhum motorista alocado neste conjunto.</p></div></div>`;
+            return;
+        }
 
         const grupoCaminhao1 = motoristasDoConjunto.filter(m => ['A', 'B', 'C'].includes(m.equipe)).sort((a, b) => a.equipe.localeCompare(b.equipe));
         const grupoCaminhao2 = motoristasDoConjunto.filter(m => ['D', 'E', 'F'].includes(m.equipe)).sort((a, b) => a.equipe.localeCompare(b.equipe));
@@ -91,7 +118,7 @@ function renderizarEscala() {
                             <th class="turno-h">HORÁRIO</th>
                             <th class="go-h">GO</th>
                             <th class="equipe-h">EQUIPE</th>
-                            ${currentDatas.map(d => `<th class="th-dia">${d.diaNum}<br>${d.diaTexto}</th>`).join('')}
+                            ${(window.currentDatas || []).map(d => `<th class="th-dia">${d.diaNum}<br>${d.diaTexto}</th>`).join('')}
                         </tr>
                     </thead>
                     <tbody>
@@ -110,7 +137,7 @@ function renderizarEscala() {
                 tHtml += `<td style="text-align: center;">${goStr}</td>`;
                 tHtml += `<td style="text-align: center;"><strong>${m.equipe !== '-' ? m.equipe : ''}</strong></td>`;
 
-                currentDatas.forEach(d => {
+                (window.currentDatas || []).forEach(d => {
                     const escala = window.getEscalaDiaComputada(m, d.dateKey);
                     const isFolga = escala.caminhao === 'F';
                     const tdClass = isBlocked ? '' : (isFolga ? 'celula-folga' : 'celula-trabalho');
@@ -265,7 +292,7 @@ function updateAlocacao(e) {
     db.updateMotorista(id, { equipe: motorista.equipe, turno: motorista.turno, conjuntoId: motorista.conjuntoId });
     salvarBackupLocal();
     
-    renderizarEscala(); 
+    window.renderizarEscala(); 
     if(typeof atualizarStats === 'function') atualizarStats();
     renderizarAlocacao();
 }
@@ -286,7 +313,7 @@ window.resetarCicloConjunto = async function(conjuntoId) {
 
     salvarBackupLocal();
     renderizarAlocacao();
-    renderizarEscala();
+    window.renderizarEscala();
     alert(`O ciclo do Conjunto ${conjuntoId} foi zerado com sucesso!`);
 };
 
@@ -349,14 +376,14 @@ window.salvarEscalaManual = function() {
         db.updateMotorista(id, { data_ancora: dataEscolhida });
         salvarBackupLocal();
         fecharModalManual();
-        renderizarEscala(); 
+        window.renderizarEscala(); 
         renderizarAlocacao();
     }
 }
 
 window.gerarEscala4x2 = async function(silencioso = false) {
     if(currentUser.role !== 'Admin') { alert('⛔ Acesso Negado: Apenas Administradores podem usar a Geração Automática.'); return; }
-    if (!silencioso && !confirm("Atenção: A inteligência do sistema agora limpa todos os resíduos do banco de dados (que causam lentidão) e aplica a escala matemática baseada na data ajustada (âncora). Confirmar?")) return;
+    if (!silencioso && !confirm("Atenção: A inteligência do sistema agora limpa todos os resíduos do banco de dados e aplica a escala matemática baseada na data ajustada (âncora). Confirmar?")) return;
     
     await db.limparApenasEscalas();
     await db.addLog('Escala', 'Escala Automática 4x2 e limpeza de banco disparadas.');
@@ -366,7 +393,7 @@ window.gerarEscala4x2 = async function(silencioso = false) {
     motoristas.forEach(m => { escalas[m.id] = {}; });
     salvarBackupLocal();
 
-    renderizarEscala(); 
+    window.renderizarEscala(); 
     if (!silencioso) alert(`Sucesso! Banco de dados limpo e escala perfeita reconstruída!`);
 }
 

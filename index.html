@@ -109,18 +109,18 @@
                 <div class="action-bar">
                     <div class="filter-group">
                         <label for="dataInicioEscala">Início da Escala:</label>
-                        <input type="date" id="dataInicioEscala" class="dark-select">
+                        <input type="date" id="dataInicioEscala" class="dark-select" onchange="window.renderizarEscala()">
                         
                         <label for="filtroConjuntoEscala" style="margin-left: 10px;">Conjunto:</label>
-                        <select id="filtroConjuntoEscala" class="dark-select">
+                        <select id="filtroConjuntoEscala" class="dark-select" onchange="window.renderizarEscala()">
                             <option value="todos">Todos</option>
                         </select>
-                        <button id="refreshEscalaBtn" class="btn-icon-only" title="Atualizar">🔄</button>
+                        <button id="refreshEscalaBtn" class="btn-icon-only" title="Atualizar" onclick="window.renderizarEscala()">🔄</button>
                     </div>
                     <div class="button-group">
-                        <button id="btnGerarRelatorio" class="btn-primary-blue">🖨️ Imprimir Relatório</button>
-                        <button id="btnGerarEscalaAuto" class="btn-primary-green">⚡ Gerar 4x2 Automática</button>
-                        <button id="btnZerarEscala" class="btn-danger-outline">🗑️ Zerar</button>
+                        <button id="btnGerarRelatorio" class="btn-primary-blue" onclick="window.print()">🖨️ Imprimir Relatório</button>
+                        <button id="btnGerarEscalaAuto" class="btn-primary-green" onclick="window.gerarEscala4x2()">⚡ Gerar 4x2 Automática</button>
+                        <button id="btnZerarEscala" class="btn-danger-outline" onclick="window.zerarEscala()">🗑️ Zerar</button>
                     </div>
                 </div>
                 
@@ -631,7 +631,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/database.js"></script>
-    <script src="js/auth.js"></script> <script src="js/estado.js"></script>
+    <script src="js/auth.js"></script> 
+    <script src="js/estado.js"></script>
     <script src="js/motoristas.js"></script>
     <script src="js/conjuntos.js"></script>
     <script src="js/escala.js"></script>
