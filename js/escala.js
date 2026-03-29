@@ -434,7 +434,6 @@ window.renderizarTrocaTurno = function() {
         let plantaoSemCaminhao = false;
         let emFolga = false;
 
-        // SEPARAÇÃO INTELIGENTE (ATB / PLANTÃO / FOLGA)
         if (statusEscala === 'manual') {
             if (caminhaoHoje === 'F') emFolga = true;
             else trabalhando = true;
@@ -456,24 +455,24 @@ window.renderizarTrocaTurno = function() {
                     let diferenca = tempoFimTotais - minutosAtuaisTotais;
                     if (diferenca < -720) diferenca += (24 * 60); 
 
-                    // Mostra todos que estão ativos trabalhando e o tempo que falta para acabar o turno
-                    let avisoStatus = '';
-                    if(diferenca < 0) {
-                        avisoStatus = `<span style="color: #ef4444; font-size: 0.75rem;">(Atrasado)</span>`;
-                    } else if(diferenca <= 120) {
-                        avisoStatus = `<span style="color: #fb923c; font-size: 0.75rem;">(Falta ${diferenca}m)</span>`;
-                    } else {
-                        avisoStatus = `<span style="color: var(--text-secondary); font-size: 0.75rem;">(Ativo)</span>`;
-                    }
+                    // AGORA SÓ MOSTRA SE A DIFERENÇA FOR MAIOR OU IGUAL A ZERO (IGNORA OS ATRASADOS)
+                    if (diferenca >= 0) {
+                        let avisoStatus = '';
+                        if(diferenca <= 120) {
+                            avisoStatus = `<span style="color: #fb923c; font-size: 0.75rem;">(Falta ${diferenca}m)</span>`;
+                        } else {
+                            avisoStatus = `<span style="color: var(--text-secondary); font-size: 0.75rem;">(Ativo)</span>`;
+                        }
 
-                    htmlProximos += `
-                        <tr>
-                            <td style="text-align: left; padding-left: 15px;"><strong>${m.nome}</strong></td>
-                            <td>Conjunto ${m.conjuntoId || '-'}</td>
-                            <td><strong style="color: var(--ccol-rust-bright);">${fimStr}</strong> ${avisoStatus}</td>
-                            <td>${m.cidade || '-'}</td>
-                        </tr>
-                    `;
+                        htmlProximos += `
+                            <tr>
+                                <td style="text-align: left; padding-left: 15px;"><strong>${m.nome}</strong></td>
+                                <td>Conjunto ${m.conjuntoId || '-'}</td>
+                                <td><strong style="color: var(--ccol-rust-bright);">${fimStr}</strong> ${avisoStatus}</td>
+                                <td>${m.cidade || '-'}</td>
+                            </tr>
+                        `;
+                    }
                 }
             }
         } else if (plantaoSemCaminhao) {
@@ -497,7 +496,7 @@ window.renderizarTrocaTurno = function() {
         }
     });
 
-    if (htmlProximos === '') htmlProximos = '<tr><td colspan="4" style="padding: 20px; color: var(--text-secondary); text-align:center;">Ninguém trabalhando no momento.</td></tr>';
+    if (htmlProximos === '') htmlProximos = '<tr><td colspan="4" style="padding: 20px; color: var(--text-secondary); text-align:center;">Ninguém próximo da troca neste momento.</td></tr>';
     if (htmlSemCaminhao === '') htmlSemCaminhao = '<tr><td colspan="4" style="padding: 20px; color: var(--text-secondary); text-align:center;">Nenhum motorista de plantão sem caminhão.</td></tr>';
     if (htmlFolga === '') htmlFolga = '<tr><td colspan="4" style="padding: 20px; color: var(--text-secondary); text-align:center;">Nenhum motorista de folga hoje.</td></tr>';
 
@@ -510,8 +509,6 @@ window.renderizarTrocaTurno = function() {
 
 window.imprimirRelatorioTrabalhoHoje = function() {
     const hojeStr = new Date().toISOString().split('T')[0];
-    
-    // Formata a data para exibir no título
     const partes = hojeStr.split('-');
     const dataFormatada = `${partes[2]}/${partes[1]}/${partes[0]}`;
 
@@ -525,8 +522,15 @@ window.imprimirRelatorioTrabalhoHoje = function() {
         
         if (caminhaoHoje !== 'F') {
             const isDia = ['A', 'B', 'C'].includes(m.equipe);
-            if (isDia) trabalhandoDia.push({ ...m, caminhaoHoje });
-            else trabalhandoNoite.push({ ...m, caminhaoHoje });
+            
+            // CAPTURA O HORÁRIO FINAL DA TROCA DE TURNO
+            let fimTurno = '-';
+            if (m.turno && m.turno !== '-') {
+                fimTurno = m.turno.split('-')[1] || m.turno;
+            }
+            
+            if (isDia) trabalhandoDia.push({ ...m, caminhaoHoje, fimTurno });
+            else trabalhandoNoite.push({ ...m, caminhaoHoje, fimTurno });
         }
     });
 
@@ -545,6 +549,7 @@ window.imprimirRelatorioTrabalhoHoje = function() {
                         <th style="border: 1px solid #d4d4d8; padding: 10px; text-align: left;">Motorista</th>
                         <th style="border: 1px solid #d4d4d8; padding: 10px; text-align: center;">Conjunto</th>
                         <th style="border: 1px solid #d4d4d8; padding: 10px; text-align: center;">Placa Alocada</th>
+                        <th style="border: 1px solid #d4d4d8; padding: 10px; text-align: center;">Horário de Troca</th>
                         <th style="border: 1px solid #d4d4d8; padding: 10px; text-align: center;">Equipe</th>
                         <th style="border: 1px solid #d4d4d8; padding: 10px; text-align: left;">Cidade / Base</th>
                     </tr>
@@ -557,6 +562,7 @@ window.imprimirRelatorioTrabalhoHoje = function() {
                     <td style="border: 1px solid #d4d4d8; padding: 8px;"><strong>${m.nome}</strong></td>
                     <td style="border: 1px solid #d4d4d8; padding: 8px; text-align: center;">${m.conjuntoId || '-'}</td>
                     <td style="border: 1px solid #d4d4d8; padding: 8px; text-align: center; font-weight: bold; color: #2563eb;">${m.caminhaoHoje}</td>
+                    <td style="border: 1px solid #d4d4d8; padding: 8px; text-align: center; font-weight: bold; color: #ea580c;">${m.fimTurno}</td>
                     <td style="border: 1px solid #d4d4d8; padding: 8px; text-align: center;">${m.equipe || '-'}</td>
                     <td style="border: 1px solid #d4d4d8; padding: 8px;">${m.cidade || '-'}</td>
                 </tr>
