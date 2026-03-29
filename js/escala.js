@@ -129,11 +129,26 @@ function renderizarEscala() {
                 tHtml += `<td style="text-align: center;"><strong>${m.equipe !== '-' ? m.equipe : ''}</strong></td>`;
 
                 currentDatas.forEach(d => {
-                    // USO DO CÁLCULO INTELIGENTE
                     const escala = window.getEscalaDiaComputada(m, d.dateKey);
                     const isFolga = escala.caminhao === 'F';
                     const tdClass = isBlocked ? '' : (isFolga ? 'celula-folga' : 'celula-trabalho');
                     
+                    // --- VERIFICAÇÃO SE HÁ TREINAMENTO AGENDADO PARA APLICAR A COR AMARELA ---
+                    let temTreinamento = false;
+                    let instrutorTreinamento = '';
+                    if (typeof cronogramaTreinamento !== 'undefined') {
+                        const treinoDia = cronogramaTreinamento.find(t => t.motoristaId === m.id && t.data === d.dateKey && t.status === 'agendado');
+                        if (treinoDia) {
+                            temTreinamento = true;
+                            instrutorTreinamento = treinoDia.instrutor;
+                        }
+                    }
+
+                    let estiloTdExtra = temTreinamento ? 'background-color: #fde047 !important; color: #000 !important; border: 2px solid #ca8a04; font-weight: 800;' : '';
+                    let estiloSelectExtra = temTreinamento ? 'background-color: transparent !important; color: #000 !important; font-weight: 800;' : '';
+                    let hoverTitle = temTreinamento ? `Treinamento marcado com: ${instrutorTreinamento}` : '';
+                    // -------------------------------------------------------------------------
+
                     let opcoes = `<option value="F">F</option>`;
                     opcoes += `<optgroup label="Neste Conjunto">`;
                     conj.caminhoes?.forEach(cam => {
@@ -154,7 +169,7 @@ function renderizarEscala() {
                         opcoes += `</optgroup>`;
                     }
 
-                    tHtml += `<td class="${tdClass}"><select class="select-escala-excel" data-motorista="${m.id}" data-data="${d.dateKey}" ${isBlocked ? 'disabled' : ''}>${isBlocked ? '<option value="F">Bloq</option>' : opcoes}</select></td>`;
+                    tHtml += `<td class="${tdClass}" style="${estiloTdExtra}" title="${hoverTitle}"><select class="select-escala-excel" data-motorista="${m.id}" data-data="${d.dateKey}" ${isBlocked ? 'disabled' : ''} style="${estiloSelectExtra}">${isBlocked ? '<option value="F">Bloq</option>' : opcoes}</select></td>`;
                 });
                 tHtml += `</tr>`;
             });
