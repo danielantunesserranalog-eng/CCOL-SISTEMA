@@ -12,16 +12,27 @@ window.getEscalaDiaComputada = function(motorista, dateKey) {
     if (escalas[motorista.id] && escalas[motorista.id][dateKey] && escalas[motorista.id][dateKey].status === 'manual') {
         return escalas[motorista.id][dateKey];
     }
-    if (!motorista.data_ancora || motorista.masterDrive === 'Não' || motorista.destra === 'Não' || !motorista.equipe || motorista.equipe === '-') {
+    
+    // MODIFICAÇÃO: Não barrar mais por falta de equipe se ele for "Sem Frota".
+    // Barra apenas se não tiver data, ou estiver bloqueado.
+    if (!motorista.data_ancora || motorista.masterDrive === 'Não' || motorista.destra === 'Não') {
         return { caminhao: 'F', turno: motorista.turno };
     }
+    
+    // Se ele tiver conjunto alocado, exigimos que tenha uma equipe.
+    if (motorista.conjuntoId && (!motorista.equipe || motorista.equipe === '-')) {
+        return { caminhao: 'F', turno: motorista.turno };
+    }
+
     const dDate = new Date(dateKey + 'T00:00:00');
     const statusMot = window.getStatusMotorista(motorista, dDate);
 
     if (statusMot === 'F') return { caminhao: 'F', turno: motorista.turno };
 
     const conjunto = conjuntos.find(c => c.id === motorista.conjuntoId);
-    if (!conjunto || !conjunto.caminhoes) return { caminhao: 'F', turno: motorista.turno };
+    
+    // MODIFICAÇÃO: Se for dia de trabalho e não tiver conjunto, exibe TRAB (Trabalho)
+    if (!conjunto || !conjunto.caminhoes) return { caminhao: 'TRAB', turno: motorista.turno, status: 'auto' };
 
     let placa1 = conjunto.caminhoes.length > 0 ? (typeof conjunto.caminhoes[0] === 'string' ? conjunto.caminhoes[0] : conjunto.caminhoes[0].placa) : 'F';
     let placa2 = conjunto.caminhoes.length > 1 ? (typeof conjunto.caminhoes[1] === 'string' ? conjunto.caminhoes[1] : conjunto.caminhoes[1].placa) : placa1;
@@ -54,7 +65,6 @@ window.renderizarEscala = function() {
     const container = document.getElementById('escalaContainer');
     const filtroSelectEl = document.getElementById('filtroConjuntoEscala');
     
-    // ATUALIZA O SELECT DE CONJUNTOS DE FORMA SEGURA E DINÂMICA
     if (filtroSelectEl) {
         const valAtual = filtroSelectEl.value;
         let optHtml = '<option value="todos">Todos</option>';
@@ -85,8 +95,18 @@ window.renderizarEscala = function() {
         window.currentDatas = getDatasSemana(inputData ? inputData.value : null);
     }
 
-    // AQUI O FILTRO COMPARA CORRETAMENTE A STRING DO SELECT COM O ID DO BANCO
-    let conjuntosRender = filtroSelec !== 'todos' ? conjuntos.filter(c => c.id.toString() === filtroSelec.toString()) : conjuntos;
+    let conjuntosRender = filtroSelec !== 'todos' ? conjuntos.filter(c => c.id.toString() === filtroSelec.toString()) : [...conjuntos];
+
+    if (filtroSelec === 'todos') {
+        const motoristasSemConjunto = motoristas.filter(m => !m.conjuntoId);
+        if (motoristasSemConjunto.length > 0) {
+            conjuntosRender.push({
+                id: 'S/F', 
+                isSemFrota: true,
+                caminhoes: []
+            });
+        }
+    }
 
     if (conjuntosRender.length === 0) {
         container.innerHTML = '<p style="padding: 20px; text-align: center;">Nenhum conjunto encontrado para este filtro.</p>';
@@ -94,11 +114,14 @@ window.renderizarEscala = function() {
     }
 
     conjuntosRender.forEach(conj => {
-        const motoristasDoConjunto = motoristas.filter(m => m.conjuntoId === conj.id);
+        let motoristasDoConjunto = conj.isSemFrota ? motoristas.filter(m => !m.conjuntoId) : motoristas.filter(m => m.conjuntoId === conj.id);
 
-        html += `<div class="escala-conjunto-box"><div class="escala-conjunto-numero">${conj.id}</div><div class="escala-conjunto-tabelas">`;
+        let numeroDisplay = conj.isSemFrota ? '<span style="font-size: 1.1rem; text-align:center; line-height: 1.2;">SEM<br>FROTA</span>' : conj.id;
+        let borderStyle = conj.isSemFrota ? 'border: 2px solid #f59e0b;' : 'border: 2px solid #000;';
+        let bgNumero = conj.isSemFrota ? 'background-color: #fef3c7; color: #d97706; border-right: 2px solid #f59e0b;' : 'background-color: #f8f9fa; color: #000; border-right: 2px solid #000;';
 
-        // SE O CONJUNTO EXISTE MAS NÃO TEM NINGUÉM LÁ, MOSTRA UMA MENSAGEM AMIGÁVEL
+        html += `<div class="escala-conjunto-box" style="${borderStyle}"><div class="escala-conjunto-numero" style="${bgNumero}">${numeroDisplay}</div><div class="escala-conjunto-tabelas">`;
+
         if (motoristasDoConjunto.length === 0) {
             html += `<p style="padding: 15px; color: #555;">Nenhum motorista alocado neste conjunto.</p></div></div>`;
             return;
@@ -135,7 +158,7 @@ window.renderizarEscala = function() {
                 tHtml += `<td class="td-name" style="${isBlocked ? 'color: red;' : ''}"><strong>${m.nome}</strong> ${tagFolguista}</td>`;
                 tHtml += `<td style="text-align: center;">${displayTurno}</td>`;
                 tHtml += `<td style="text-align: center;">${goStr}</td>`;
-                tHtml += `<td style="text-align: center;"><strong>${m.equipe !== '-' ? m.equipe : ''}</strong></td>`;
+                tHtml += `<td style="text-align: center;"><strong>${m.equipe && m.equipe !== '-' ? m.equipe : ''}</strong></td>`;
 
                 (window.currentDatas || []).forEach(d => {
                     const escala = window.getEscalaDiaComputada(m, d.dateKey);
@@ -157,12 +180,20 @@ window.renderizarEscala = function() {
                     let hoverTitle = temTreinamento ? `Treinamento marcado com: ${instrutorTreinamento}` : '';
 
                     let opcoes = `<option value="F">F</option>`;
-                    opcoes += `<optgroup label="Neste Conjunto">`;
-                    conj.caminhoes?.forEach(cam => {
-                        const placa = typeof cam === 'string' ? cam : cam.placa;
-                        opcoes += `<option value="${placa}" ${escala.caminhao === placa ? 'selected' : ''}>${placa}</option>`;
-                    });
-                    opcoes += `</optgroup>`;
+                    
+                    if (escala.caminhao === 'TRAB' || escala.caminhao === 'RES' || conj.isSemFrota) {
+                        opcoes += `<option value="TRAB" ${escala.caminhao === 'TRAB' ? 'selected' : ''}>TRAB</option>`;
+                        opcoes += `<option value="RES" ${escala.caminhao === 'RES' ? 'selected' : ''}>RES</option>`;
+                    }
+                    
+                    if (!conj.isSemFrota) {
+                        opcoes += `<optgroup label="Neste Conjunto">`;
+                        conj.caminhoes?.forEach(cam => {
+                            const placa = typeof cam === 'string' ? cam : cam.placa;
+                            opcoes += `<option value="${placa}" ${escala.caminhao === placa ? 'selected' : ''}>${placa}</option>`;
+                        });
+                        opcoes += `</optgroup>`;
+                    }
 
                     tHtml += `<td class="${tdClass}" style="${estiloTdExtra}" title="${hoverTitle}"><select class="select-escala-excel" data-motorista="${m.id}" data-data="${d.dateKey}" ${isBlocked ? 'disabled' : ''} style="${estiloSelectExtra}">${isBlocked ? '<option value="F">Bloq</option>' : opcoes}</select></td>`;
                 });
@@ -224,7 +255,7 @@ function renderizarAlocacao() {
         const currentConjunto = m.conjuntoId || 'sem_conjunto';
 
         if (currentConjunto !== lastConjunto) {
-            const tituloConjunto = m.conjuntoId ? `🚛 CONJUNTO ${m.conjuntoId}` : `🚨 MOTORISTAS NÃO LIBERADOS (Reserva / Falta / Atestado / Novatos)`;
+            const tituloConjunto = m.conjuntoId ? `🚛 CONJUNTO ${m.conjuntoId}` : `🚨 MOTORISTAS NÃO LIBERADOS / SEM FROTA`;
             const btnReset = m.conjuntoId ? `<button onclick="resetarCicloConjunto(${m.conjuntoId})" style="float: right; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #ef4444; padding: 4px 12px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-weight: bold;">🔄 ZERAR CICLO</button>` : '';
 
             html += `
@@ -239,7 +270,7 @@ function renderizarAlocacao() {
         }
         
         let equipeSelect = `<select class="select-aloc-equipe select-turno" data-id="${m.id}" ${isBlocked ? 'disabled' : ''}>
-            <option value="-" ${m.equipe === '-' ? 'selected' : ''}>Sem Equipe</option>
+            <option value="-" ${m.equipe === '-' || !m.equipe ? 'selected' : ''}>Sem Equipe</option>
             <option value="A" ${m.equipe === 'A' ? 'selected' : ''}>A (Fixo Dia - Cami 1)</option>
             <option value="B" ${m.equipe === 'B' ? 'selected' : ''}>B (Fixo Dia - Cami 2)</option>
             <option value="C" ${m.equipe === 'C' ? 'selected' : ''}>C (⭐ FOLGUISTA DIA)</option>
@@ -321,12 +352,20 @@ window.abrirModalEscalaManual = function(id) {
     const m = motoristas.find(mot => mot.id === id);
     if (!m) return;
     
-    if(!m.equipe || m.equipe === '-') { alert("O motorista precisa ter uma equipe (A-F) antes de configurar a escala!"); return; }
-    if(!m.conjuntoId) { alert("O motorista precisa estar alocado a um Conjunto!"); return; }
+    // MODIFICAÇÃO: Só exigir equipe se ele tiver um Conjunto atribuído.
+    if (m.conjuntoId && (!m.equipe || m.equipe === '-')) { 
+        alert("O motorista precisa ter uma equipe (A-F) antes de configurar a escala neste conjunto!"); 
+        return; 
+    }
 
     document.getElementById('manualMotId').value = m.id;
     document.getElementById('manualMotNome').innerText = m.nome;
-    document.getElementById('manualMotEquipe').innerText = m.equipe + (m.equipe === 'C' || m.equipe === 'F' ? " (Folguista)" : "");
+    
+    let displayEquipe = "Sem Equipe";
+    if (m.equipe && m.equipe !== '-') {
+        displayEquipe = m.equipe + (m.equipe === 'C' || m.equipe === 'F' ? " (Folguista)" : "");
+    }
+    document.getElementById('manualMotEquipe').innerText = displayEquipe;
     
     let dia1 = new Date();
     if (m.data_ancora) dia1 = new Date(m.data_ancora + 'T00:00:00');
@@ -500,15 +539,13 @@ window.imprimirRelatorioTrabalhoHoje = function() {
         }
     });
 
-    // NOVA ORDENAÇÃO: Prioridade para o Horário de Troca (Crescente), depois Conjunto, depois Nome
     const sortFn = (a, b) => {
         const timeA = a.fimTurno && a.fimTurno !== '-' ? a.fimTurno : '24:00';
         const timeB = b.fimTurno && b.fimTurno !== '-' ? b.fimTurno : '24:00';
         
         if (timeA !== timeB) {
-            return timeA.localeCompare(timeB); // Ordem crescente de horário
+            return timeA.localeCompare(timeB); 
         }
-        // Desempate por Conjunto e depois Nome
         return (a.conjuntoId || 999) - (b.conjuntoId || 999) || a.nome.localeCompare(b.nome);
     };
 
@@ -518,7 +555,6 @@ window.imprimirRelatorioTrabalhoHoje = function() {
     const buildTable = (titulo, lista) => {
         if (lista.length === 0) return `<p style="text-align: center; color: #555; font-size: 11px;">Nenhum motorista alocado.</p>`;
         
-        // Fontes e margens reduzidas para caber em uma página só
         let html = `<h3 style="margin-top: 15px; margin-bottom: 5px; border-bottom: 2px solid #333; padding-bottom: 3px; font-size: 13px;">${titulo}</h3>
             <table style="width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 11px;">
                 <thead>
@@ -557,7 +593,6 @@ window.imprimirRelatorioTrabalhoHoje = function() {
                 h1 { font-size: 16px; margin: 0 0 5px 0; }
                 p { margin: 2px 0; font-size: 11px; }
                 
-                /* Configurações forçadas para PDF e Impressão em 1 Página */
                 @media print { 
                     @page { size: A4 portrait; margin: 10mm; }
                     body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
