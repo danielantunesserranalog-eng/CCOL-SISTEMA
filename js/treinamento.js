@@ -244,6 +244,7 @@ window.gerarTreinamentoAuto = function() {
 
     const dataInicioInput = document.getElementById('treinamentoDataInicio').value;
     const instrutorSelecionado = document.getElementById('treinamentoInstrutor').value;
+    const turnoSelecionado = document.getElementById('treinamentoTurno').value;
 
     if(!dataInicioInput) {
         alert('⚠️ Selecione a Data de Início para agendar o treinamento!');
@@ -281,7 +282,12 @@ window.gerarTreinamentoAuto = function() {
         return;
     }
 
-    if(!confirm(`Existem ${alunosPendentes.length} motoristas aguardando agendamento.\nDeseja distribuir para o instrutor ${instrutorSelecionado} a partir do dia ${dias[0].diaNum}?`)) return;
+    let msgConfirm = `Existem ${alunosPendentes.length} motoristas aguardando agendamento.\n\nDeseja distribuir para o instrutor ${instrutorSelecionado} a partir do dia ${dias[0].diaNum}?`;
+    if (turnoSelecionado !== 'Todos') {
+        msgConfirm += `\n(Aplicando filtro para agendar apenas quem é do turno do ${turnoSelecionado})`;
+    }
+    
+    if(!confirm(msgConfirm)) return;
 
     let agendamentosNovos = 0;
 
@@ -294,6 +300,14 @@ window.gerarTreinamentoAuto = function() {
             let motSistema = motoristas.find(m => strNormalize(m.nome).includes(strNormalize(reqPDF.nome)) || strNormalize(reqPDF.nome).includes(strNormalize(m.nome)));
             
             if (motSistema) {
+                // VERIFICAÇÃO DO TURNO BASEADO NA EQUIPE
+                const equipeMot = motSistema.equipe || '-';
+                const isDia = ['A', 'B', 'C'].includes(equipeMot);
+                const isNoite = ['D', 'E', 'F'].includes(equipeMot);
+
+                if (turnoSelecionado === 'Dia' && !isDia) continue;
+                if (turnoSelecionado === 'Noite' && !isNoite) continue;
+
                 let escalaDia = window.getEscalaDiaComputada(motSistema, dia.dateKey);
                 if(escalaDia && escalaDia.caminhao !== 'F') {
                     // Verifica se o instrutor selecionado já está ocupado neste dia
@@ -313,7 +327,7 @@ window.gerarTreinamentoAuto = function() {
                 id: Date.now().toString() + Math.random().toString(),
                 data: dia.dateKey,
                 dataTexto: dia.diaNum,
-                instrutor: instrutorSelecionado, // Agendando especificamente com o instrutor selecionado
+                instrutor: instrutorSelecionado, 
                 motoristaId: alunoEscolhido.id,
                 motoristaNome: infoPDF.nome,
                 classificacao: infoPDF.class,
@@ -332,11 +346,11 @@ window.gerarTreinamentoAuto = function() {
     });
     
     renderizarCronogramaTreinamento();
-    if(typeof renderizarEscala === 'function') renderizarEscala(); // Atualiza a escala para pintar de amarelo
+    if(typeof renderizarEscala === 'function') renderizarEscala(); 
     
     if (agendamentosNovos > 0) {
         alert(`🎉 Sucesso! Foram agendados e salvos no banco ${agendamentosNovos} novos treinamentos com o Instrutor ${instrutorSelecionado}.`);
     } else {
-        alert(`⚠️ Nenhum agendamento foi feito. O Instrutor pode estar ocupado nesses dias ou os motoristas da lista não têm dias de trabalho agendados neste período.`);
+        alert(`⚠️ Nenhum agendamento foi feito. \nO Instrutor pode estar ocupado nesses dias ou os motoristas da lista não têm dias de trabalho agendados neste período/turno selecionado.`);
     }
 }

@@ -275,7 +275,7 @@
             <div class="tab-content" id="tab-treinamento">
                 <div class="action-bar" style="flex-wrap: wrap; gap: 15px;">
                     <h3 style="color: var(--text-primary); margin: 0; align-self: center;">🎓 Cronograma de Treinamento: Master Drive</h3>
-                    <div class="filter-group" style="display: flex; gap: 10px; align-items: center; margin-left: auto;">
+                    <div class="filter-group" style="display: flex; gap: 10px; align-items: center; margin-left: auto; flex-wrap: wrap;">
                         <label for="treinamentoDataInicio" style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">Data Início:</label>
                         <input type="date" id="treinamentoDataInicio" class="dark-select">
                         
@@ -283,9 +283,16 @@
                         <select id="treinamentoInstrutor" class="dark-select">
                             <option value="">Selecione...</option>
                         </select>
+
+                        <label for="treinamentoTurno" style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600; margin-left: 10px;">Turno:</label>
+                        <select id="treinamentoTurno" class="dark-select">
+                            <option value="Todos">Ambos (Dia/Noite)</option>
+                            <option value="Dia">Apenas Dia (Equipes A, B, C)</option>
+                            <option value="Noite">Apenas Noite (Equipes D, E, F)</option>
+                        </select>
                     </div>
                     <div class="button-group">
-                        <button class="btn-primary-green" onclick="gerarTreinamentoAuto()">⚡ Gerar Cronograma Automático</button>
+                        <button class="btn-primary-green" onclick="gerarTreinamentoAuto()">⚡ Gerar Cronograma</button>
                     </div>
                 </div>
 
