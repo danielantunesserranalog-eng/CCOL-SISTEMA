@@ -167,10 +167,11 @@ window.renderizarCronogramaTreinamento = function() {
     
     const tbody = document.getElementById('tabelaTreinamentos');
     const tbodyConcluidos = document.getElementById('tabelaConcluidos');
-    if (!tbody || !tbodyConcluidos) return;
+    const tbodyPendentes = document.getElementById('tabelaPendentes'); // NOVO: Tabela de pendentes
+    if (!tbody || !tbodyConcluidos || !tbodyPendentes) return;
 
     if (cronogramaTreinamento.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="padding: 30px; text-align: center; color: var(--text-secondary);">Nenhum treinamento pendente ou agendado no momento.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="padding: 30px; text-align: center; color: var(--text-secondary);">Nenhum treinamento agendado no momento.</td></tr>';
     } else {
         cronogramaTreinamento.sort((a, b) => a.data.localeCompare(b.data));
 
@@ -188,6 +189,27 @@ window.renderizarCronogramaTreinamento = function() {
         `).join('');
     }
 
+    // --- LÓGICA DA TABELA DE PENDENTES ---
+    let alunosPendentes = listaViagemAssistida.filter(req => {
+        const jaConcluido = treinamentosConcluidos.some(c => strNormalize(c.motoristaNome) === strNormalize(req.nome));
+        const jaAgendado = cronogramaTreinamento.some(a => strNormalize(a.motoristaNome) === strNormalize(req.nome));
+        return !jaConcluido && !jaAgendado;
+    });
+
+    if (alunosPendentes.length === 0) {
+        tbodyPendentes.innerHTML = '<tr><td colspan="4" style="padding: 20px; text-align: center; color: var(--ccol-green-bright);">Todos os motoristas da lista já foram agendados ou concluídos! 🎉</td></tr>';
+    } else {
+        tbodyPendentes.innerHTML = alunosPendentes.map(p => `
+            <tr style="background-color: rgba(251, 146, 60, 0.05);">
+                <td style="color: var(--text-primary); font-size: 0.95rem;"><strong>${p.nome}</strong></td>
+                <td><span style="background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.8rem;">${p.class}</span></td>
+                <td style="font-size: 0.9rem;">${p.viagens}</td>
+                <td><span style="background: #fb923c; color: #000; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">PENDENTE</span></td>
+            </tr>
+        `).join('');
+    }
+
+    // --- LÓGICA DA TABELA DE CONCLUÍDOS ---
     if (treinamentosConcluidos.length === 0) {
         tbodyConcluidos.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: var(--text-secondary);">Nenhum treinamento foi marcado como concluído ainda.</td></tr>';
     } else {
@@ -300,7 +322,6 @@ window.gerarTreinamentoAuto = function() {
             let motSistema = motoristas.find(m => strNormalize(m.nome).includes(strNormalize(reqPDF.nome)) || strNormalize(reqPDF.nome).includes(strNormalize(m.nome)));
             
             if (motSistema) {
-                // VERIFICAÇÃO DO TURNO BASEADO NA EQUIPE
                 const equipeMot = motSistema.equipe || '-';
                 const isDia = ['A', 'B', 'C'].includes(equipeMot);
                 const isNoite = ['D', 'E', 'F'].includes(equipeMot);
