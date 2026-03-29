@@ -155,10 +155,15 @@ function renderizarAlocacao() {
 
         if (currentConjunto !== lastConjunto) {
             const tituloConjunto = m.conjuntoId ? `🚛 CONJUNTO ${m.conjuntoId}` : `⚠️ NÃO ALOCADOS / SEM CONJUNTO`;
+            
+            // NOVO BOTÃO DE ZERAR CICLO PARA O CONJUNTO
+            const btnReset = m.conjuntoId ? `<button onclick="resetarCicloConjunto(${m.conjuntoId})" style="float: right; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #ef4444; padding: 4px 12px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-weight: bold; transition: all 0.2s;">🔄 ZERAR CICLO</button>` : '';
+
             html += `
                 <tr style="background-color: rgba(255, 255, 255, 0.05); border-top: 2px solid rgba(255,255,255,0.1); border-bottom: 1px solid rgba(255,255,255,0.1);">
-                    <td colspan="5" style="text-align: center; font-weight: 800; color: #3b82f6; padding: 12px 10px; font-size: 0.95rem; letter-spacing: 1.5px;">
+                    <td colspan="5" style="text-align: left; padding-left: 15px; font-weight: 800; color: #3b82f6; padding-top: 12px; padding-bottom: 12px; font-size: 0.95rem; letter-spacing: 1.5px; vertical-align: middle;">
                         ${tituloConjunto}
+                        ${btnReset}
                     </td>
                 </tr>
             `;
@@ -225,6 +230,33 @@ function updateAlocacao(e) {
     renderizarAlocacao();
 }
 
+// ==================== LÓGICA DE RESET DO CONJUNTO INTEIRO ====================
+
+window.resetarCicloConjunto = function(conjuntoId) {
+    if (!confirm(`Deseja realmente ZERAR as datas de todos os motoristas do Conjunto ${conjuntoId}?\nEles voltarão para o status azul "Ajustar Ciclo".`)) return;
+
+    let alterou = false;
+    motoristas.forEach(m => {
+        if (m.conjuntoId === conjuntoId && m.data_ancora) {
+            m.data_ancora = null;
+            db.updateMotorista(m.id, { data_ancora: null });
+            alterou = true;
+            
+            // Recalcula a escala dele usando a data padrão antiga (limpando o ciclo visual)
+            recalcularEscalaUnica(m.id);
+        }
+    });
+
+    if (alterou) {
+        salvarBackupLocal();
+        renderizarAlocacao();
+        renderizarEscala();
+        alert(`O ciclo do Conjunto ${conjuntoId} foi zerado com sucesso!`);
+    } else {
+        alert(`O Conjunto ${conjuntoId} já está zerado ou não tem motoristas configurados.`);
+    }
+};
+
 // ==================== LÓGICA DO MENU DE ESCALA MANUAL ====================
 
 window.abrirModalEscalaManual = function(id) {
@@ -250,7 +282,6 @@ window.abrirModalEscalaManual = function(id) {
     let dia1 = new Date();
     if (m.data_ancora) {
         let offset = 0;
-        // OS OFFSETS MATEMÁTICOS PERFEITOS (Todos trabalham 4 e folgam 2)
         if (m.equipe === 'A' || m.equipe === 'D') offset = 2;
         if (m.equipe === 'B' || m.equipe === 'E') offset = 4;
         if (m.equipe === 'C' || m.equipe === 'F') offset = 0;
@@ -277,7 +308,6 @@ window.atualizarPreviewManual = function() {
     const dBase = new Date(dataStr + 'T00:00:00');
     let html = '';
     
-    // Todos trabalham 4 dias seguidos e folgam 2 dias!
     for(let i = 0; i < 6; i++) {
         let d = new Date(dBase);
         d.setDate(d.getDate() + i);
@@ -313,8 +343,6 @@ window.salvarEscalaManual = function() {
         dAncora.setDate(dAncora.getDate() - offset);
         const novaDataAncora = dAncora.toISOString().split('T')[0];
         
-        // Aplica a data base para o CONJUNTO INTEIRO.
-        // Assim, eles nunca vão se bater no mesmo caminhão!
         motoristas.forEach(mot => {
             if (mot.conjuntoId === m.conjuntoId) {
                 mot.data_ancora = novaDataAncora;
@@ -326,7 +354,6 @@ window.salvarEscalaManual = function() {
         salvarBackupLocal();
         fecharModalManual();
 
-        // Apenas recarrega os painéis na tela em que o usuário está.
         renderizarEscala(); 
         renderizarAlocacao();
     }
@@ -356,24 +383,20 @@ function recalcularEscalaUnica(motoristaId) {
         let cicloDia = ((diffDays % 6) + 6) % 6; 
         let statusCaminhao = 'F';
 
-        // LÓGICA DE 4x2 SEM SOBREPOSIÇÃO
         switch (m.equipe) {
-            case 'A': // Fixo Dia - Caminhão 1
-            case 'D': // Fixo Noite - Caminhão 1
-                // Trabalha dia 2,3,4,5. Folga 0 e 1.
+            case 'A': 
+            case 'D': 
                 statusCaminhao = (cicloDia === 0 || cicloDia === 1) ? 'F' : placa1;
                 break;
-            case 'B': // Fixo Dia - Caminhão 2
-            case 'E': // Fixo Noite - Caminhão 2
-                // Trabalha dia 4,5,0,1. Folga 2 e 3.
+            case 'B': 
+            case 'E': 
                 statusCaminhao = (cicloDia === 2 || cicloDia === 3) ? 'F' : placa2;
                 break;
-            case 'C': // Folguista Dia
-            case 'F': // Folguista Noite
-                // Trabalha dia 0,1 no Caminhão 1. Trabalha 2,3 no Caminhão 2. Folga 4 e 5.
-                if (cicloDia === 0 || cicloDia === 1) statusCaminhao = placa1; // Cobre A/D
-                else if (cicloDia === 2 || cicloDia === 3) statusCaminhao = placa2; // Cobre B/E
-                else statusCaminhao = 'F'; // Folga do folguista
+            case 'C': 
+            case 'F': 
+                if (cicloDia === 0 || cicloDia === 1) statusCaminhao = placa1; 
+                else if (cicloDia === 2 || cicloDia === 3) statusCaminhao = placa2; 
+                else statusCaminhao = 'F'; 
                 break;
         }
 
