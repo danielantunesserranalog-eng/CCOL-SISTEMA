@@ -49,10 +49,27 @@ function renderizarEscala() {
                 const tdClass = isBlocked ? '' : (isFolga ? 'celula-folga' : 'celula-trabalho');
                 
                 let opcoes = `<option value="F">F</option>`;
+                
+                // Opções de caminhões do próprio conjunto
+                opcoes += `<optgroup label="Neste Conjunto">`;
                 conj.caminhoes?.forEach(cam => {
                     const placa = typeof cam === 'string' ? cam : cam.placa;
                     opcoes += `<option value="${placa}" ${escala.caminhao === placa ? 'selected' : ''}>${placa}</option>`;
                 });
+                opcoes += `</optgroup>`;
+
+                // Opções para alocar pontualmente noutros caminhões da frota
+                const outrosConjuntos = conjuntos.filter(c => c.id !== conj.id);
+                if (outrosConjuntos.length > 0) {
+                    opcoes += `<optgroup label="Outros Caminhões">`;
+                    outrosConjuntos.forEach(outro => {
+                        outro.caminhoes?.forEach(cam => {
+                            const placa = typeof cam === 'string' ? cam : cam.placa;
+                            opcoes += `<option value="${placa}" ${escala.caminhao === placa ? 'selected' : ''}>${placa} (Conj. ${outro.id})</option>`;
+                        });
+                    });
+                    opcoes += `</optgroup>`;
+                }
 
                 html += `<td class="${tdClass}"><select class="select-escala-excel" data-motorista="${m.id}" data-data="${d.dateKey}" ${isBlocked ? 'disabled' : ''}>${isBlocked ? '<option value="F">Bloq</option>' : opcoes}</select></td>`;
             });

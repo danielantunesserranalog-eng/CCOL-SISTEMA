@@ -13,6 +13,11 @@
                 <h1>🚛 Sistema de Controle de Jornada</h1>
                 <p>Gestão de Conjuntos, Motoristas e Escalas</p>
             </div>
+            
+            <div class="header-logo">
+                <img src="logo.png" alt="Serrana Florestal Logo" class="logo-img">
+            </div>
+
             <div class="header-stats">
                 <div class="stat-item">
                     <span class="stat-label">Conjuntos</span>
@@ -47,10 +52,11 @@
                     <label>Filtro por Conjunto:</label>
                     <select id="filtroConjuntoEscala">
                         <option value="todos">Todos os Conjuntos</option>
-                        </select>
+                    </select>
                     <button id="refreshEscalaBtn" class="btn-secondary">🔄 Atualizar Visualização</button>
                 </div>
                 <div style="display: flex; gap: 10px;">
+                    <button id="btnGerarRelatorio" class="btn-primary" style="background-color: #17a2b8;">🖨️ Relatório / Imprimir</button>
                     <button id="btnGerarEscalaAuto" class="btn-primary" style="background-color: #28a745;">⚡ Gerar Escala 4x2 Automática</button>
                     <button id="btnZerarEscala" class="btn-danger">🗑️ Zerar Escala</button>
                 </div>

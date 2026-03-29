@@ -66,6 +66,12 @@ async function init() {
         currentDatas = getDatasSemana(); 
         renderizarEscala();
     });
+
+    // Listener para gerar o relatório PDF/Impressão
+    const btnGerarRelatorio = document.getElementById('btnGerarRelatorio');
+    if (btnGerarRelatorio) btnGerarRelatorio.addEventListener('click', () => {
+        window.print();
+    });
 }
 
 // Roda a inicialização assim que o HTML carregar
