@@ -1,49 +1,75 @@
 // ==================== MÓDULO: NAVEGAÇÃO E INICIALIZAÇÃO ====================
 
 function initTabs() {
-    // CORREÇÃO: O sistema agora procura pela classe moderna '.nav-item'
-    const tabs = document.querySelectorAll('.nav-item');
+    // Pega as abas principais E os itens do dropdown
+    const tabs = document.querySelectorAll('.nav-item[data-tab], .dropdown-item[data-tab]');
     const contents = document.querySelectorAll('.tab-content');
     
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
             const tabId = tab.getAttribute('data-tab');
+            if(!tabId) return; // Segurança
             
-            // Remove a classe ativa de todas as abas
-            tabs.forEach(t => t.classList.remove('active'));
+            // Remove a classe ativa de todas as abas e menus
+            document.querySelectorAll('.nav-item, .dropdown-item').forEach(t => t.classList.remove('active'));
             contents.forEach(c => c.classList.remove('active'));
             
-            // Adiciona a classe ativa na aba clicada
-            tab.classList.add('active');
+            // Se for um item de dentro do dropdown, ativa ele E o botão pai "Cadastros"
+            if(tab.classList.contains('dropdown-item')) {
+                tab.classList.add('active');
+                tab.closest('.nav-dropdown').querySelector('.dropdown-toggle').classList.add('active');
+                
+                // ESCONDE O MENU APÓS CLICAR NUMA OPÇÃO
+                document.querySelector('.dropdown-menu').classList.remove('show');
+            } else {
+                tab.classList.add('active');
+            }
+            
+            // Mostra o conteúdo da aba
             const activeContent = document.getElementById(`tab-${tabId}`);
             if (activeContent) activeContent.classList.add('active');
             
-            // Renderiza os dados consoante a aba aberta para poupar processamento
+            // Renderiza os dados corretos
             if (tabId === 'motoristas') renderizarMotoristas();
             else if (tabId === 'caminhoes') renderizarConjuntos();
             else if (tabId === 'escala') renderizarEscala();
             else if (tabId === 'alocacao') renderizarAlocacao();
         });
     });
+
+    // ==================== LÓGICA DO MENU CADASTROS (CLIQUE E HOVER) ====================
+    const dropdownToggle = document.querySelector('.dropdown-toggle');
+    const dropdownMenu = document.querySelector('.dropdown-menu');
+
+    if (dropdownToggle && dropdownMenu) {
+        // Abre/Fecha ao clicar no botão "Cadastros"
+        dropdownToggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation(); // Evita que o clique se espalhe
+            dropdownMenu.classList.toggle('show');
+        });
+
+        // Fecha o menu se o utilizador clicar em qualquer outro lugar fora do menu
+        document.addEventListener('click', (e) => {
+            if (!dropdownToggle.contains(e.target) && !dropdownMenu.contains(e.target)) {
+                dropdownMenu.classList.remove('show');
+            }
+        });
+    }
 }
 
 // INICIALIZAÇÃO PRINCIPAL DA APLICAÇÃO
 async function init() {
-    // 1. Inicializa o menu de navegação
     initTabs();
-    
-    // 2. Carrega dados (DB + Backup Local) do estado.js
     await carregarDadosIniciais();
     
-    // 3. Renderiza a interface
     renderizarEscala();
     renderizarMotoristas();
     renderizarConjuntos();
     renderizarAlocacao();
     atualizarStats();
     
-    // ==================== LISTENERS GLOBAIS DE BOTÕES ====================
-    
+    // Listeners Globais
     const btnAddMotorista = document.getElementById('btnAddMotorista');
     if (btnAddMotorista) btnAddMotorista.addEventListener('click', adicionarMotorista);
     
@@ -68,12 +94,10 @@ async function init() {
         renderizarEscala();
     });
 
-    // Listener para gerar o relatório PDF/Impressão
     const btnGerarRelatorio = document.getElementById('btnGerarRelatorio');
     if (btnGerarRelatorio) btnGerarRelatorio.addEventListener('click', () => {
         window.print();
     });
 }
 
-// Roda a inicialização assim que o HTML carregar
 document.addEventListener('DOMContentLoaded', init);

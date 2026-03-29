@@ -35,8 +35,15 @@
         <nav class="main-nav">
             <button class="nav-item active" data-tab="escala">📅 Escala Semanal</button>
             <button class="nav-item" data-tab="alocacao">🔄 Alocação Geral</button>
-            <button class="nav-item" data-tab="motoristas">👨‍✈️ Motoristas</button>
-            <button class="nav-item" data-tab="caminhoes">🚛 Conjuntos & Caminhões</button>
+            
+            <div class="nav-dropdown">
+                <button class="nav-item dropdown-toggle">📋 Cadastros ▾</button>
+                <div class="dropdown-menu">
+                    <button class="dropdown-item" data-tab="motoristas">👨‍✈️ Motoristas</button>
+                    <button class="dropdown-item" data-tab="caminhoes">🚛 Conjuntos & Caminhões</button>
+                </div>
+            </div>
+
             <button class="nav-item" data-tab="config">⚙️ Configurações</button>
         </nav>
 
