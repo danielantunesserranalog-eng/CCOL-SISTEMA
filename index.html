@@ -108,6 +108,37 @@
                             <input type="text" id="motoristaNome" placeholder="Ex: João Silva">
                         </div>
                         <div class="form-group-dark">
+                            <label>Alocar em Conjunto</label>
+                            <select id="motoristaConjunto" class="dark-select">
+                                <option value="">Não Alocar (Disponível / Reserva)</option>
+                                </select>
+                        </div>
+                        <div class="form-group-dark">
+                            <label>Equipe (Dia / Noite / Folga)</label>
+                            <select id="motoristaEquipe" class="dark-select">
+                                <option value="-">Sem Equipe</option>
+                                <option value="A">A (Fixo Dia - Cami 1)</option>
+                                <option value="B">B (Fixo Dia - Cami 2)</option>
+                                <option value="C">C (⭐ FOLGUISTA DIA)</option>
+                                <option value="D">D (Fixo Noite - Cami 1)</option>
+                                <option value="E">E (Fixo Noite - Cami 2)</option>
+                                <option value="F">F (⭐ FOLGUISTA NOITE)</option>
+                            </select>
+                        </div>
+                        <div class="form-group-dark">
+                            <label>Turno Padrão</label>
+                            <select id="motoristaTurno" class="dark-select">
+                                <option value="-">Não Definido</option>
+                                <option value="06:00-18:00">06:00-18:00 (Dia)</option>
+                                <option value="18:00-06:00">18:00-06:00 (Noite)</option>
+                                <option value="Misto">Misto (Folguista)</option>
+                            </select>
+                        </div>
+                        <div class="form-group-dark">
+                            <label>Data Inicial (Início do Ciclo)</label>
+                            <input type="date" id="motoristaDataAncora" class="dark-select" title="Quando começa o primeiro dia de trabalho (gera a escala automático)">
+                        </div>
+                        <div class="form-group-dark">
                             <label>Curso Master Drive?</label>
                             <select id="motoristaMasterDrive" class="dark-select">
                                 <option value="Sim">Sim</option>
@@ -145,8 +176,8 @@
                                 <option value="Outra Cidade">Outra Cidade</option>
                             </select>
                         </div>
-                        <div class="form-actions">
-                            <button id="btnAddMotorista" class="btn-primary-green btn-full">✅ Cadastrar</button>
+                        <div class="form-actions" style="grid-column: 1 / -1;">
+                            <button id="btnAddMotorista" class="btn-primary-green btn-full">✅ Salvar e Alocar Motorista</button>
                         </div>
                     </div>
                 </div>
@@ -162,7 +193,7 @@
                         <table class="data-table-modern">
                             <thead>
                                 <tr>
-                                    <th>Nome</th>
+                                    <th>Nome / Status</th>
                                     <th>Master</th>
                                     <th>Destra</th>
                                     <th>Cidade</th>
@@ -414,7 +445,7 @@
     <div id="modalEdicaoMotorista" class="modal-overlay">
         <div class="custom-modal">
             <div class="modal-header">
-                <h3>✏️ Editar Motorista</h3>
+                <h3>✏️ Editar / Transferir Motorista</h3>
                 <button class="close-modal" onclick="fecharModalEdicao()">&times;</button>
             </div>
             <div class="modal-body">
@@ -422,6 +453,37 @@
                 <div class="form-group-dark">
                     <label>Nome Completo</label>
                     <input type="text" id="editMotoristaNome">
+                </div>
+                <div class="form-group-dark">
+                    <label>Transferir Conjunto</label>
+                    <select id="editMotoristaConjunto" class="dark-select">
+                        <option value="">Remover do Conjunto (Deixar Disponível)</option>
+                        </select>
+                </div>
+                <div class="form-group-dark">
+                    <label>Equipe (Dia / Noite / Folga)</label>
+                    <select id="editMotoristaEquipe" class="dark-select">
+                        <option value="-">Sem Equipe</option>
+                        <option value="A">A (Fixo Dia - Cami 1)</option>
+                        <option value="B">B (Fixo Dia - Cami 2)</option>
+                        <option value="C">C (⭐ FOLGUISTA DIA)</option>
+                        <option value="D">D (Fixo Noite - Cami 1)</option>
+                        <option value="E">E (Fixo Noite - Cami 2)</option>
+                        <option value="F">F (⭐ FOLGUISTA NOITE)</option>
+                    </select>
+                </div>
+                <div class="form-group-dark">
+                    <label>Turno Padrão</label>
+                    <select id="editMotoristaTurno" class="dark-select">
+                        <option value="-">Não Definido</option>
+                        <option value="06:00-18:00">06:00-18:00 (Dia)</option>
+                        <option value="18:00-06:00">18:00-06:00 (Noite)</option>
+                        <option value="Misto">Misto (Folguista)</option>
+                    </select>
+                </div>
+                <div class="form-group-dark">
+                    <label>Data Inicial (Início do Ciclo)</label>
+                    <input type="date" id="editMotoristaDataAncora" class="dark-select">
                 </div>
                 <div class="form-group-dark">
                     <label>Curso Master Drive?</label>
@@ -464,42 +526,7 @@
             </div>
             <div class="modal-footer">
                 <button class="btn-secondary-dark" onclick="fecharModalEdicao()">Cancelar</button>
-                <button class="btn-primary-green" onclick="salvarEdicaoMotorista()">💾 Salvar Alterações</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="modalEscalaManual" class="modal-overlay">
-        <div class="custom-modal" style="max-width: 650px;">
-            <div class="modal-header">
-                <h3>⚙️ Configurar Escala Manual (Ciclo 4x2)</h3>
-                <button class="close-modal" onclick="fecharModalManual()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 0.85rem;">
-                    Defina abaixo quando o colaborador começa seus 4 dias de trabalho. O sistema projetará o ciclo (4 Trab / 2 Folga) automaticamente sem quebrar a lógica da equipe.
-                </p>
-                <input type="hidden" id="manualMotId">
-                
-                <div style="display: flex; justify-content: space-between; margin-bottom: 15px; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; border: 1px solid var(--border-dim);">
-                    <div style="font-size: 0.95rem;"><strong>Motorista:</strong> <span id="manualMotNome" style="color: var(--ccol-blue-bright);"></span></div>
-                    <div style="font-size: 0.95rem;"><strong>Equipe:</strong> <span id="manualMotEquipe" style="color: var(--ccol-green-bright); font-weight: bold;"></span></div>
-                </div>
-                
-                <div class="form-group-dark">
-                    <label>📅 Data do 1º Dia de Trabalho (Início do Bloco):</label>
-                    <input type="date" id="manualDataInicio" class="dark-select" onchange="atualizarPreviewManual()">
-                </div>
-                
-                <div style="margin-top: 25px;">
-                    <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 600;">PRÉ-VISUALIZAÇÃO DO CICLO:</label>
-                    <div id="previewManualContainer" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px;">
-                        </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn-secondary-dark" onclick="fecharModalManual()">Cancelar</button>
-                <button class="btn-primary-green" onclick="salvarEscalaManual()">💾 Salvar e Aplicar Escala</button>
+                <button class="btn-primary-green" onclick="salvarEdicaoMotorista()">💾 Salvar Modificações</button>
             </div>
         </div>
     </div>
