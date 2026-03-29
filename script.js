@@ -11,7 +11,6 @@ const TURNOS = [];
 for (let i = 0; i < 24; i++) {
     const horaInicio = `${String(i).padStart(2, '0')}:00`;
     
-    // Só adiciona se não for um horário proibido
     if (!HORARIOS_PROIBIDOS.includes(horaInicio)) {
         const horaFimNum = (i + 12) % 24;
         const horaFim = `${String(horaFimNum).padStart(2, '0')}:00`;
@@ -25,7 +24,7 @@ for (let i = 0; i < 24; i++) {
     }
 }
 
-// Datas da semana atual (segunda a domingo)
+// Datas da semana atual
 function getDatasSemana() {
     const hoje = new Date();
     const diaSemana = hoje.getDay();
@@ -53,12 +52,9 @@ async function carregarDadosIniciais() {
         const dbMotoristas = await db.getMotoristas();
         const dbEscalas = await db.getEscalas();
 
-        // Se o banco estiver vazio, carrega os dados de exemplo e salva no Supabase
         if (dbConjuntos.length === 0 && dbMotoristas.length === 0) {
-            console.log("Banco vazio. Semeando dados iniciais...");
             gerarDadosExemploLocais();
             
-            // Salvar no banco
             for (let c of conjuntos) await db.addConjunto(c);
             for (let m of motoristas) await db.addMotorista(m);
             for (let mId in escalas) {
@@ -69,13 +65,12 @@ async function carregarDadosIniciais() {
                         motorista_id: parseInt(mId),
                         data: data,
                         turno: esc.turno,
-                        caminhao: esc.caminhao, // A placa
+                        caminhao: esc.caminhao,
                         status: esc.status
                     });
                 }
             }
         } else {
-            // Preencher variáveis locais com os dados do banco
             conjuntos = dbConjuntos;
             motoristas = dbMotoristas;
             
@@ -92,14 +87,13 @@ async function carregarDadosIniciais() {
             });
         }
 
-        // Garante que todas as datas da semana existam na escala
         const datas = getDatasSemana();
         motoristas.forEach(m => {
             if (!escalas[m.id]) escalas[m.id] = {};
             datas.forEach(d => {
                 if (!escalas[m.id][d.dateKey]) {
                     escalas[m.id][d.dateKey] = {
-                        turno: m.turno,
+                        turno: m.turno || TURNOS[0].periodo,
                         caminhao: 'F',
                         status: 'normal'
                     };
@@ -116,16 +110,13 @@ async function carregarDadosIniciais() {
 function gerarDadosExemploLocais() {
     conjuntos = [
         { id: 34, caminhoes: [{placa: 'TOQ-2A02', go: 'GO-101'}, {placa: 'TOQ-A02', go: 'GO-102'}] },
-        { id: 35, caminhoes: [{placa: 'TOQ-2B24', go: 'GO-201'}, {placa: 'TOQ-2B24-2', go: 'GO-202'}] },
-        { id: 36, caminhoes: [{placa: 'TOQ-3C33', go: 'GO-301'}, {placa: 'TOQ-3C34', go: 'GO-302'}] }
+        { id: 35, caminhoes: [{placa: 'TOQ-2B24', go: 'GO-201'}, {placa: 'TOQ-2B24-2', go: 'GO-202'}] }
     ];
     
     motoristas = [
-        { id: 1, nome: 'ANTONIO GINELI CORREIA', equipe: 'A', turno: '06:00-18:00', conjuntoId: 34 },
-        { id: 2, nome: 'ALESSANDRO BITTA SANTOS', equipe: 'B', turno: '06:00-18:00', conjuntoId: 35 },
-        { id: 3, nome: 'FABIO MAGALHÃES ROSA', equipe: 'C', turno: '06:00-18:00', conjuntoId: 36 },
-        { id: 4, nome: 'LEANDRO BARBOSA DE JESUS', equipe: 'B', turno: '18:00-06:00', conjuntoId: 34 },
-        { id: 5, nome: 'JOSELITO SILVA RIOS', equipe: 'C', turno: '18:00-06:00', conjuntoId: 35 }
+        { id: 1, nome: 'ANTONIO GINELI CORREIA', masterDrive: 'Sim', destra: 'Sim', cidade: 'Itabatan', equipe: 'A', turno: '06:00-18:00', conjuntoId: 34 },
+        { id: 2, nome: 'ALESSANDRO BITTA SANTOS', masterDrive: 'Sim', destra: 'Sim', cidade: 'Mucuri', equipe: 'B', turno: '06:00-18:00', conjuntoId: 35 },
+        { id: 3, nome: 'FABIO MAGALHÃES ROSA', masterDrive: 'Não', destra: 'Não', cidade: 'Itabatan', equipe: 'C', turno: '18:00-06:00', conjuntoId: null }
     ];
     
     escalas = {};
@@ -133,13 +124,12 @@ function gerarDadosExemploLocais() {
     motoristas.forEach(m => {
         escalas[m.id] = {};
         datas.forEach(d => {
-            const caminhoesConj = conjuntos.find(c => c.id === m.conjuntoId)?.caminhoes || [];
-            // Pega um caminhão aleatório
+            const caminhoesConj = m.conjuntoId ? conjuntos.find(c => c.id === m.conjuntoId)?.caminhoes || [] : [];
             const camAleatorio = caminhoesConj.length > 0 ? caminhoesConj[Math.floor(Math.random() * caminhoesConj.length)] : null;
             const placa = camAleatorio ? camAleatorio.placa : 'F';
             
             escalas[m.id][d.dateKey] = {
-                turno: m.turno,
+                turno: m.turno || '06:00-18:00',
                 caminhao: Math.random() > 0.2 ? placa : 'F',
                 status: 'normal'
             };
@@ -149,7 +139,6 @@ function gerarDadosExemploLocais() {
 
 // ==================== FUNÇÕES DE VALIDAÇÃO ====================
 function validarTrocaTurno(motoristaId, novaData, novoTurno) {
-    const dataObj = new Date(novaData);
     const horaInicio = parseInt(novoTurno.split('-')[0].split(':')[0]);
     const minInicio = parseInt(novoTurno.split('-')[0].split(':')[1]);
     const horaInicioStr = `${String(horaInicio).padStart(2,'0')}:${String(minInicio).padStart(2,'0')}`;
@@ -159,12 +148,15 @@ function validarTrocaTurno(motoristaId, novaData, novoTurno) {
     }
     
     const motorista = motoristas.find(m => m.id === motoristaId);
-    const mesmoConjunto = motoristas.filter(m => m.conjuntoId === motorista.conjuntoId && m.id !== motoristaId);
     
-    for (let outro of mesmoConjunto) {
-        const escalaOutro = escalas[outro.id]?.[novaData];
-        if (escalaOutro && escalaOutro.turno === novoTurno && escalaOutro.caminhao !== 'F') {
-            return { valido: false, motivo: `Motorista ${outro.nome} já está escalado neste turno no mesmo conjunto` };
+    if (motorista.conjuntoId !== null) {
+        const mesmoConjunto = motoristas.filter(m => m.conjuntoId === motorista.conjuntoId && m.id !== motoristaId);
+        
+        for (let outro of mesmoConjunto) {
+            const escalaOutro = escalas[outro.id]?.[novaData];
+            if (escalaOutro && escalaOutro.turno === novoTurno && escalaOutro.caminhao !== 'F') {
+                return { valido: false, motivo: `Motorista ${outro.nome} já está escalado neste turno no mesmo conjunto` };
+            }
         }
     }
     
@@ -195,18 +187,23 @@ function renderizarEscala() {
     
     let bodyHtml = '';
     motoristas.forEach(m => {
-        const conjunto = conjuntos.find(c => c.id === m.conjuntoId);
-        bodyHtml += `<tr data-motorista-id="${m.id}">`;
-        bodyHtml += `<td><strong>${conjunto?.id || '?'}</strong></td>`;
-        bodyHtml += `<td>${m.nome}</td>`;
-        bodyHtml += `<td>Equipe ${m.equipe}</td>`;
-        bodyHtml += `<td>${m.turno}</td>`;
+        const conjunto = m.conjuntoId ? conjuntos.find(c => c.id === m.conjuntoId) : null;
+        
+        // Verifica se o motorista está bloqueado por falta de curso
+        const isBlocked = m.masterDrive === 'Não' || m.destra === 'Não';
+        const rowStyle = isBlocked ? 'background-color: #ffe6e6;' : '';
+        const blockedIcon = isBlocked ? ' ⛔' : '';
+        
+        bodyHtml += `<tr data-motorista-id="${m.id}" style="${rowStyle}">`;
+        bodyHtml += `<td><strong>${conjunto?.id || 'Sem Conjunto'}</strong></td>`;
+        bodyHtml += `<td style="${isBlocked ? 'color: #cc0000; font-weight: bold;' : ''}">${m.nome}${blockedIcon}</td>`;
+        bodyHtml += `<td>Equipe ${m.equipe || '-'}</td>`;
+        bodyHtml += `<td>${m.turno || '-'}</td>`;
         
         currentDatas.forEach(d => {
             const escala = escalas[m.id]?.[d.dateKey] || { turno: m.turno, caminhao: 'F', status: 'normal' };
             const caminhoesConj = conjunto?.caminhoes || [];
             
-            // Formatando as opções (Tratamento caso a base de dados ainda tenha strings)
             const opcoes = [{ placa: 'F', go: '' }];
             caminhoesConj.forEach(cam => {
                 const placa = typeof cam === 'string' ? cam : cam.placa;
@@ -214,19 +211,27 @@ function renderizarEscala() {
                 opcoes.push({ placa, go });
             });
             
-            let selectHtml = `<select class="select-escala" data-motorista="${m.id}" data-data="${d.dateKey}">`;
-            opcoes.forEach(opt => {
-                const selected = escala.caminhao === opt.placa ? 'selected' : '';
-                const label = opt.placa === 'F' ? 'F (Folga)' : `${opt.placa} ${opt.go ? `[${opt.go}]` : ''}`;
-                selectHtml += `<option value="${opt.placa}" ${selected}>${label}</option>`;
-            });
+            let selectHtml = `<select class="select-escala" data-motorista="${m.id}" data-data="${d.dateKey}" ${isBlocked ? 'disabled' : ''}>`;
+            if (isBlocked) {
+                selectHtml += `<option value="F" selected>Bloqueado</option>`;
+            } else {
+                opcoes.forEach(opt => {
+                    const selected = escala.caminhao === opt.placa ? 'selected' : '';
+                    const label = opt.placa === 'F' ? 'F (Folga)' : `${opt.placa} ${opt.go ? `[${opt.go}]` : ''}`;
+                    selectHtml += `<option value="${opt.placa}" ${selected}>${label}</option>`;
+                });
+            }
             selectHtml += `</select>`;
             
-            let turnoSelect = `<select class="select-turno" data-motorista="${m.id}" data-data="${d.dateKey}" style="margin-top:5px; width:100%; padding:4px;">`;
-            TURNOS.forEach(t => {
-                const selected = escala.turno === t.periodo ? 'selected' : '';
-                turnoSelect += `<option value="${t.periodo}" ${selected}>${t.periodo}</option>`;
-            });
+            let turnoSelect = `<select class="select-turno" data-motorista="${m.id}" data-data="${d.dateKey}" style="margin-top:5px; width:100%; padding:4px;" ${isBlocked ? 'disabled' : ''}>`;
+            if (isBlocked) {
+                turnoSelect += `<option value="-" selected>-</option>`;
+            } else {
+                TURNOS.forEach(t => {
+                    const selected = escala.turno === t.periodo ? 'selected' : '';
+                    turnoSelect += `<option value="${t.periodo}" ${selected}>${t.periodo}</option>`;
+                });
+            }
             turnoSelect += `</select>`;
             
             bodyHtml += `<td style="min-width:140px;">
@@ -266,11 +271,9 @@ function handleEscalaChange(e) {
     const novoCaminhao = select.value;
     
     if (escalas[motoristaId] && escalas[motoristaId][data]) {
-        // Atualiza Local e Renderiza
         escalas[motoristaId][data].caminhao = novoCaminhao;
         renderizarEscala();
         
-        // Atualiza no Banco
         db.upsertEscala({
             id: `${motoristaId}_${data}`,
             motorista_id: motoristaId,
@@ -296,11 +299,9 @@ function handleTurnoChange(e) {
     }
     
     if (escalas[motoristaId] && escalas[motoristaId][data]) {
-        // Atualiza Local e Renderiza
         escalas[motoristaId][data].turno = novoTurno;
         renderizarEscala();
         
-        // Atualiza no Banco
         db.upsertEscala({
             id: `${motoristaId}_${data}`,
             motorista_id: motoristaId,
@@ -312,21 +313,87 @@ function handleTurnoChange(e) {
     }
 }
 
-function handleRemoveMotorista(e) {
-    const btn = e.target;
-    const id = parseInt(btn.dataset.id);
-    if (confirm('Remover este motorista?')) {
-        motoristas = motoristas.filter(m => m.id !== id);
-        delete escalas[id];
-        
-        renderizarEscala();
-        renderizarMotoristas();
-        atualizarStats();
-        
-        // Remove do Banco
-        db.deleteMotorista(id);
-        db.deleteEscalasPorMotorista(id);
+// ==================== ALOCAÇÃO ====================
+function renderizarAlocacao() {
+    const tbody = document.getElementById('alocacaoList');
+    if (!tbody) return;
+    
+    if (motoristas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4">Nenhum motorista cadastrado</td></tr>';
+        return;
     }
+    
+    let html = '';
+    motoristas.forEach(m => {
+        const isBlocked = m.masterDrive === 'Não' || m.destra === 'Não';
+        const rowStyle = isBlocked ? 'background-color: #ffe6e6;' : '';
+        const blockedIcon = isBlocked ? ' ⛔' : '';
+
+        let equipeSelect = `
+            <select class="select-aloc-equipe select-turno" data-id="${m.id}" ${isBlocked ? 'disabled' : ''}>
+                <option value="-" ${m.equipe === '-' ? 'selected' : ''}>Sem Equipe</option>
+                <option value="A" ${m.equipe === 'A' ? 'selected' : ''}>Equipe A</option>
+                <option value="B" ${m.equipe === 'B' ? 'selected' : ''}>Equipe B</option>
+                <option value="C" ${m.equipe === 'C' ? 'selected' : ''}>Equipe C</option>
+            </select>
+        `;
+        
+        let turnoSelect = `<select class="select-aloc-turno select-turno" data-id="${m.id}" ${isBlocked ? 'disabled' : ''}>`;
+        if (isBlocked) {
+            turnoSelect += `<option value="-" selected>-</option>`;
+        } else {
+            TURNOS.forEach(t => {
+                turnoSelect += `<option value="${t.periodo}" ${m.turno === t.periodo ? 'selected' : ''}>${t.periodo}</option>`;
+            });
+        }
+        turnoSelect += `</select>`;
+        
+        let conjuntoSelect = `<select class="select-aloc-conjunto select-turno" data-id="${m.id}" ${isBlocked ? 'disabled' : ''}>
+            <option value="">Não Alocado</option>`;
+        if (!isBlocked) {
+            conjuntos.forEach(c => {
+                conjuntoSelect += `<option value="${c.id}" ${m.conjuntoId === c.id ? 'selected' : ''}>Conjunto ${c.id}</option>`;
+            });
+        }
+        conjuntoSelect += `</select>`;
+        
+        html += `
+            <tr style="${rowStyle}">
+                <td style="${isBlocked ? 'color: #cc0000;' : ''}"><strong>${m.nome}${blockedIcon}</strong></td>
+                <td>${equipeSelect}</td>
+                <td>${turnoSelect}</td>
+                <td>${conjuntoSelect}</td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+    
+    document.querySelectorAll('.select-aloc-equipe').forEach(el => el.addEventListener('change', updateAlocacao));
+    document.querySelectorAll('.select-aloc-turno').forEach(el => el.addEventListener('change', updateAlocacao));
+    document.querySelectorAll('.select-aloc-conjunto').forEach(el => el.addEventListener('change', updateAlocacao));
+}
+
+function updateAlocacao(e) {
+    const id = parseInt(e.target.dataset.id);
+    const motorista = motoristas.find(m => m.id === id);
+    if(!motorista) return;
+    
+    const tr = e.target.closest('tr');
+    motorista.equipe = tr.querySelector('.select-aloc-equipe').value;
+    motorista.turno = tr.querySelector('.select-aloc-turno').value;
+    const conjVal = tr.querySelector('.select-aloc-conjunto').value;
+    motorista.conjuntoId = conjVal ? parseInt(conjVal) : null;
+    
+    // Atualiza no banco
+    db.updateMotorista(id, {
+        equipe: motorista.equipe,
+        turno: motorista.turno,
+        conjuntoId: motorista.conjuntoId
+    });
+    
+    renderizarEscala();
+    atualizarStats();
 }
 
 function renderizarMotoristas() {
@@ -338,18 +405,21 @@ function renderizarMotoristas() {
     const filtered = motoristas.filter(m => m.nome.toLowerCase().includes(searchTerm));
     
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="100%">Nenhum motorista encontrado</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5">Nenhum motorista encontrado</td></tr>';
         return;
     }
     
     tbody.innerHTML = filtered.map(m => {
-        const conjunto = conjuntos.find(c => c.id === m.conjuntoId);
+        const isBlocked = m.masterDrive === 'Não' || m.destra === 'Não';
+        const rowStyle = isBlocked ? 'background-color: #ffe6e6; color: #cc0000;' : '';
+        const blockedIcon = isBlocked ? ' ⛔ (Bloqueado)' : '';
+
         return `
-            <tr>
-                <td>${m.nome}</td>
-                <td>Equipe ${m.equipe}</td>
-                <td>${m.turno}</td>
-                <td>${conjunto?.id || 'Não alocado'}</td>
+            <tr style="${rowStyle}">
+                <td><strong>${m.nome}${blockedIcon}</strong></td>
+                <td>${m.masterDrive || 'Não informado'}</td>
+                <td>${m.destra || 'Não informado'}</td>
+                <td>${m.cidade || '-'}</td>
                 <td>
                     <button class="btn-edit-motorista" data-id="${m.id}" style="background:#28a745; color:white; border:none; padding:5px 10px; border-radius:6px; margin-right:5px;">✏️</button>
                     <button class="btn-delete-motorista" data-id="${m.id}" style="background:#dc3545; color:white; border:none; padding:5px 10px; border-radius:6px;">🗑️</button>
@@ -374,20 +444,45 @@ function handleEditMotorista(e) {
     const motorista = motoristas.find(m => m.id === id);
     if (!motorista) return;
     
-    const novoNome = prompt('Novo nome:', motorista.nome);
-    if (novoNome !== null && novoNome.trim()) motorista.nome = novoNome.trim();
+    const novoNome = prompt('Nome do Motorista:', motorista.nome);
+    if (novoNome === null) return;
     
-    const novaEquipe = prompt('Nova equipe (A/B/C):', motorista.equipe);
-    if (novaEquipe !== null && ['A','B','C'].includes(novaEquipe.toUpperCase())) motorista.equipe = novaEquipe.toUpperCase();
+    const novoMaster = prompt('Possui Master Drive? (Sim ou Não):', motorista.masterDrive || 'Sim');
+    const novoDestra = prompt('Possui curso Destra? (Sim ou Não):', motorista.destra || 'Sim');
+    const novaCidade = prompt('Cidade que mora:', motorista.cidade || '');
+    
+    motorista.nome = novoNome.trim() || motorista.nome;
+    motorista.masterDrive = novoMaster?.trim() || motorista.masterDrive;
+    motorista.destra = novoDestra?.trim() || motorista.destra;
+    motorista.cidade = novaCidade?.trim() || motorista.cidade;
     
     renderizarMotoristas();
     renderizarEscala();
+    renderizarAlocacao();
     
-    // Atualiza Banco
     db.updateMotorista(id, { 
         nome: motorista.nome, 
-        equipe: motorista.equipe
+        masterDrive: motorista.masterDrive,
+        destra: motorista.destra,
+        cidade: motorista.cidade
     });
+}
+
+function handleRemoveMotorista(e) {
+    const btn = e.target;
+    const id = parseInt(btn.dataset.id);
+    if (confirm('Remover este motorista?')) {
+        motoristas = motoristas.filter(m => m.id !== id);
+        delete escalas[id];
+        
+        renderizarEscala();
+        renderizarMotoristas();
+        renderizarAlocacao();
+        atualizarStats();
+        
+        db.deleteMotorista(id);
+        db.deleteEscalasPorMotorista(id);
+    }
 }
 
 function renderizarConjuntos() {
@@ -447,10 +542,9 @@ function renderizarConjuntos() {
 
 function handleRemoveConjunto(e) {
     const id = parseInt(e.target.dataset.id);
-    if (confirm(`Remover Conjunto ${id} e todos os motoristas associados?`)) {
+    if (confirm(`Remover Conjunto ${id} e todos os motoristas associados a ele?`)) {
         conjuntos = conjuntos.filter(c => c.id !== id);
         
-        // Remove motoristas vinculados a esse conjunto
         const motoristasRemover = motoristas.filter(m => m.conjuntoId === id);
         motoristas = motoristas.filter(m => m.conjuntoId !== id);
         
@@ -463,8 +557,8 @@ function handleRemoveConjunto(e) {
         renderizarConjuntos();
         renderizarMotoristas();
         renderizarEscala();
+        renderizarAlocacao();
         atualizarStats();
-        atualizarSelectConjuntos();
         
         db.deleteConjunto(id);
     }
@@ -476,7 +570,6 @@ function handleRemoveCaminhao(e) {
     const conjunto = conjuntos.find(c => c.id === conjId);
     
     if (conjunto && conjunto.caminhoes.length > 1) {
-        // Filtra comparando a propriedade placa se for objeto, ou a string se for string antiga
         conjunto.caminhoes = conjunto.caminhoes.filter(p => {
             const pPlaca = typeof p === 'string' ? p : p.placa;
             return pPlaca !== placa;
@@ -539,9 +632,9 @@ function atualizarStats() {
 // ==================== CRUD ====================
 function adicionarMotorista() {
     const nome = document.getElementById('motoristaNome')?.value.trim();
-    const equipe = document.getElementById('motoristaEquipe')?.value;
-    const turno = document.getElementById('motoristaTurno')?.value;
-    const conjuntoId = parseInt(document.getElementById('motoristaConjunto')?.value);
+    const masterDrive = document.getElementById('motoristaMasterDrive')?.value;
+    const destra = document.getElementById('motoristaDestra')?.value;
+    const cidade = document.getElementById('motoristaCidade')?.value.trim();
     
     if (!nome) {
         alert('Digite o nome do motorista');
@@ -549,12 +642,17 @@ function adicionarMotorista() {
     }
     
     const novoId = motoristas.length > 0 ? Math.max(...motoristas.map(m => m.id)) + 1 : 1;
+    const turnoPadrao = TURNOS.length > 0 ? TURNOS[0].periodo : '06:00-18:00';
+
     const novoMot = {
         id: novoId,
         nome,
-        equipe,
-        turno,
-        conjuntoId
+        masterDrive,
+        destra,
+        cidade,
+        equipe: '-',
+        turno: turnoPadrao,
+        conjuntoId: null
     };
     
     motoristas.push(novoMot);
@@ -563,16 +661,15 @@ function adicionarMotorista() {
     
     datas.forEach(d => {
         escalas[novoId][d.dateKey] = {
-            turno: turno,
+            turno: turnoPadrao,
             caminhao: 'F',
             status: 'normal'
         };
-        // Salva escalas default no banco async
         db.upsertEscala({
             id: `${novoId}_${d.dateKey}`,
             motorista_id: novoId,
             data: d.dateKey,
-            turno: turno,
+            turno: turnoPadrao,
             caminhao: 'F',
             status: 'normal'
         });
@@ -580,10 +677,14 @@ function adicionarMotorista() {
     
     if (document.getElementById('motoristaNome')) {
         document.getElementById('motoristaNome').value = '';
+        document.getElementById('motoristaMasterDrive').value = 'Sim';
+        document.getElementById('motoristaDestra').value = 'Sim';
+        document.getElementById('motoristaCidade').value = '';
     }
     
     renderizarMotoristas();
     renderizarEscala();
+    renderizarAlocacao();
     atualizarStats();
     
     db.addMotorista(novoMot);
@@ -627,29 +728,14 @@ function adicionarConjunto() {
     }
     
     renderizarConjuntos();
-    atualizarSelectConjuntos();
     renderizarEscala();
+    renderizarAlocacao();
     atualizarStats();
     
     db.addConjunto(novoConjunto);
 }
 
-function atualizarSelectConjuntos() {
-    const select = document.getElementById('motoristaConjunto');
-    if (select) {
-        select.innerHTML = conjuntos.map(c => `<option value="${c.id}">Conjunto ${c.id}</option>`).join('');
-    }
-}
-
 function popularSelectTurnos() {
-    const select = document.getElementById('motoristaTurno');
-    if (select) {
-        select.innerHTML = TURNOS.map(t => 
-            `<option value="${t.periodo}">${t.periodo}</option>`
-        ).join('');
-    }
-    
-    // Atualiza a informação na aba de Configurações
     const turnosInfo = document.querySelector('.turnos-info');
     if (turnosInfo) {
         turnosInfo.innerHTML = `<div style="width:100%">⏱️ Escalas de 12 horas disponíveis para todos os horários permitidos.</div>`;
@@ -675,6 +761,7 @@ function initTabs() {
             if (tabId === 'motoristas') renderizarMotoristas();
             else if (tabId === 'caminhoes') renderizarConjuntos();
             else if (tabId === 'escala') renderizarEscala();
+            else if (tabId === 'alocacao') renderizarAlocacao();
         });
     });
 }
@@ -684,13 +771,12 @@ async function init() {
     initTabs();
     popularSelectTurnos();
     
-    // Agora o sistema espera os dados do banco antes de renderizar
     await carregarDadosIniciais();
     
     renderizarEscala();
     renderizarMotoristas();
     renderizarConjuntos();
-    atualizarSelectConjuntos();
+    renderizarAlocacao();
     atualizarStats();
     
     const btnAddMotorista = document.getElementById('btnAddMotorista');
@@ -729,61 +815,12 @@ async function init() {
                 renderizarEscala();
                 renderizarMotoristas();
                 renderizarConjuntos();
-                atualizarSelectConjuntos();
+                renderizarAlocacao();
                 atualizarStats();
                 alert('Banco de dados resetado com sucesso!');
             }
         });
     }
-    
-    const btnExportData = document.getElementById('btnExportData');
-    if (btnExportData) {
-        btnExportData.addEventListener('click', () => {
-            const data = { conjuntos, motoristas, escalas };
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `escala_backup_${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-        });
-    }
-    
-    const btnImportData = document.getElementById('btnImportData');
-    const importFile = document.getElementById('importFile');
-    if (btnImportData && importFile) {
-        btnImportData.addEventListener('click', () => importFile.click());
-        importFile.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = async (ev) => {
-                    try {
-                        const data = JSON.parse(ev.target.result);
-                        conjuntos = data.conjuntos || [];
-                        motoristas = data.motoristas || [];
-                        escalas = data.escalas || {};
-                        
-                        await db.limparTudo();
-                        for (let c of conjuntos) await db.addConjunto(c);
-                        for (let m of motoristas) await db.addMotorista(m);
-                        
-                        renderizarEscala();
-                        renderizarMotoristas();
-                        renderizarConjuntos();
-                        atualizarSelectConjuntos();
-                        atualizarStats();
-                        alert('Dados importados e salvos no banco com sucesso!');
-                    } catch (err) {
-                        alert('Erro ao importar arquivo');
-                    }
-                };
-                reader.readAsText(file);
-            }
-        });
-    }
 }
 
-// Inicializar quando o DOM estiver carregado
 document.addEventListener('DOMContentLoaded', init);

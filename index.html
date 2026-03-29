@@ -35,6 +35,7 @@
 
         <div class="tabs">
             <button class="tab-btn active" data-tab="escala">📅 Escala Semanal</button>
+            <button class="tab-btn" data-tab="alocacao">🔄 Alocação Geral</button>
             <button class="tab-btn" data-tab="motoristas">👨‍✈️ Motoristas</button>
             <button class="tab-btn" data-tab="caminhoes">🚛 Conjuntos & Caminhões</button>
             <button class="tab-btn" data-tab="config">⚙️ Configurações</button>
@@ -57,7 +58,28 @@
                 </table>
             </div>
             <div class="info-note">
-                ⚠️ <strong>Horários proibidos para troca de turno:</strong> 23:00, 00:00, 01:00. Na escala, você verá a Placa do caminhão acompanhada do seu código GO.
+                ⚠️ <strong>Atenção:</strong> Motoristas sem o curso Master Drive ou Destra ficam bloqueados (em vermelho) e não podem ser escalados.<br>
+                ⚠️ <strong>Horários proibidos:</strong> 23:00, 00:00, 01:00.
+            </div>
+        </div>
+
+        <div class="tab-content" id="tab-alocacao">
+            <div class="list-panel">
+                <h3>🔄 Gerenciar Alocação de Motoristas</h3>
+                <p style="margin-bottom: 15px; color: #555;">Associe os motoristas às suas respectivas Equipes, Turnos e Conjuntos de forma rápida.</p>
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Motorista</th>
+                                <th>Equipe</th>
+                                <th>Turno Padrão</th>
+                                <th>Conjunto</th>
+                            </tr>
+                        </thead>
+                        <tbody id="alocacaoList"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -70,23 +92,24 @@
                         <input type="text" id="motoristaNome" placeholder="Ex: João Silva">
                     </div>
                     <div class="form-group">
-                        <label>Equipe</label>
-                        <select id="motoristaEquipe">
-                            <option value="A">Equipe A</option>
-                            <option value="B">Equipe B</option>
-                            <option value="C">Equipe C</option>
+                        <label>Curso Master Drive?</label>
+                        <select id="motoristaMasterDrive">
+                            <option value="Sim">Sim</option>
+                            <option value="Não">Não</option>
                         </select>
                     </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Turno</label>
-                        <select id="motoristaTurno">
-                            </select>
+                        <label>Curso Destra?</label>
+                        <select id="motoristaDestra">
+                            <option value="Sim">Sim</option>
+                            <option value="Não">Não</option>
+                        </select>
                     </div>
                     <div class="form-group">
-                        <label>Conjunto</label>
-                        <select id="motoristaConjunto"></select>
+                        <label>Cidade que Mora</label>
+                        <input type="text" id="motoristaCidade" placeholder="Ex: São Paulo">
                     </div>
                     <div class="form-group" style="display: flex; align-items: flex-end;">
                         <button id="btnAddMotorista" class="btn-primary" style="width: 100%;">✅ Cadastrar Motorista</button>
@@ -104,9 +127,9 @@
                         <thead>
                             <tr>
                                 <th>Nome</th>
-                                <th>Equipe</th>
-                                <th>Turno</th>
-                                <th>Conjunto</th>
+                                <th>Master Drive</th>
+                                <th>Destra</th>
+                                <th>Cidade</th>
                                 <th>Ações</th>
                             </tr>
                         </thead>
@@ -170,8 +193,7 @@
                 </div>
                 <div class="config-item">
                     <label>Turnos Ativos:</label>
-                    <div class="turnos-info">
-                        </div>
+                    <div class="turnos-info"></div>
                 </div>
                 <div class="config-item">
                     <button id="btnResetData" class="btn-danger">⚠️ Resetar Dados</button>
@@ -179,17 +201,6 @@
                     <button id="btnImportData" class="btn-secondary">📤 Importar Dados</button>
                     <input type="file" id="importFile" accept=".json" style="display: none;">
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="modal" class="modal">
-        <div class="modal-content">
-            <h3 id="modalTitle">Confirmar</h3>
-            <p id="modalMessage">Tem certeza que deseja realizar esta ação?</p>
-            <div class="modal-buttons">
-                <button id="modalConfirm" class="btn-primary">Confirmar</button>
-                <button id="modalCancel" class="btn-secondary">Cancelar</button>
             </div>
         </div>
     </div>
