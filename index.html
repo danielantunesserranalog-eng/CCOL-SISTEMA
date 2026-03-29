@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Sistema de Controle de Jornada - Frotas</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-title">
+                <h1>🚛 Sistema de Controle de Jornada</h1>
+                <p>Gestão de Conjuntos, Motoristas e Escalas</p>
+            </div>
+            <div class="header-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Conjuntos</span>
+                    <span class="stat-value" id="statConjuntos">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Caminhões</span>
+                    <span class="stat-value" id="statCaminhoes">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Motoristas</span>
+                    <span class="stat-value" id="statMotoristas">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Escalas Hoje</span>
+                    <span class="stat-value" id="statEscalasHoje">0</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="escala">📅 Escala Semanal</button>
+            <button class="tab-btn" data-tab="motoristas">👨‍✈️ Motoristas</button>
+            <button class="tab-btn" data-tab="caminhoes">🚛 Conjuntos & Caminhões</button>
+            <button class="tab-btn" data-tab="config">⚙️ Configurações</button>
+        </div>
+
+        <div class="tab-content active" id="tab-escala">
+            <div class="period-selector">
+                <label>Período:</label>
+                <select id="periodSelect">
+                    <option value="current">Semana Atual</option>
+                </select>
+                <button id="refreshEscalaBtn" class="btn-secondary">🔄 Atualizar</button>
+            </div>
+            <div class="table-wrapper">
+                <table class="escala-table" id="escalaTable">
+                    <thead id="tableHeader"></thead>
+                    <tbody id="tableBody">
+                        <tr><td colspan="15">Carregando dados do banco...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="info-note">
+                ⚠️ <strong>Horários proibidos para troca de turno:</strong> 23:00, 00:00, 01:00. Na escala, você verá a Placa do caminhão acompanhada do seu código GO.
+            </div>
+        </div>
+
+        <div class="tab-content" id="tab-motoristas">
+            <div class="form-panel">
+                <h3>➕ Cadastrar Novo Motorista</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Nome Completo</label>
+                        <input type="text" id="motoristaNome" placeholder="Ex: João Silva">
+                    </div>
+                    <div class="form-group">
+                        <label>Equipe</label>
+                        <select id="motoristaEquipe">
+                            <option value="A">Equipe A</option>
+                            <option value="B">Equipe B</option>
+                            <option value="C">Equipe C</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Turno</label>
+                        <select id="motoristaTurno">
+                            </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Conjunto</label>
+                        <select id="motoristaConjunto"></select>
+                    </div>
+                    <div class="form-group" style="display: flex; align-items: flex-end;">
+                        <button id="btnAddMotorista" class="btn-primary" style="width: 100%;">✅ Cadastrar Motorista</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="list-panel">
+                <h3>📋 Lista de Motoristas</h3>
+                <div class="search-bar">
+                    <input type="text" id="searchMotorista" placeholder="Buscar motorista...">
+                </div>
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Equipe</th>
+                                <th>Turno</th>
+                                <th>Conjunto</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="motoristasList"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="tab-caminhoes">
+            <div class="form-panel">
+                <h3>➕ Criar Novo Conjunto</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>ID do Conjunto</label>
+                        <input type="number" id="conjuntoId" placeholder="Ex: 34">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Caminhão 1 (Placa)</label>
+                        <input type="text" id="caminhao1Placa" placeholder="Ex: TOQ-2A02">
+                    </div>
+                    <div class="form-group">
+                        <label>GO</label>
+                        <input type="text" id="caminhao1Go" placeholder="Ex: GO-101">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Caminhão 2 (Placa)</label>
+                        <input type="text" id="caminhao2Placa" placeholder="Ex: TOQ-2B24">
+                    </div>
+                    <div class="form-group">
+                        <label>GO</label>
+                        <input type="text" id="caminhao2Go" placeholder="Ex: GO-102">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <button id="btnAddConjunto" class="btn-primary" style="width: 100%;">✅ Criar Conjunto</button>
+                </div>
+            </div>
+
+            <div class="list-panel">
+                <h3>🚛 Conjuntos e Caminhões</h3>
+                <div id="conjuntosList" class="conjuntos-grid"></div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="tab-config">
+            <div class="config-panel">
+                <h3>⚙️ Configurações do Sistema</h3>
+                <div class="config-item">
+                    <label>Horários Proibidos para Troca de Turno:</label>
+                    <div class="proibidos-list">
+                        <span class="badge-proibido">23:00</span>
+                        <span class="badge-proibido">00:00</span>
+                        <span class="badge-proibido">01:00</span>
+                    </div>
+                    <small>Nestes horários não é permitido realizar troca de turno para garantir segurança operacional.</small>
+                </div>
+                <div class="config-item">
+                    <label>Turnos Ativos:</label>
+                    <div class="turnos-info">
+                        </div>
+                </div>
+                <div class="config-item">
+                    <button id="btnResetData" class="btn-danger">⚠️ Resetar Dados</button>
+                    <button id="btnExportData" class="btn-secondary">📥 Exportar Dados (JSON)</button>
+                    <button id="btnImportData" class="btn-secondary">📤 Importar Dados</button>
+                    <input type="file" id="importFile" accept=".json" style="display: none;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle">Confirmar</h3>
+            <p id="modalMessage">Tem certeza que deseja realizar esta ação?</p>
+            <div class="modal-buttons">
+                <button id="modalConfirm" class="btn-primary">Confirmar</button>
+                <button id="modalCancel" class="btn-secondary">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="database.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
