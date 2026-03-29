@@ -16,8 +16,6 @@ function renderizarEscala() {
     }
 
     let html = '';
-    
-    // Atualiza as datas com base no input antes de renderizar
     const inputData = document.getElementById('dataInicioEscala');
     currentDatas = getDatasSemana(inputData ? inputData.value : null);
 
@@ -27,27 +25,21 @@ function renderizarEscala() {
         const motoristasDoConjunto = motoristas.filter(m => m.conjuntoId === conj.id);
         if (motoristasDoConjunto.length === 0) return;
 
-        // Agrupar os motoristas pelo Turno (ex: 08h00-20h00 e 20h00-08h00)
-        const gruposTurno = {};
-        motoristasDoConjunto.forEach(m => {
-            const t = m.turno || 'Sem Turno';
-            if (!gruposTurno[t]) gruposTurno[t] = [];
-            gruposTurno[t].push(m);
-        });
-
-        // Estrutura Visual idêntica à imagem (Número grande na esquerda, tabelas na direita)
+        // Estrutura Visual idêntica à imagem (Número gigante na esquerda)
         html += `
         <div class="escala-conjunto-box">
             <div class="escala-conjunto-numero">${conj.id}</div>
             <div class="escala-conjunto-tabelas">
         `;
 
-        // Renderiza uma mini-tabela para cada turno dentro do conjunto
-        Object.keys(gruposTurno).sort().forEach((turno, idx) => {
-            const motoristasTurno = gruposTurno[turno].sort((a, b) => (a.equipe || '').localeCompare(b.equipe || ''));
-            const isFirst = idx === 0;
+        // Divisão Lógica: Caminhão 1 (A, B, C) e Caminhão 2 (D, E, F)
+        const grupoCaminhao1 = motoristasDoConjunto.filter(m => ['A', 'B', 'C'].includes(m.equipe)).sort((a, b) => a.equipe.localeCompare(b.equipe));
+        const grupoCaminhao2 = motoristasDoConjunto.filter(m => ['D', 'E', 'F'].includes(m.equipe)).sort((a, b) => a.equipe.localeCompare(b.equipe));
+        const outros = motoristasDoConjunto.filter(m => !['A', 'B', 'C', 'D', 'E', 'F'].includes(m.equipe));
 
-            html += `
+        const renderTable = (grupo, isFirst) => {
+            if (grupo.length === 0) return '';
+            let tHtml = `
                 <table class="tabela-excel ${isFirst ? '' : 'tabela-subsequente'}">
                     <thead>
                         <tr>
@@ -61,15 +53,18 @@ function renderizarEscala() {
                     <tbody>
             `;
 
-            motoristasTurno.forEach(m => {
+            grupo.forEach(m => {
                 const isBlocked = m.masterDrive === 'Não' || m.destra === 'Não';
                 const goStr = conj.caminhoes?.map(c => c.go).filter(go=>go).join(' e ') || '-';
+                
+                // Se for folguista, mostramos "Misto" ou o turno original no layout
+                let displayTurno = (m.equipe === 'C' || m.equipe === 'F') ? 'Misto' : (m.turno || '-');
 
-                html += `<tr>`;
-                html += `<td class="td-name" style="${isBlocked ? 'color: red;' : ''}"><strong>${m.nome}</strong></td>`;
-                html += `<td style="text-align: center;">${m.turno || '-'}</td>`;
-                html += `<td style="text-align: center;">${goStr}</td>`;
-                html += `<td style="text-align: center;"><strong>${m.equipe !== '-' ? m.equipe : ''}</strong></td>`;
+                tHtml += `<tr>`;
+                tHtml += `<td class="td-name" style="${isBlocked ? 'color: red;' : ''}"><strong>${m.nome}</strong></td>`;
+                tHtml += `<td style="text-align: center;">${displayTurno}</td>`;
+                tHtml += `<td style="text-align: center;">${goStr}</td>`;
+                tHtml += `<td style="text-align: center;"><strong>${m.equipe !== '-' ? m.equipe : ''}</strong></td>`;
 
                 currentDatas.forEach(d => {
                     const escala = escalas[m.id]?.[d.dateKey] || { caminhao: 'F' };
@@ -77,8 +72,6 @@ function renderizarEscala() {
                     const tdClass = isBlocked ? '' : (isFolga ? 'celula-folga' : 'celula-trabalho');
                     
                     let opcoes = `<option value="F">F</option>`;
-                    
-                    // Opções de caminhões do próprio conjunto
                     opcoes += `<optgroup label="Neste Conjunto">`;
                     conj.caminhoes?.forEach(cam => {
                         const placa = typeof cam === 'string' ? cam : cam.placa;
@@ -86,7 +79,6 @@ function renderizarEscala() {
                     });
                     opcoes += `</optgroup>`;
 
-                    // Opções para alocar noutros caminhões da frota
                     const outrosConjuntos = conjuntos.filter(c => c.id !== conj.id);
                     if (outrosConjuntos.length > 0) {
                         opcoes += `<optgroup label="Outros Caminhões">`;
@@ -99,12 +91,17 @@ function renderizarEscala() {
                         opcoes += `</optgroup>`;
                     }
 
-                    html += `<td class="${tdClass}"><select class="select-escala-excel" data-motorista="${m.id}" data-data="${d.dateKey}" ${isBlocked ? 'disabled' : ''}>${isBlocked ? '<option value="F">Bloq</option>' : opcoes}</select></td>`;
+                    tHtml += `<td class="${tdClass}"><select class="select-escala-excel" data-motorista="${m.id}" data-data="${d.dateKey}" ${isBlocked ? 'disabled' : ''}>${isBlocked ? '<option value="F">Bloq</option>' : opcoes}</select></td>`;
                 });
-                html += `</tr>`;
+                tHtml += `</tr>`;
             });
-            html += `</tbody></table>`;
-        });
+            tHtml += `</tbody></table>`;
+            return tHtml;
+        };
+
+        html += renderTable(grupoCaminhao1, true);
+        html += renderTable(grupoCaminhao2, grupoCaminhao1.length === 0);
+        html += renderTable(outros, grupoCaminhao1.length === 0 && grupoCaminhao2.length === 0);
         
         html += `</div></div>`;
     });
@@ -175,53 +172,68 @@ function updateAlocacao(e) {
 }
 
 function gerarEscala4x2() {
-    if (!confirm("Gerar escala 4x2 automática? Isso substituirá a tela atual.")) return;
+    if (!confirm("Gerar escala inteligente com Folguistas? Isso substituirá a tela atual.")) return;
     const filtroSelec = document.getElementById('filtroConjuntoEscala')?.value || 'todos';
     
-    // A âncora bate EXATAMENTE com a sua imagem: Dia 25/03/2026 é o 1º dia de folga da Equipe A e D
+    // Data base para iniciar o ciclo de 6 dias
     const dataAncora = new Date('2026-03-25T00:00:00'); 
-
-    // Alinhamento exato baseado na IMAGEM que você mandou:
-    // A e D folgam dias 25 e 26 (Offset 0)
-    // B e E folgam dias 29 e 30 (Offset 2)
-    // C e F folgam dias 27 e 28 (Offset 4)
-    const offsetsEquipe = { 'A': 0, 'D': 0, 'B': 2, 'E': 2, 'C': 4, 'F': 4 };
-
     let motoristasAtualizados = 0;
 
     motoristas.forEach(m => {
         if (filtroSelec !== 'todos' && m.conjuntoId != filtroSelec) return;
-        // Se o motorista estiver bloqueado ou não tiver equipe, o sistema PULA ele.
         if (m.masterDrive === 'Não' || m.destra === 'Não' || !m.equipe || m.equipe === '-' || !m.conjuntoId) return;
 
         motoristasAtualizados++;
-        const offset = offsetsEquipe[m.equipe] || 0;
         const conjunto = conjuntos.find(c => c.id === m.conjuntoId);
         
-        let caminhaoPadrao = 'F';
-        if (conjunto?.caminhoes?.length > 0) {
-            // Equipe A e D assumem o Caminhão 1. Equipe B e E assumem o Caminhão 2. C e F cobrem.
-            if (m.equipe === 'A' || m.equipe === 'D') {
-                caminhaoPadrao = typeof conjunto.caminhoes[0] === 'string' ? conjunto.caminhoes[0] : conjunto.caminhoes[0].placa;
-            } else if (m.equipe === 'B' || m.equipe === 'E') {
-                const idx = conjunto.caminhoes.length > 1 ? 1 : 0;
-                caminhaoPadrao = typeof conjunto.caminhoes[idx] === 'string' ? conjunto.caminhoes[idx] : conjunto.caminhoes[idx].placa;
-            } else {
-                caminhaoPadrao = typeof conjunto.caminhoes[0] === 'string' ? conjunto.caminhoes[0] : conjunto.caminhoes[0].placa;
-            }
-        }
+        // Identifica as placas dos caminhões 1 e 2 do conjunto
+        let placa1 = conjunto?.caminhoes?.length > 0 ? (typeof conjunto.caminhoes[0] === 'string' ? conjunto.caminhoes[0] : conjunto.caminhoes[0].placa) : 'F';
+        let placa2 = conjunto?.caminhoes?.length > 1 ? (typeof conjunto.caminhoes[1] === 'string' ? conjunto.caminhoes[1] : conjunto.caminhoes[1].placa) : placa1;
 
         currentDatas.forEach(d => {
             const dataAtual = new Date(d.dateKey + 'T00:00:00');
-            const diffTime = dataAtual - dataAncora;
-            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            const diffDays = Math.floor((dataAtual - dataAncora) / (1000 * 60 * 60 * 24));
             
-            // Lógica do ciclo de 6 dias
-            let cicloDia = ((diffDays + offset) % 6 + 6) % 6; 
-            let statusCaminhao = (cicloDia === 0 || cicloDia === 1) ? 'F' : caminhaoPadrao;
+            // Ciclo de 6 dias (0 a 5).
+            let cicloDia = ((diffDays % 6) + 6) % 6; 
             
+            let statusCaminhao = 'F';
+
+            // LÓGICA EXATA: 3 Motoristas por Caminhão
+            // CicloDia 0 e 1: Folga do Fixo Dia (Folguista trabalha de Dia)
+            // CicloDia 2 e 3: Folga do Fixo Noite (Folguista trabalha de Noite)
+            // CicloDia 4 e 5: Folga do Folguista (Fixos Dia e Noite trabalham)
+
+            if (m.equipe === 'A') { // Fixo Dia Caminhão 1
+                statusCaminhao = (cicloDia === 0 || cicloDia === 1) ? 'F' : placa1;
+            } 
+            else if (m.equipe === 'B') { // Fixo Noite Caminhão 1
+                statusCaminhao = (cicloDia === 2 || cicloDia === 3) ? 'F' : placa1;
+            } 
+            else if (m.equipe === 'C') { // FOLGUISTA Caminhão 1
+                if (cicloDia === 0 || cicloDia === 1 || cicloDia === 2 || cicloDia === 3) {
+                    statusCaminhao = placa1;
+                } else {
+                    statusCaminhao = 'F'; // CicloDia 4 e 5 ele descansa
+                }
+            }
+            else if (m.equipe === 'D') { // Fixo Dia Caminhão 2
+                statusCaminhao = (cicloDia === 0 || cicloDia === 1) ? 'F' : placa2;
+            } 
+            else if (m.equipe === 'E') { // Fixo Noite Caminhão 2
+                statusCaminhao = (cicloDia === 2 || cicloDia === 3) ? 'F' : placa2;
+            } 
+            else if (m.equipe === 'F') { // FOLGUISTA Caminhão 2
+                if (cicloDia === 0 || cicloDia === 1 || cicloDia === 2 || cicloDia === 3) {
+                    statusCaminhao = placa2;
+                } else {
+                    statusCaminhao = 'F'; // CicloDia 4 e 5 ele descansa
+                }
+            }
+
             if (!escalas[m.id]) escalas[m.id] = {};
             if (!escalas[m.id][d.dateKey]) escalas[m.id][d.dateKey] = { turno: m.turno };
+            
             escalas[m.id][d.dateKey].caminhao = statusCaminhao;
 
             db.upsertEscala({ id: `${m.id}_${d.dateKey}`, motorista_id: m.id, data: d.dateKey, turno: m.turno, caminhao: statusCaminhao, status: 'normal' });
@@ -229,13 +241,13 @@ function gerarEscala4x2() {
     });
 
     if (motoristasAtualizados === 0) {
-        alert("Nenhum motorista foi gerado! Lembre-se de ir na aba '🔄 Alocação Geral' e definir a EQUIPE e o CONJUNTO deles antes de gerar.");
+        alert("Nenhum motorista foi gerado! Verifique a aba de Alocação.");
         return;
     }
 
     salvarBackupLocal();
     renderizarEscala(); 
-    alert(`Sucesso! Escala automática gerada para ${motoristasAtualizados} motoristas.`);
+    alert(`Escala automática gerada perfeitamente com a lógica de Folguistas!`);
 }
 
 function zerarEscala() {
