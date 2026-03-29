@@ -58,7 +58,6 @@ function renderizarEscala() {
                 const isBlocked = m.masterDrive === 'Não' || m.destra === 'Não';
                 const goStr = conj.caminhoes?.map(c => typeof c === 'string' ? '' : c.go).filter(go=>go).join(' e ') || '-';
                 
-                // Adiciona o selo visual de Folguista
                 const isFolguista = (m.equipe === 'C' || m.equipe === 'F');
                 const tagFolguista = isFolguista ? `<span style="background:#f97316; color:#fff; font-size:0.65rem; font-weight:bold; padding:2px 5px; border-radius:4px; margin-left:8px; vertical-align:middle; letter-spacing:0.5px;">FOLGUISTA</span>` : '';
                 let displayTurno = isFolguista ? 'Misto' : (m.turno || '-');
@@ -136,11 +135,38 @@ function renderizarAlocacao() {
     if (motoristas.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5">Nenhum motorista cadastrado</td></tr>'; return;
     }
+
+    // 1. Ordenar por Conjunto (Crescente) e depois por Ordem Alfabética (Nome)
+    const motoristasOrdenados = [...motoristas].sort((a, b) => {
+        const conjA = a.conjuntoId || 999999; // Sem conjunto vai para o final
+        const conjB = b.conjuntoId || 999999;
+
+        if (conjA !== conjB) {
+            return conjA - conjB;
+        }
+        return a.nome.localeCompare(b.nome);
+    });
+
+    let html = '';
+    let lastConjunto = null;
     
-    tbody.innerHTML = motoristas.map(m => {
+    motoristasOrdenados.forEach(m => {
         const isBlocked = m.masterDrive === 'Não' || m.destra === 'Não';
+        const currentConjunto = m.conjuntoId || 'sem_conjunto';
+
+        // 2. Criar a linha divisória sempre que mudar o conjunto
+        if (currentConjunto !== lastConjunto) {
+            const tituloConjunto = m.conjuntoId ? `🚛 CONJUNTO ${m.conjuntoId}` : `⚠️ NÃO ALOCADOS / SEM CONJUNTO`;
+            html += `
+                <tr style="background-color: rgba(255, 255, 255, 0.05); border-top: 2px solid rgba(255,255,255,0.1); border-bottom: 1px solid rgba(255,255,255,0.1);">
+                    <td colspan="5" style="text-align: center; font-weight: 800; color: #3b82f6; padding: 12px 10px; font-size: 0.95rem; letter-spacing: 1.5px;">
+                        ${tituloConjunto}
+                    </td>
+                </tr>
+            `;
+            lastConjunto = currentConjunto;
+        }
         
-        // Menu de equipes muito mais claro e com a opção de folguista explícita
         let equipeSelect = `<select class="select-aloc-equipe select-turno" data-id="${m.id}" ${isBlocked ? 'disabled' : ''}>
             <option value="-" ${m.equipe === '-' ? 'selected' : ''}>Sem Equipe</option>
             <option value="A" ${m.equipe === 'A' ? 'selected' : ''}>A (Fixo Dia)</option>
@@ -162,14 +188,16 @@ function renderizarAlocacao() {
         
         let botaoManual = `<button class="btn-primary-blue" style="padding: 8px 12px; font-size: 0.8rem;" onclick="abrirModalEscalaManual(${m.id})" ${isBlocked ? 'disabled' : ''}>⚙️ Ajustar Ciclo</button>`;
         
-        return `<tr style="${isBlocked ? 'background-color: #ffe6e6;' : ''}">
+        html += `<tr style="${isBlocked ? 'background-color: #ffe6e6;' : ''}">
             <td style="${isBlocked ? 'color: #cc0000;' : ''}"><strong>${m.nome}</strong></td>
             <td>${equipeSelect}</td>
             <td>${turnoSelect}</td>
             <td>${conjuntoSelect}</td>
             <td>${botaoManual}</td>
         </tr>`;
-    }).join('');
+    });
+
+    tbody.innerHTML = html;
     
     document.querySelectorAll('.select-aloc-equipe, .select-aloc-turno, .select-aloc-conjunto').forEach(el => el.addEventListener('change', updateAlocacao));
 }
@@ -186,7 +214,12 @@ function updateAlocacao(e) {
     
     db.updateMotorista(id, { equipe: motorista.equipe, turno: motorista.turno, conjuntoId: motorista.conjuntoId });
     salvarBackupLocal();
-    renderizarEscala(); atualizarStats();
+    
+    renderizarEscala(); 
+    atualizarStats();
+
+    // Re-renderiza a tabela de alocação na hora para mover o motorista para a nova sessão
+    renderizarAlocacao();
 }
 
 // ==================== LÓGICA DO MENU DE ESCALA MANUAL ====================
@@ -203,7 +236,6 @@ window.abrirModalEscalaManual = function(id) {
     document.getElementById('manualMotId').value = m.id;
     document.getElementById('manualMotNome').innerText = m.nome;
     
-    // Mostra se é folguista no modal também
     let nomeEquipe = m.equipe;
     if(m.equipe === 'C' || m.equipe === 'F') nomeEquipe += " (Folguista)";
     document.getElementById('manualMotEquipe').innerText = nomeEquipe;
@@ -272,13 +304,11 @@ window.salvarEscalaManual = function() {
         m.data_ancora = dAncora.toISOString().split('T')[0];
         db.updateMotorista(id, { data_ancora: m.data_ancora });
         
-        // RECALCULA APENAS ESTE MOTORISTA (muito mais leve e rápido)
         recalcularEscalaUnica(id);
         salvarBackupLocal();
         
         fecharModalManual();
 
-        // Puxa a data principal para mostrar o que acabou de ser feito
         const inputDataPrincipal = document.getElementById('dataInicioEscala');
         if (inputDataPrincipal) {
             inputDataPrincipal.value = dataEscolhida;
@@ -287,10 +317,8 @@ window.salvarEscalaManual = function() {
             }
         }
         
-        // Redesenha a tela principal
         renderizarEscala(); 
         
-        // Troca de aba sozinho para ver a mágica acontecendo
         const abaEscala = document.querySelector('.nav-item[data-tab="escala"]');
         if (abaEscala) {
             document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
@@ -316,7 +344,6 @@ function recalcularEscalaUnica(motoristaId) {
     let placa1 = conjunto.caminhoes.length > 0 ? (typeof conjunto.caminhoes[0] === 'string' ? conjunto.caminhoes[0] : conjunto.caminhoes[0].placa) : 'F';
     let placa2 = conjunto.caminhoes.length > 1 ? (typeof conjunto.caminhoes[1] === 'string' ? conjunto.caminhoes[1] : conjunto.caminhoes[1].placa) : placa1;
 
-    // Recalcula um raio amplo de dias ao redor (para garantir que a escala do banco seja populada)
     const baseDate = new Date(dataAncoraStr);
     for(let i = -10; i <= 30; i++) {
         let dDate = new Date(baseDate);
