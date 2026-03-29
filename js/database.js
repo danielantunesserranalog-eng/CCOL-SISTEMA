@@ -1,3 +1,4 @@
+// Configuração do Supabase fornecida
 const supabaseUrl = 'https://ihgiyxzxdldqmrkziijl.supabase.co';
 const supabaseKey = 'sb_publishable_JpMZhW5ZrFKBr7m9KXBkoQ_cpxy1k3x';
 const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
@@ -94,7 +95,11 @@ const db = {
         return data || [];
     },
     async upsertTreinamento(treinamento) {
-        await supabaseClient.from('treinamentos').upsert([treinamento]);
+        const { error } = await supabaseClient.from('treinamentos').upsert([treinamento]);
+        if (error) {
+            console.error("ERRO SUPABASE TREINAMENTOS:", error);
+            alert("⚠️ Erro ao salvar Treinamento no Banco! Verifique o console (F12). Motivo: " + error.message);
+        }
     },
     async deleteTreinamento(id) {
         await supabaseClient.from('treinamentos').delete().eq('id', id);

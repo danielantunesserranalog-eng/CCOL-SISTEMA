@@ -108,7 +108,6 @@ window.carregarDadosTreinamento = async function() {
         
         renderizarInstrutores();
         renderizarCronogramaTreinamento();
-        if(typeof renderizarEscala === 'function') renderizarEscala();
     } catch(e) {
         console.error("Erro ao carregar treinamentos do DB:", e);
     }
@@ -136,18 +135,16 @@ function renderizarInstrutores() {
         const valorAtual = selectInstrutor.value;
         selectInstrutor.innerHTML = '<option value="">Selecione o instrutor...</option>' +
             instrutoresMaster.map(inst => `<option value="${inst}">${inst}</option>`).join('');
-        if (instrutoresMaster.includes(valorAtual)) {
-            selectInstrutor.value = valorAtual;
-        }
+        if (instrutoresMaster.includes(valorAtual)) selectInstrutor.value = valorAtual;
     }
 }
 
-window.adicionarInstrutor = function() {
+window.adicionarInstrutor = async function() {
     const input = document.getElementById('novoInstrutorNome');
     const nome = input.value.trim();
     if (nome) {
         instrutoresMaster.push(nome);
-        db.addInstrutor({ nome: nome }); 
+        await db.addInstrutor({ nome: nome }); 
         input.value = '';
         renderizarInstrutores();
     }
@@ -233,8 +230,9 @@ window.renderizarCronogramaTreinamento = function() {
 window.removerTreinamento = async function(id) {
     if(currentUser && currentUser.role !== 'Admin') { alert('⛔ Acesso Negado: Apenas Administradores podem excluir agendamentos.'); return; }
     if(confirm("Deseja cancelar e EXCLUIR este treinamento?")) {
-        const treinoCancelado = cronogramaTreinamento.find(t => t.id === id);
-        cronogramaTreinamento = cronogramaTreinamento.filter(t => t.id !== id);
+        const treinoCancelado = cronogramaTreinamento.find(t => t.id == id);
+        cronogramaTreinamento = cronogramaTreinamento.filter(t => t.id != id);
+        
         await db.deleteTreinamento(id); 
         
         if (treinoCancelado) {
@@ -243,33 +241,36 @@ window.removerTreinamento = async function(id) {
         }
 
         renderizarCronogramaTreinamento();
-        if(typeof renderizarEscala === 'function') renderizarEscala();
+        if(typeof window.renderizarEscala === 'function') window.renderizarEscala();
     }
 }
 
-window.concluirTreinamento = function(id) {
+window.concluirTreinamento = async function(id) {
     if(confirm("Confirmar que este motorista CONCLUIU o treinamento de Viagem Assistida?")) {
-        const treinamento = cronogramaTreinamento.find(t => t.id === id);
+        const treinamento = cronogramaTreinamento.find(t => t.id == id);
         if (treinamento) {
-            cronogramaTreinamento = cronogramaTreinamento.filter(t => t.id !== id);
+            cronogramaTreinamento = cronogramaTreinamento.filter(t => t.id != id);
             treinamento.dataConclusao = new Date().toISOString();
             treinamento.status = 'concluido';
             treinamentosConcluidos.push(treinamento);
-            db.upsertTreinamento(treinamento); 
+            
+            await db.upsertTreinamento(treinamento); 
+            
             renderizarCronogramaTreinamento();
-            if(typeof renderizarEscala === 'function') renderizarEscala();
+            if(typeof window.renderizarEscala === 'function') window.renderizarEscala();
         }
     }
 }
 
-window.gerarTreinamentoAuto = function() {
+window.gerarTreinamentoAuto = async function() {
     if(instrutoresMaster.length === 0) { alert('⚠️ Adicione um Instrutor Master Drive primeiro!'); return; }
+    
     const dataInicioInput = document.getElementById('treinamentoDataInicio').value;
     const instrutorSelecionado = document.getElementById('treinamentoInstrutor').value;
     const turnoSelecionado = document.getElementById('treinamentoTurno').value;
 
-    if(!dataInicioInput) { alert('⚠️ Selecione a Data de Início!'); return; }
-    if(!instrutorSelecionado) { alert('⚠️ Selecione qual Instrutor!'); return; }
+    if(!dataInicioInput) { alert('⚠️ Selecione a Data de Início para agendar o treinamento!'); return; }
+    if(!instrutorSelecionado) { alert('⚠️ Selecione qual Instrutor aplicará o treinamento!'); return; }
     
     const dias = [];
     const dataBase = new Date(dataInicioInput + 'T00:00:00');
@@ -287,12 +288,17 @@ window.gerarTreinamentoAuto = function() {
         return !jaConcluido && !jaAgendado;
     });
 
-    if(alunosPendentes.length === 0) { alert('✅ Todos já agendados!'); return; }
+    if(alunosPendentes.length === 0) { alert('✅ Todos os motoristas da Lista do PDF já foram agendados ou concluídos!'); return; }
 
-    if(!confirm(`Existem ${alunosPendentes.length} motoristas pendentes.\nGerar agendamentos para ${instrutorSelecionado}?`)) return;
+    let msgConfirm = `Existem ${alunosPendentes.length} motoristas aguardando agendamento.\n\nDeseja distribuir para o instrutor ${instrutorSelecionado} a partir do dia ${dias[0].diaNum}?`;
+    if (turnoSelecionado !== 'Todos') msgConfirm += `\n(Aplicando filtro para agendar apenas quem é do turno do ${turnoSelecionado})`;
+    
+    if(!confirm(msgConfirm)) return;
 
     let agendamentosNovos = 0;
-    dias.forEach(dia => {
+
+    // USO DO FOR LOOP COM ASYNC/AWAIT PARA ESPERAR O BANCO DE DADOS
+    for (let dia of dias) {
         let alunoEscolhido = null, infoPDF = null;
         for(let i = 0; i < alunosPendentes.length; i++) {
             let reqPDF = alunosPendentes[i];
@@ -315,20 +321,31 @@ window.gerarTreinamentoAuto = function() {
         
         if(alunoEscolhido && infoPDF) {
             const novoTreino = {
-                id: Date.now().toString() + Math.random().toString(), data: dia.dateKey, dataTexto: dia.diaNum,
-                instrutor: instrutorSelecionado, motoristaId: alunoEscolhido.id, motoristaNome: infoPDF.nome,
-                classificacao: infoPDF.class, viagens: infoPDF.viagens, turno: alunoEscolhido.turno || 'Misto',
-                status: 'agendado', dataConclusao: null
+                // CORREÇÃO MÁXIMA AQUI: GERA UM NÚMERO INTEIRO PURO, SEM STRING COM PONTOS
+                id: Date.now() + Math.floor(Math.random() * 100000), 
+                data: dia.dateKey, 
+                dataTexto: dia.diaNum,
+                instrutor: instrutorSelecionado, 
+                motoristaId: alunoEscolhido.id, 
+                motoristaNome: infoPDF.nome,
+                classificacao: infoPDF.class, 
+                viagens: infoPDF.viagens, 
+                turno: alunoEscolhido.turno || 'Misto',
+                status: 'agendado', 
+                dataConclusao: null
             };
+            
             cronogramaTreinamento.push(novoTreino);
-            db.upsertTreinamento(novoTreino); 
+            await db.upsertTreinamento(novoTreino); // AGORA ELE ESPERA O BANCO RESPONDER
+
             alunosPendentes = alunosPendentes.filter(p => strNormalize(p.nome) !== strNormalize(infoPDF.nome));
             agendamentosNovos++;
         }
-    });
+    }
     
     renderizarCronogramaTreinamento();
-    if(typeof renderizarEscala === 'function') renderizarEscala(); 
-    if (agendamentosNovos > 0) alert(`🎉 Foram agendados ${agendamentosNovos} novos treinamentos.`);
-    else alert(`⚠️ Nenhum agendamento foi feito.`);
+    if(typeof window.renderizarEscala === 'function') window.renderizarEscala(); 
+    
+    if (agendamentosNovos > 0) alert(`🎉 Sucesso! Foram agendados e salvos no banco ${agendamentosNovos} novos treinamentos com o Instrutor ${instrutorSelecionado}.`);
+    else alert(`⚠️ Nenhum agendamento foi feito. \nO Instrutor pode estar ocupado nesses dias ou os motoristas da lista não têm dias de trabalho agendados neste período/turno selecionado.`);
 }
