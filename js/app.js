@@ -1,35 +1,28 @@
 // ==================== MÓDULO: NAVEGAÇÃO E INICIALIZAÇÃO ====================
 
 function initTabs() {
-    // Pega as abas principais E os itens do dropdown
     const tabs = document.querySelectorAll('.nav-item[data-tab], .dropdown-item[data-tab]');
     const contents = document.querySelectorAll('.tab-content');
     
     tabs.forEach(tab => {
         tab.addEventListener('click', (e) => {
             const tabId = tab.getAttribute('data-tab');
-            if(!tabId) return; // Segurança
+            if(!tabId) return; 
             
-            // Remove a classe ativa de todas as abas e menus
             document.querySelectorAll('.nav-item, .dropdown-item').forEach(t => t.classList.remove('active'));
             contents.forEach(c => c.classList.remove('active'));
             
-            // Se for um item de dentro do dropdown, ativa ele E o botão pai "Cadastros"
             if(tab.classList.contains('dropdown-item')) {
                 tab.classList.add('active');
                 tab.closest('.nav-dropdown').querySelector('.dropdown-toggle').classList.add('active');
-                
-                // ESCONDE O MENU APÓS CLICAR NUMA OPÇÃO
                 document.querySelector('.dropdown-menu').classList.remove('show');
             } else {
                 tab.classList.add('active');
             }
             
-            // Mostra o conteúdo da aba
             const activeContent = document.getElementById(`tab-${tabId}`);
             if (activeContent) activeContent.classList.add('active');
             
-            // Renderiza os dados corretos
             if (tabId === 'motoristas') renderizarMotoristas();
             else if (tabId === 'caminhoes') renderizarConjuntos();
             else if (tabId === 'escala') renderizarEscala();
@@ -39,19 +32,16 @@ function initTabs() {
         });
     });
 
-    // ==================== LÓGICA DO MENU CADASTROS (CLIQUE) ====================
     const dropdownToggle = document.querySelector('.dropdown-toggle');
     const dropdownMenu = document.querySelector('.dropdown-menu');
 
     if (dropdownToggle && dropdownMenu) {
-        // Abre/Fecha ao clicar no botão "Cadastros"
         dropdownToggle.addEventListener('click', (e) => {
             e.preventDefault();
-            e.stopPropagation(); // Evita que o clique se espalhe
+            e.stopPropagation(); 
             dropdownMenu.classList.toggle('show');
         });
 
-        // Fecha o menu se o utilizador clicar em qualquer outro lugar da página
         document.addEventListener('click', (e) => {
             if (!dropdownToggle.contains(e.target) && !dropdownMenu.contains(e.target)) {
                 dropdownMenu.classList.remove('show');
@@ -61,23 +51,35 @@ function initTabs() {
 }
 
 // INICIALIZAÇÃO PRINCIPAL DA APLICAÇÃO
+window.atualizarStats = function() {
+    const statConjuntos = document.getElementById('statConjuntos');
+    const statCaminhoes = document.getElementById('statCaminhoes');
+    const statMotoristas = document.getElementById('statMotoristas');
+    const statEscalasHoje = document.getElementById('statEscalasHoje');
+    
+    if (statConjuntos) statConjuntos.innerText = conjuntos.length;
+    if (statCaminhoes) statCaminhoes.innerText = conjuntos.reduce((acc, c) => acc + (c.caminhoes?.length || 0), 0);
+    if (statMotoristas) statMotoristas.innerText = motoristas.length;
+    
+    if (statEscalasHoje && typeof window.getEscalaDiaComputada === 'function') {
+        const hoje = new Date().toISOString().split('T')[0];
+        statEscalasHoje.innerText = motoristas.filter(m => window.getEscalaDiaComputada(m, hoje).caminhao !== 'F').length;
+    }
+}
+
 async function init() {
     initTabs();
     await carregarDadosIniciais();
     
-    // Carrega os dados do módulo de Treinamento Master Drive (via Supabase)
     if(typeof carregarDadosTreinamento === 'function') {
         await carregarDadosTreinamento(); 
     }
     
-    // Listener para o filtro de data inicial da escala
     const dataInicioInput = document.getElementById('dataInicioEscala');
     if (dataInicioInput) {
-        // Define a data inicial padrão como o dia de hoje
         const hojeStr = new Date().toISOString().split('T')[0];
         dataInicioInput.value = hojeStr;
         
-        // Atualiza a tabela imediatamente ao trocar o dia
         dataInicioInput.addEventListener('change', (e) => {
             currentDatas = getDatasSemana(e.target.value);
             renderizarEscala();
@@ -90,7 +92,6 @@ async function init() {
     renderizarAlocacao();
     atualizarStats();
     
-    // Listeners Globais
     const btnAddMotorista = document.getElementById('btnAddMotorista');
     if (btnAddMotorista) btnAddMotorista.addEventListener('click', adicionarMotorista);
     

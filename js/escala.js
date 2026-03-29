@@ -1,5 +1,65 @@
 // ==================== MÓDULO: ESCALA & ALOCAÇÃO ====================
 
+// LÓGICA DE INTELIGÊNCIA EM TEMPO REAL (ON-THE-FLY)
+window.getStatusMotorista = function(m, dDate) {
+    if (!m || !m.data_ancora) return 'F';
+    const dataAncora = new Date(m.data_ancora + 'T00:00:00');
+    const diffDays = Math.floor((dDate - dataAncora) / (1000 * 60 * 60 * 24));
+    const cicloDia = ((diffDays % 6) + 6) % 6;
+    return cicloDia < 4 ? 'TRAB' : 'F';
+}
+
+window.getEscalaDiaComputada = function(motorista, dateKey) {
+    // 1. MANUAL: Se o usuário alterou na mão e salvou no banco, prevalece.
+    if (escalas[motorista.id] && escalas[motorista.id][dateKey] && escalas[motorista.id][dateKey].status === 'manual') {
+        return escalas[motorista.id][dateKey];
+    }
+
+    // 2. BLOQUEIOS: Sem âncora, sem curso ou sem equipe = Folga F
+    if (!motorista.data_ancora || motorista.masterDrive === 'Não' || motorista.destra === 'Não' || !motorista.equipe || motorista.equipe === '-') {
+        return { caminhao: 'F', turno: motorista.turno };
+    }
+
+    const dDate = new Date(dateKey + 'T00:00:00');
+    const statusMot = window.getStatusMotorista(motorista, dDate);
+
+    if (statusMot === 'F') return { caminhao: 'F', turno: motorista.turno };
+
+    // 3. SE TRABALHA, QUAL CAMINHÃO PEGAR?
+    const conjunto = conjuntos.find(c => c.id === motorista.conjuntoId);
+    if (!conjunto || !conjunto.caminhoes) return { caminhao: 'F', turno: motorista.turno };
+
+    let placa1 = conjunto.caminhoes.length > 0 ? (typeof conjunto.caminhoes[0] === 'string' ? conjunto.caminhoes[0] : conjunto.caminhoes[0].placa) : 'F';
+    let placa2 = conjunto.caminhoes.length > 1 ? (typeof conjunto.caminhoes[1] === 'string' ? conjunto.caminhoes[1] : conjunto.caminhoes[1].placa) : placa1;
+
+    let statusCaminhao = 'F';
+
+    if (motorista.equipe === 'A' || motorista.equipe === 'D') statusCaminhao = placa1;
+    else if (motorista.equipe === 'B' || motorista.equipe === 'E') statusCaminhao = placa2;
+    else if (motorista.equipe === 'C') { 
+        const fixoA = motoristas.find(mot => mot.conjuntoId === motorista.conjuntoId && mot.equipe === 'A');
+        const fixoB = motoristas.find(mot => mot.conjuntoId === motorista.conjuntoId && mot.equipe === 'B');
+        const statusA = window.getStatusMotorista(fixoA, dDate);
+        const statusB = window.getStatusMotorista(fixoB, dDate);
+        
+        if (statusA === 'F') statusCaminhao = placa1;
+        else if (statusB === 'F') statusCaminhao = placa2;
+        else statusCaminhao = placa1; 
+    } 
+    else if (motorista.equipe === 'F') {
+        const fixoD = motoristas.find(mot => mot.conjuntoId === motorista.conjuntoId && mot.equipe === 'D');
+        const fixoE = motoristas.find(mot => mot.conjuntoId === motorista.conjuntoId && mot.equipe === 'E');
+        const statusD = window.getStatusMotorista(fixoD, dDate);
+        const statusE = window.getStatusMotorista(fixoE, dDate);
+        
+        if (statusD === 'F') statusCaminhao = placa1;
+        else if (statusE === 'F') statusCaminhao = placa2;
+        else statusCaminhao = placa1;
+    }
+
+    return { caminhao: statusCaminhao, turno: motorista.turno, status: 'auto' };
+}
+
 function renderizarEscala() {
     const container = document.getElementById('escalaContainer');
     const filtroSelec = document.getElementById('filtroConjuntoEscala')?.value || 'todos';
@@ -69,7 +129,8 @@ function renderizarEscala() {
                 tHtml += `<td style="text-align: center;"><strong>${m.equipe !== '-' ? m.equipe : ''}</strong></td>`;
 
                 currentDatas.forEach(d => {
-                    const escala = escalas[m.id]?.[d.dateKey] || { caminhao: 'F' };
+                    // USO DO CÁLCULO INTELIGENTE
+                    const escala = window.getEscalaDiaComputada(m, d.dateKey);
                     const isFolga = escala.caminhao === 'F';
                     const tdClass = isBlocked ? '' : (isFolga ? 'celula-folga' : 'celula-trabalho');
                     
@@ -110,7 +171,7 @@ function renderizarEscala() {
 
     container.innerHTML = html;
     document.querySelectorAll('.select-escala-excel').forEach(select => select.addEventListener('change', handleEscalaChange));
-    atualizarStats();
+    if(typeof atualizarStats === 'function') atualizarStats();
 }
 
 function handleEscalaChange(e) {
@@ -119,12 +180,17 @@ function handleEscalaChange(e) {
     const data = select.dataset.data;
     const novoCaminhao = select.value;
     
-    if (escalas[motoristaId] && escalas[motoristaId][data]) {
-        escalas[motoristaId][data].caminhao = novoCaminhao;
+    const m = motoristas.find(mot => mot.id === motoristaId);
+    if(m) {
+        if (!escalas[motoristaId]) escalas[motoristaId] = {};
+        
+        // Agora o banco SÓ SALVA o que for alterado manualmente!
+        escalas[motoristaId][data] = { turno: m.turno, caminhao: novoCaminhao, status: 'manual' };
         select.closest('td').className = novoCaminhao === 'F' ? 'celula-folga' : 'celula-trabalho';
         
-        db.upsertEscala({ id: `${motoristaId}_${data}`, motorista_id: motoristaId, data: data, turno: escalas[motoristaId][data].turno, caminhao: novoCaminhao, status: 'normal' });
+        db.upsertEscala({ id: `${motoristaId}_${data}`, motorista_id: motoristaId, data: data, turno: m.turno, caminhao: novoCaminhao, status: 'manual' });
         salvarBackupLocal();
+        if(typeof atualizarStats === 'function') atualizarStats();
     }
 }
 
@@ -140,9 +206,7 @@ function renderizarAlocacao() {
         const conjA = a.conjuntoId || 999999;
         const conjB = b.conjuntoId || 999999;
 
-        if (conjA !== conjB) {
-            return conjA - conjB;
-        }
+        if (conjA !== conjB) { return conjA - conjB; }
         return a.nome.localeCompare(b.nome);
     });
 
@@ -155,7 +219,6 @@ function renderizarAlocacao() {
 
         if (currentConjunto !== lastConjunto) {
             const tituloConjunto = m.conjuntoId ? `🚛 CONJUNTO ${m.conjuntoId}` : `⚠️ NÃO ALOCADOS / SEM CONJUNTO`;
-            
             const btnReset = m.conjuntoId ? `<button onclick="resetarCicloConjunto(${m.conjuntoId})" style="float: right; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #ef4444; padding: 4px 12px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-weight: bold; transition: all 0.2s;">🔄 ZERAR CICLO</button>` : '';
 
             html += `
@@ -207,7 +270,6 @@ function renderizarAlocacao() {
     });
 
     tbody.innerHTML = html;
-    
     document.querySelectorAll('.select-aloc-equipe, .select-aloc-turno, .select-aloc-conjunto').forEach(el => el.addEventListener('change', updateAlocacao));
 }
 
@@ -225,48 +287,32 @@ function updateAlocacao(e) {
     salvarBackupLocal();
     
     renderizarEscala(); 
-    atualizarStats();
+    if(typeof atualizarStats === 'function') atualizarStats();
     renderizarAlocacao();
 }
 
 window.resetarCicloConjunto = function(conjuntoId) {
     if (!confirm(`Deseja realmente ZERAR as datas de todos os motoristas do Conjunto ${conjuntoId}?\nEles voltarão para o status azul "Ajustar Ciclo".`)) return;
 
-    let alterou = false;
     motoristas.forEach(m => {
         if (m.conjuntoId === conjuntoId && m.data_ancora) {
             m.data_ancora = null;
             db.updateMotorista(m.id, { data_ancora: null });
-            alterou = true;
-            
-            recalcularEscalaUnica(m.id);
         }
     });
 
-    if (alterou) {
-        salvarBackupLocal();
-        renderizarAlocacao();
-        renderizarEscala();
-        alert(`O ciclo do Conjunto ${conjuntoId} foi zerado com sucesso!`);
-    } else {
-        alert(`O Conjunto ${conjuntoId} já está zerado ou não tem motoristas configurados.`);
-    }
+    salvarBackupLocal();
+    renderizarAlocacao();
+    renderizarEscala();
+    alert(`O ciclo do Conjunto ${conjuntoId} foi zerado com sucesso!`);
 };
-
-// ==================== LÓGICA DO MENU DE ESCALA MANUAL ====================
 
 window.abrirModalEscalaManual = function(id) {
     const m = motoristas.find(mot => mot.id === id);
     if (!m) return;
     
-    if(!m.equipe || m.equipe === '-') {
-        alert("O motorista precisa ter uma equipe (A-F) antes de configurar a escala!");
-        return;
-    }
-    if(!m.conjuntoId) {
-        alert("O motorista precisa estar alocado a um Conjunto!");
-        return;
-    }
+    if(!m.equipe || m.equipe === '-') { alert("O motorista precisa ter uma equipe (A-F) antes de configurar a escala!"); return; }
+    if(!m.conjuntoId) { alert("O motorista precisa estar alocado a um Conjunto!"); return; }
 
     document.getElementById('manualMotId').value = m.id;
     document.getElementById('manualMotNome').innerText = m.nome;
@@ -276,9 +322,7 @@ window.abrirModalEscalaManual = function(id) {
     document.getElementById('manualMotEquipe').innerText = nomeEquipe;
     
     let dia1 = new Date();
-    if (m.data_ancora) {
-        dia1 = new Date(m.data_ancora + 'T00:00:00');
-    } 
+    if (m.data_ancora) dia1 = new Date(m.data_ancora + 'T00:00:00');
     
     document.getElementById('manualDataInicio').value = dia1.toISOString().split('T')[0];
     window.atualizarPreviewManual();
@@ -297,7 +341,6 @@ window.atualizarPreviewManual = function() {
     const dBase = new Date(dataStr + 'T00:00:00');
     let html = '';
     
-    // Todos os motoristas, sem exceção, trabalham 4 dias e folgam 2.
     for(let i = 0; i < 6; i++) {
         let d = new Date(dBase);
         d.setDate(d.getDate() + i);
@@ -305,7 +348,6 @@ window.atualizarPreviewManual = function() {
         let isTrab = i < 4; 
         let txt = isTrab ? 'TRAB' : 'FOLGA';
         let icon = isTrab ? '🚚' : '🛋️';
-
         let colorBg = isTrab ? 'rgba(59, 130, 246, 0.15)' : 'rgba(249, 115, 22, 0.15)';
         let colorBorder = isTrab ? '#3b82f6' : '#f97316';
         
@@ -324,23 +366,8 @@ window.salvarEscalaManual = function() {
     const m = motoristas.find(mot => mot.id === id);
     
     if (m && dataEscolhida) {
-        // 1. Atualiza apenas a âncora DESTE motorista específico. Ele é independente.
         m.data_ancora = dataEscolhida;
         db.updateMotorista(id, { data_ancora: dataEscolhida });
-        recalcularEscalaUnica(m.id); 
-
-        // 2. MAGICA DA SINCRONIA: Se você ajustou um motorista Fixo (A, B, D, E), 
-        // o sistema recalcula silenciosamente o Folguista do turno dele, 
-        // para que o Folguista pegue o caminhão na nova data de folga do Fixo!
-        if (m.equipe === 'A' || m.equipe === 'B') {
-            const folguistaC = motoristas.find(mot => mot.conjuntoId === m.conjuntoId && mot.equipe === 'C');
-            if (folguistaC && folguistaC.data_ancora) recalcularEscalaUnica(folguistaC.id);
-        }
-        if (m.equipe === 'D' || m.equipe === 'E') {
-            const folguistaF = motoristas.find(mot => mot.conjuntoId === m.conjuntoId && mot.equipe === 'F');
-            if (folguistaF && folguistaF.data_ancora) recalcularEscalaUnica(folguistaF.id);
-        }
-
         salvarBackupLocal();
         fecharModalManual();
         renderizarEscala(); 
@@ -348,139 +375,23 @@ window.salvarEscalaManual = function() {
     }
 }
 
-// Helper para descobrir se o motorista Fixo está trabalhando ou de folga no dia
-function getStatusMotorista(m, dDate) {
-    if (!m || !m.data_ancora) return 'F';
-    const dataAncora = new Date(m.data_ancora + 'T00:00:00');
-    const diffDays = Math.floor((dDate - dataAncora) / (1000 * 60 * 60 * 24));
-    const cicloDia = ((diffDays % 6) + 6) % 6;
-    return cicloDia < 4 ? 'TRAB' : 'F';
-}
-
-// ==================== RECALCULO INDIVIDUAL COM RADAR DO FOLGUISTA ====================
-function recalcularEscalaUnica(motoristaId) {
-    const m = motoristas.find(mot => mot.id === motoristaId);
-    if (!m || m.masterDrive === 'Não' || m.destra === 'Não' || !m.equipe || m.equipe === '-' || !m.conjuntoId) return;
-
-    const conjunto = conjuntos.find(c => c.id === m.conjuntoId);
-    if (!conjunto || !conjunto.caminhoes) return;
-
-    if (!m.data_ancora) {
-        const dataLimpeza = new Date();
-        for(let i = -30; i <= 60; i++) {
-            let dDate = new Date(dataLimpeza);
-            dDate.setDate(dDate.getDate() + i);
-            let dKey = dDate.toISOString().split('T')[0];
-
-            if (!escalas[m.id]) escalas[m.id] = {};
-            if (!escalas[m.id][dKey]) escalas[m.id][dKey] = { turno: m.turno };
-            
-            escalas[m.id][dKey].caminhao = 'F';
-            db.upsertEscala({ id: `${m.id}_${dKey}`, motorista_id: m.id, data: dKey, turno: m.turno, caminhao: 'F', status: 'normal' });
-        }
-        return;
-    }
-
-    const dataAncoraStr = `${m.data_ancora}T00:00:00`;
-    const dataAncora = new Date(dataAncoraStr);
+// O BOTÃO DE GERAR AUTOMÁTICA AGORA APAGA O LIXO DO BANCO
+window.gerarEscala4x2 = async function(silencioso = false) {
+    if (!silencioso && !confirm("Atenção: A inteligência do sistema agora limpa todos os resíduos do banco de dados (que causam lentidão) e aplica a escala matemática baseada na data ajustada (âncora). Confirmar?")) return;
     
-    let placa1 = conjunto.caminhoes.length > 0 ? (typeof conjunto.caminhoes[0] === 'string' ? conjunto.caminhoes[0] : conjunto.caminhoes[0].placa) : 'F';
-    let placa2 = conjunto.caminhoes.length > 1 ? (typeof conjunto.caminhoes[1] === 'string' ? conjunto.caminhoes[1] : conjunto.caminhoes[1].placa) : placa1;
-
-    const baseDate = new Date(dataAncoraStr);
-    
-    for(let i = -30; i <= 60; i++) {
-        let dDate = new Date(baseDate);
-        dDate.setDate(dDate.getDate() + i);
-        let dKey = dDate.toISOString().split('T')[0];
-
-        const statusMotoristaLocal = getStatusMotorista(m, dDate);
-        let statusCaminhao = 'F';
-
-        // Se é o dia de trabalho dele no ciclo 4x2, vamos ver que caminhão ele pega
-        if (statusMotoristaLocal === 'TRAB') {
-            if (m.equipe === 'A' || m.equipe === 'D') {
-                statusCaminhao = placa1; // Fixos 1 pegam o Cami 1
-            } 
-            else if (m.equipe === 'B' || m.equipe === 'E') {
-                statusCaminhao = placa2; // Fixos 2 pegam o Cami 2
-            } 
-            else if (m.equipe === 'C') { 
-                // O Radar do Folguista Dia! Ele olha os fixos A e B.
-                const fixoA = motoristas.find(mot => mot.conjuntoId === m.conjuntoId && mot.equipe === 'A');
-                const fixoB = motoristas.find(mot => mot.conjuntoId === m.conjuntoId && mot.equipe === 'B');
-                
-                const statusA = getStatusMotorista(fixoA, dDate);
-                const statusB = getStatusMotorista(fixoB, dDate);
-                
-                // Inteligência: Pega o caminhão de quem está de folga 'F'
-                if (statusA === 'F') statusCaminhao = placa1;
-                else if (statusB === 'F') statusCaminhao = placa2;
-                else statusCaminhao = placa1; // Conflito: Se os dois estiverem trabalhando, pega o 1.
-            } 
-            else if (m.equipe === 'F') {
-                // O Radar do Folguista Noite! Ele olha os fixos D e E.
-                const fixoD = motoristas.find(mot => mot.conjuntoId === m.conjuntoId && mot.equipe === 'D');
-                const fixoE = motoristas.find(mot => mot.conjuntoId === m.conjuntoId && mot.equipe === 'E');
-                
-                const statusD = getStatusMotorista(fixoD, dDate);
-                const statusE = getStatusMotorista(fixoE, dDate);
-                
-                if (statusD === 'F') statusCaminhao = placa1;
-                else if (statusE === 'F') statusCaminhao = placa2;
-                else statusCaminhao = placa1;
-            }
-        }
-
-        if (!escalas[m.id]) escalas[m.id] = {};
-        if (!escalas[m.id][dKey]) escalas[m.id][dKey] = { turno: m.turno };
-        
-        escalas[m.id][dKey].caminhao = statusCaminhao;
-        db.upsertEscala({ id: `${m.id}_${dKey}`, motorista_id: m.id, data: dKey, turno: m.turno, caminhao: statusCaminhao, status: 'normal' });
-    }
-}
-
-// ==================== GERAÇÃO AUTOMÁTICA GERAL ====================
-
-function gerarEscala4x2(silencioso = false) {
-    if (!silencioso && !confirm("Atenção: O sistema vai preencher APENAS os motoristas que estiverem com o ciclo 'Ajustado' (Verde). Confirmar?")) return;
-    
-    const filtroSelec = document.getElementById('filtroConjuntoEscala')?.value || 'todos';
-    let motoristasAtualizados = 0;
-
-    motoristas.forEach(m => {
-        if (filtroSelec !== 'todos' && m.conjuntoId != filtroSelec) return;
-        if (m.masterDrive === 'Não' || m.destra === 'Não' || !m.equipe || m.equipe === '-' || !m.conjuntoId) return;
-
-        motoristasAtualizados++;
-        recalcularEscalaUnica(m.id);
-    });
-
-    if (motoristasAtualizados === 0 && !silencioso) {
-        alert("Nenhum motorista válido foi encontrado! Verifique as equipes e o Master/Destra.");
-        return;
-    }
-
+    // Apaga todas as tabelas de escala do Supabase e esvazia na memória
+    await db.limparApenasEscalas();
+    escalas = {};
+    motoristas.forEach(m => { escalas[m.id] = {}; });
     salvarBackupLocal();
+
     renderizarEscala(); 
-    if (!silencioso) alert(`Escala atualizada com sucesso!`);
+    if (!silencioso) alert(`Sucesso! Banco de dados limpo e escala perfeita reconstruída on-the-fly!`);
 }
 
-function zerarEscala() {
-    if (!confirm("Deseja ZERAR a escala na tela?")) return;
-    const filtroSelec = document.getElementById('filtroConjuntoEscala')?.value || 'todos';
-
-    motoristas.forEach(m => {
-        if (filtroSelec !== 'todos' && m.conjuntoId != filtroSelec) return;
-        currentDatas.forEach(d => {
-            if (escalas[m.id]?.[d.dateKey]) {
-                escalas[m.id][d.dateKey].caminhao = 'F';
-                db.upsertEscala({ id: `${m.id}_${d.dateKey}`, motorista_id: m.id, data: d.dateKey, turno: m.turno, caminhao: 'F', status: 'normal' });
-            }
-        });
-    });
-    salvarBackupLocal();
-    renderizarEscala();
+window.zerarEscala = function() {
+    if (!confirm("Isso apagará todas as edições manuais que você fez diretamente na grade. Continuar?")) return;
+    window.gerarEscala4x2(true);
 }
 
 // ==================== PAINEL DE TROCA DE TURNO ====================
@@ -490,10 +401,7 @@ window.renderizarTrocaTurno = function() {
     const listaDisponiveis = document.getElementById('listaDisponiveis');
     if (!listaProximos || !listaDisponiveis) return;
 
-    // Pega a data de hoje no formato YYYY-MM-DD
     const hojeStr = new Date().toISOString().split('T')[0];
-    
-    // Pega a hora atual do computador
     const agora = new Date();
     const minutosAtuaisTotais = (agora.getHours() * 60) + agora.getMinutes();
 
@@ -501,32 +409,25 @@ window.renderizarTrocaTurno = function() {
     let htmlDisponiveis = '';
 
     motoristas.forEach(m => {
-        // Ignorar motoristas bloqueados (sem curso)
         if (m.masterDrive === 'Não' || m.destra === 'Não') return;
 
-        const escalaHoje = escalas[m.id]?.[hojeStr];
+        // Puxando da inteligência On-The-Fly
+        const escalaHoje = window.getEscalaDiaComputada(m, hojeStr);
         const estaTrabalhando = escalaHoje && escalaHoje.caminhao !== 'F';
 
         if (estaTrabalhando) {
-            // Lógica: Está na escala com um caminhão. Falta muito para acabar o turno?
-            const turno = m.turno; // Ex: "06:00-18:00"
+            const turno = m.turno; 
             if (turno && turno !== '-') {
-                const fimStr = turno.split('-')[1]; // "18:00"
+                const fimStr = turno.split('-')[1]; 
                 if (fimStr) {
                     const fimHoras = parseInt(fimStr.split(':')[0]);
                     const fimMinutos = parseInt(fimStr.split(':')[1]);
                     let tempoFimTotais = (fimHoras * 60) + fimMinutos;
 
-                    // Diferença de minutos entre agora e o fim do turno
                     let diferenca = tempoFimTotais - minutosAtuaisTotais;
-                    
-                    // Ajuste para viradas de noite (ex: turno acaba às 06:00 mas agora são 23:00)
                     if (diferenca < -720) diferenca += (24 * 60); 
 
-                    // REGRA: Mostrar se faltam 3 HORAS (180 min) ou menos para acabar o turno, 
-                    // ou se passou do horário até 1 hora (atraso na troca).
                     if (diferenca <= 180 && diferenca >= -60) {
-                        
                         let avisoStatus = '';
                         if(diferenca < 0) avisoStatus = `<span style="color: #ef4444; font-size: 0.75rem;">(Atrasado)</span>`;
                         else if(diferenca <= 60) avisoStatus = `<span style="color: #fb923c; font-size: 0.75rem;">(Falta ${diferenca}m)</span>`;
@@ -542,8 +443,6 @@ window.renderizarTrocaTurno = function() {
                 }
             }
         } else {
-            // Lógica: Não está trabalhando hoje (Caminhão === 'F' ou não alocado)
-            // É um excelente candidato para cobertura ou troca.
             htmlDisponiveis += `
                 <tr>
                     <td style="text-align: left; padding-left: 15px; color: var(--ccol-green-bright);"><strong>${m.nome}</strong></td>

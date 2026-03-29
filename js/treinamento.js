@@ -97,7 +97,6 @@ let treinamentosConcluidos = [];
 
 const strNormalize = (str) => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim() : '';
 
-// Função para puxar os dados do banco quando o sistema inicia
 window.carregarDadosTreinamento = async function() {
     try {
         const instDb = await db.getInstrutores();
@@ -136,7 +135,7 @@ window.adicionarInstrutor = function() {
     const nome = input.value.trim();
     if (nome) {
         instrutoresMaster.push(nome);
-        db.addInstrutor({ nome: nome }); // Salva no Supabase
+        db.addInstrutor({ nome: nome }); 
         input.value = '';
         renderizarInstrutores();
     }
@@ -146,7 +145,7 @@ window.removerInstrutor = function(index) {
     if(confirm("Remover este instrutor?")) {
         const nomeParaRemover = instrutoresMaster[index];
         instrutoresMaster.splice(index, 1);
-        db.deleteInstrutor(nomeParaRemover); // Apaga no Supabase
+        db.deleteInstrutor(nomeParaRemover); 
         renderizarInstrutores();
     }
 }
@@ -201,7 +200,7 @@ window.renderizarCronogramaTreinamento = function() {
 window.removerTreinamento = function(id) {
     if(confirm("Deseja cancelar o agendamento deste treinamento?")) {
         cronogramaTreinamento = cronogramaTreinamento.filter(t => t.id !== id);
-        db.deleteTreinamento(id); // Deleta no Supabase
+        db.deleteTreinamento(id); 
         renderizarCronogramaTreinamento();
     }
 }
@@ -216,7 +215,7 @@ window.concluirTreinamento = function(id) {
             treinamento.status = 'concluido';
             
             treinamentosConcluidos.push(treinamento);
-            db.upsertTreinamento(treinamento); // Atualiza o status no Supabase
+            db.upsertTreinamento(treinamento); 
             
             renderizarCronogramaTreinamento();
         }
@@ -256,7 +255,8 @@ window.gerarTreinamentoAuto = function() {
                 let motSistema = motoristas.find(m => strNormalize(m.nome).includes(strNormalize(reqPDF.nome)) || strNormalize(reqPDF.nome).includes(strNormalize(m.nome)));
                 
                 if (motSistema) {
-                    let escalaDia = escalas[motSistema.id]?.[dia.dateKey];
+                    // USO DO CÁLCULO INTELIGENTE AQUI TAMBÉM
+                    let escalaDia = window.getEscalaDiaComputada(motSistema, dia.dateKey);
                     if(escalaDia && escalaDia.caminhao !== 'F') {
                         alunoEscolhido = motSistema;
                         infoPDF = reqPDF;
@@ -281,7 +281,7 @@ window.gerarTreinamentoAuto = function() {
                 };
 
                 cronogramaTreinamento.push(novoTreino);
-                db.upsertTreinamento(novoTreino); // Envia para o Supabase
+                db.upsertTreinamento(novoTreino); 
                 
                 alunosPendentes = alunosPendentes.filter(p => strNormalize(p.nome) !== strNormalize(infoPDF.nome));
                 agendamentosNovos++;

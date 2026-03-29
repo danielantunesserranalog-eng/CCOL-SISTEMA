@@ -31,7 +31,6 @@ function renderizarMotoristas() {
         `;
     }).join('');
     
-    // Adiciona os eventos de clique APÓS renderizar os botões
     document.querySelectorAll('.btn-edit-motorista').forEach(btn => btn.addEventListener('click', handleEditMotorista));
     document.querySelectorAll('.btn-delete-motorista').forEach(btn => btn.addEventListener('click', handleRemoveMotorista));
 }
@@ -51,40 +50,31 @@ function adicionarMotorista() {
     motoristas.push(novoMot);
     escalas[novoId] = {};
     
-    getDatasSemana().forEach(d => {
-        escalas[novoId][d.dateKey] = { turno: turnoPadrao, caminhao: 'F', status: 'normal' };
-        db.upsertEscala({ id: `${novoId}_${d.dateKey}`, motorista_id: novoId, data: d.dateKey, turno: turnoPadrao, caminhao: 'F', status: 'normal' });
-    });
-    
-    // Limpar campos
+    // Removida a linha que inseria lixo no banco
     document.getElementById('motoristaNome').value = '';
     document.getElementById('motoristaCidade').value = '';
     
     db.addMotorista(novoMot);
     salvarBackupLocal();
     
-    renderizarMotoristas(); renderizarEscala(); renderizarAlocacao(); atualizarStats();
+    renderizarMotoristas(); renderizarEscala(); renderizarAlocacao(); 
+    if(typeof atualizarStats === 'function') atualizarStats();
 }
-
-// ==================== LÓGICA DO MODAL DE EDIÇÃO ====================
 
 function handleEditMotorista(e) {
     const id = parseInt(e.target.dataset.id);
     const motorista = motoristas.find(m => m.id === id);
     if (!motorista) return;
     
-    // Preenche a caixa (modal) com os dados atuais do motorista
     document.getElementById('editMotoristaId').value = motorista.id;
     document.getElementById('editMotoristaNome').value = motorista.nome;
     document.getElementById('editMotoristaMasterDrive').value = motorista.masterDrive || 'Sim';
     document.getElementById('editMotoristaDestra').value = motorista.destra || 'Sim';
     document.getElementById('editMotoristaCidade').value = motorista.cidade || '';
     
-    // Exibe o modal no centro da tela
     document.getElementById('modalEdicaoMotorista').classList.add('show');
 }
 
-// Exportadas para a janela global (window) para que o HTML consiga ativar através do onclick
 window.fecharModalEdicao = function() {
     document.getElementById('modalEdicaoMotorista').classList.remove('show');
 };
@@ -108,7 +98,7 @@ window.salvarEdicaoMotorista = function() {
         db.updateMotorista(id, { nome: motorista.nome, masterDrive: motorista.masterDrive, destra: motorista.destra, cidade: motorista.cidade });
         salvarBackupLocal();
         
-        window.fecharModalEdicao(); // Fecha a janela após salvar
+        window.fecharModalEdicao(); 
         renderizarMotoristas(); renderizarEscala(); renderizarAlocacao();
     }
 };
@@ -123,6 +113,7 @@ function handleRemoveMotorista(e) {
         db.deleteEscalasPorMotorista(id);
         salvarBackupLocal();
         
-        renderizarEscala(); renderizarMotoristas(); renderizarAlocacao(); atualizarStats();
+        renderizarEscala(); renderizarMotoristas(); renderizarAlocacao(); 
+        if(typeof atualizarStats === 'function') atualizarStats();
     }
 }
