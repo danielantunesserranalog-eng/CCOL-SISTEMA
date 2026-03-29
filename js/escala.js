@@ -136,9 +136,9 @@ function renderizarAlocacao() {
         tbody.innerHTML = '<tr><td colspan="5">Nenhum motorista cadastrado</td></tr>'; return;
     }
 
-    // 1. Ordenar por Conjunto (Crescente) e depois por Ordem Alfabética (Nome)
+    // Ordenar por Conjunto (Crescente) e depois por Ordem Alfabética (Nome)
     const motoristasOrdenados = [...motoristas].sort((a, b) => {
-        const conjA = a.conjuntoId || 999999; // Sem conjunto vai para o final
+        const conjA = a.conjuntoId || 999999;
         const conjB = b.conjuntoId || 999999;
 
         if (conjA !== conjB) {
@@ -154,7 +154,7 @@ function renderizarAlocacao() {
         const isBlocked = m.masterDrive === 'Não' || m.destra === 'Não';
         const currentConjunto = m.conjuntoId || 'sem_conjunto';
 
-        // 2. Criar a linha divisória sempre que mudar o conjunto
+        // Criar a linha divisória sempre que mudar o conjunto
         if (currentConjunto !== lastConjunto) {
             const tituloConjunto = m.conjuntoId ? `🚛 CONJUNTO ${m.conjuntoId}` : `⚠️ NÃO ALOCADOS / SEM CONJUNTO`;
             html += `
@@ -186,7 +186,17 @@ function renderizarAlocacao() {
             ${isBlocked ? '' : conjuntos.map(c => `<option value="${c.id}" ${m.conjuntoId === c.id ? 'selected' : ''}>Conjunto ${c.id}</option>`).join('')}
         </select>`;
         
-        let botaoManual = `<button class="btn-primary-blue" style="padding: 8px 12px; font-size: 0.8rem;" onclick="abrirModalEscalaManual(${m.id})" ${isBlocked ? 'disabled' : ''}>⚙️ Ajustar Ciclo</button>`;
+        // --- NOVA LÓGICA DO BOTÃO VERDE COM VISTO ---
+        let botaoManual = '';
+        if (m.data_ancora) {
+            // Se tem data_ancora, significa que já foi editado. Mostra verde e a data em formato DD/MM
+            const partesData = m.data_ancora.split('-'); // ex: 2026-04-15
+            const dataFormatada = partesData.length === 3 ? `${partesData[2]}/${partesData[1]}` : 'Ajustado';
+            botaoManual = `<button class="btn-primary-green" style="padding: 8px 12px; font-size: 0.8rem; font-weight: bold;" onclick="abrirModalEscalaManual(${m.id})" ${isBlocked ? 'disabled' : ''}>✅ Ajustado (${dataFormatada})</button>`;
+        } else {
+            // Se nunca foi editado, mostra azul padrão
+            botaoManual = `<button class="btn-primary-blue" style="padding: 8px 12px; font-size: 0.8rem;" onclick="abrirModalEscalaManual(${m.id})" ${isBlocked ? 'disabled' : ''}>⚙️ Ajustar Ciclo</button>`;
+        }
         
         html += `<tr style="${isBlocked ? 'background-color: #ffe6e6;' : ''}">
             <td style="${isBlocked ? 'color: #cc0000;' : ''}"><strong>${m.nome}</strong></td>
@@ -319,6 +329,9 @@ window.salvarEscalaManual = function() {
         
         renderizarEscala(); 
         
+        // Também forçamos a renderização da alocação nos bastidores para que o botão fique verde
+        renderizarAlocacao();
+        
         const abaEscala = document.querySelector('.nav-item[data-tab="escala"]');
         if (abaEscala) {
             document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
@@ -330,7 +343,7 @@ window.salvarEscalaManual = function() {
     }
 }
 
-// ==================== RECALCULO INDIVIDUAL (NOVO) ====================
+// ==================== RECALCULO INDIVIDUAL ====================
 function recalcularEscalaUnica(motoristaId) {
     const m = motoristas.find(mot => mot.id === motoristaId);
     if (!m || m.masterDrive === 'Não' || m.destra === 'Não' || !m.equipe || m.equipe === '-' || !m.conjuntoId) return;
