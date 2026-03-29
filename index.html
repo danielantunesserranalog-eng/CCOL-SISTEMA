@@ -233,10 +233,10 @@
                     <button id="btnAtualizarTroca" class="btn-primary-blue" onclick="renderizarTrocaTurno()">🔄 Atualizar Painel</button>
                 </div>
 
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
                     <div class="content-panel">
                         <div class="panel-header">
-                            <h3 style="color: var(--ccol-rust-bright);">⚠️ Próximos de Trocar o Turno</h3>
+                            <h3 style="color: var(--ccol-rust-bright);">⚠️ Próximos de Trocar (Ativos)</h3>
                         </div>
                         <div class="table-modern-wrapper">
                             <table class="data-table-modern">
@@ -254,7 +254,7 @@
 
                     <div class="content-panel">
                         <div class="panel-header">
-                            <h3 style="color: var(--ccol-green-bright);">✅ Disponíveis Hoje (Folga)</h3>
+                            <h3 style="color: var(--ccol-blue-bright);">🚨 Plantão (Sem Caminhão)</h3>
                         </div>
                         <div class="table-modern-wrapper">
                             <table class="data-table-modern">
@@ -262,10 +262,28 @@
                                     <tr>
                                         <th>Motorista</th>
                                         <th>Equipe</th>
-                                        <th>Cidade / Status</th>
+                                        <th>Turno</th>
                                     </tr>
                                 </thead>
-                                <tbody id="listaDisponiveis"></tbody>
+                                <tbody id="listaPlantaoSemCaminhao"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="content-panel">
+                        <div class="panel-header">
+                            <h3 style="color: var(--text-secondary);">🛋️ Em Folga (Não Incomodar)</h3>
+                        </div>
+                        <div class="table-modern-wrapper">
+                            <table class="data-table-modern">
+                                <thead>
+                                    <tr>
+                                        <th>Motorista</th>
+                                        <th>Equipe</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="listaFolga"></tbody>
                             </table>
                         </div>
                     </div>
