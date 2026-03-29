@@ -17,7 +17,10 @@ function renderizarEscala() {
 
     let html = '';
     const inputData = document.getElementById('dataInicioEscala');
-    currentDatas = getDatasSemana(inputData ? inputData.value : null);
+    
+    if (typeof getDatasSemana === 'function') {
+        currentDatas = getDatasSemana(inputData ? inputData.value : null);
+    }
 
     let conjuntosRender = filtroSelec !== 'todos' ? conjuntos.filter(c => c.id == filtroSelec) : conjuntos;
 
@@ -54,10 +57,14 @@ function renderizarEscala() {
             grupo.forEach(m => {
                 const isBlocked = m.masterDrive === 'Não' || m.destra === 'Não';
                 const goStr = conj.caminhoes?.map(c => typeof c === 'string' ? '' : c.go).filter(go=>go).join(' e ') || '-';
-                let displayTurno = (m.equipe === 'C' || m.equipe === 'F') ? 'Misto' : (m.turno || '-');
+                
+                // Adiciona o selo visual de Folguista
+                const isFolguista = (m.equipe === 'C' || m.equipe === 'F');
+                const tagFolguista = isFolguista ? `<span style="background:#f97316; color:#fff; font-size:0.65rem; font-weight:bold; padding:2px 5px; border-radius:4px; margin-left:8px; vertical-align:middle; letter-spacing:0.5px;">FOLGUISTA</span>` : '';
+                let displayTurno = isFolguista ? 'Misto' : (m.turno || '-');
 
                 tHtml += `<tr>`;
-                tHtml += `<td class="td-name" style="${isBlocked ? 'color: red;' : ''}"><strong>${m.nome}</strong></td>`;
+                tHtml += `<td class="td-name" style="${isBlocked ? 'color: red;' : ''}"><strong>${m.nome}</strong> ${tagFolguista}</td>`;
                 tHtml += `<td style="text-align: center;">${displayTurno}</td>`;
                 tHtml += `<td style="text-align: center;">${goStr}</td>`;
                 tHtml += `<td style="text-align: center;"><strong>${m.equipe !== '-' ? m.equipe : ''}</strong></td>`;
@@ -133,9 +140,15 @@ function renderizarAlocacao() {
     tbody.innerHTML = motoristas.map(m => {
         const isBlocked = m.masterDrive === 'Não' || m.destra === 'Não';
         
+        // Menu de equipes muito mais claro e com a opção de folguista explícita
         let equipeSelect = `<select class="select-aloc-equipe select-turno" data-id="${m.id}" ${isBlocked ? 'disabled' : ''}>
             <option value="-" ${m.equipe === '-' ? 'selected' : ''}>Sem Equipe</option>
-            ${['A','B','C','D','E','F'].map(eq => `<option value="${eq}" ${m.equipe === eq ? 'selected' : ''}>Equipe ${eq}</option>`).join('')}
+            <option value="A" ${m.equipe === 'A' ? 'selected' : ''}>A (Fixo Dia)</option>
+            <option value="B" ${m.equipe === 'B' ? 'selected' : ''}>B (Fixo Dia)</option>
+            <option value="C" ${m.equipe === 'C' ? 'selected' : ''}>C (⭐ FOLGUISTA DIA)</option>
+            <option value="D" ${m.equipe === 'D' ? 'selected' : ''}>D (Fixo Noite)</option>
+            <option value="E" ${m.equipe === 'E' ? 'selected' : ''}>E (Fixo Noite)</option>
+            <option value="F" ${m.equipe === 'F' ? 'selected' : ''}>F (⭐ FOLGUISTA NOITE)</option>
         </select>`;
         
         let turnoSelect = `<select class="select-aloc-turno select-turno" data-id="${m.id}" ${isBlocked ? 'disabled' : ''}>
@@ -189,9 +202,12 @@ window.abrirModalEscalaManual = function(id) {
 
     document.getElementById('manualMotId').value = m.id;
     document.getElementById('manualMotNome').innerText = m.nome;
-    document.getElementById('manualMotEquipe').innerText = `${m.equipe}`;
     
-    // Reconstrói visualmente qual seria o "Dia 1" de trabalho atual dele
+    // Mostra se é folguista no modal também
+    let nomeEquipe = m.equipe;
+    if(m.equipe === 'C' || m.equipe === 'F') nomeEquipe += " (Folguista)";
+    document.getElementById('manualMotEquipe').innerText = nomeEquipe;
+    
     let dia1 = new Date();
     if (m.data_ancora) {
         let offset = 0;
@@ -221,7 +237,6 @@ window.atualizarPreviewManual = function() {
     const dBase = new Date(dataStr + 'T00:00:00');
     let html = '';
     
-    // Mostra os 4 dias de trabalho e 2 de folga para ficar claro
     for(let i = 0; i < 6; i++) {
         let d = new Date(dBase);
         d.setDate(d.getDate() + i);
@@ -246,8 +261,6 @@ window.salvarEscalaManual = function() {
     const m = motoristas.find(mot => mot.id === id);
     
     if (m && dataEscolhida) {
-        // A mágica: Ajusta a data âncora nos bastidores para que a data que o usuário escolheu 
-        // seja sempre o "Dia 1" de trabalho daquela equipe na matemática do sistema.
         let offset = 0;
         if (m.equipe === 'A' || m.equipe === 'D') offset = 2;
         if (m.equipe === 'B' || m.equipe === 'E') offset = 4;
@@ -258,19 +271,91 @@ window.salvarEscalaManual = function() {
         
         m.data_ancora = dAncora.toISOString().split('T')[0];
         db.updateMotorista(id, { data_ancora: m.data_ancora });
+        
+        // RECALCULA APENAS ESTE MOTORISTA (muito mais leve e rápido)
+        recalcularEscalaUnica(id);
         salvarBackupLocal();
         
         fecharModalManual();
-        gerarEscala4x2(true); // Chama a geração de forma silenciosa
+
+        // Puxa a data principal para mostrar o que acabou de ser feito
+        const inputDataPrincipal = document.getElementById('dataInicioEscala');
+        if (inputDataPrincipal) {
+            inputDataPrincipal.value = dataEscolhida;
+            if (typeof getDatasSemana === 'function') {
+                currentDatas = getDatasSemana(dataEscolhida);
+            }
+        }
         
-        alert(`Sucesso! A escala de ${m.nome} foi ajustada e salva.`);
+        // Redesenha a tela principal
+        renderizarEscala(); 
+        
+        // Troca de aba sozinho para ver a mágica acontecendo
+        const abaEscala = document.querySelector('.nav-item[data-tab="escala"]');
+        if (abaEscala) {
+            document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            abaEscala.classList.add('active');
+            const tabContent = document.getElementById('tab-escala');
+            if (tabContent) tabContent.classList.add('active');
+        }
     }
 }
 
-// ==================== GERAÇÃO AUTOMÁTICA ====================
+// ==================== RECALCULO INDIVIDUAL (NOVO) ====================
+function recalcularEscalaUnica(motoristaId) {
+    const m = motoristas.find(mot => mot.id === motoristaId);
+    if (!m || m.masterDrive === 'Não' || m.destra === 'Não' || !m.equipe || m.equipe === '-' || !m.conjuntoId) return;
+
+    const conjunto = conjuntos.find(c => c.id === m.conjuntoId);
+    if (!conjunto || !conjunto.caminhoes) return;
+
+    const dataAncoraStr = m.data_ancora ? `${m.data_ancora}T00:00:00` : '2026-03-25T00:00:00';
+    const dataAncora = new Date(dataAncoraStr);
+    
+    let placa1 = conjunto.caminhoes.length > 0 ? (typeof conjunto.caminhoes[0] === 'string' ? conjunto.caminhoes[0] : conjunto.caminhoes[0].placa) : 'F';
+    let placa2 = conjunto.caminhoes.length > 1 ? (typeof conjunto.caminhoes[1] === 'string' ? conjunto.caminhoes[1] : conjunto.caminhoes[1].placa) : placa1;
+
+    // Recalcula um raio amplo de dias ao redor (para garantir que a escala do banco seja populada)
+    const baseDate = new Date(dataAncoraStr);
+    for(let i = -10; i <= 30; i++) {
+        let dDate = new Date(baseDate);
+        dDate.setDate(dDate.getDate() + i);
+        let dKey = dDate.toISOString().split('T')[0];
+
+        const diffDays = Math.floor((dDate - dataAncora) / (1000 * 60 * 60 * 24));
+        let cicloDia = ((diffDays % 6) + 6) % 6; 
+        let statusCaminhao = 'F';
+
+        switch (m.equipe) {
+            case 'A': 
+            case 'D': 
+                statusCaminhao = (cicloDia === 0 || cicloDia === 1) ? 'F' : placa1;
+                break;
+            case 'B': 
+            case 'E': 
+                statusCaminhao = (cicloDia === 2 || cicloDia === 3) ? 'F' : placa2;
+                break;
+            case 'C': 
+            case 'F': 
+                if (cicloDia === 0 || cicloDia === 1) statusCaminhao = placa1;
+                else if (cicloDia === 2 || cicloDia === 3) statusCaminhao = placa2;
+                else statusCaminhao = 'F'; 
+                break;
+        }
+
+        if (!escalas[m.id]) escalas[m.id] = {};
+        if (!escalas[m.id][dKey]) escalas[m.id][dKey] = { turno: m.turno };
+        
+        escalas[m.id][dKey].caminhao = statusCaminhao;
+        db.upsertEscala({ id: `${m.id}_${dKey}`, motorista_id: m.id, data: dKey, turno: m.turno, caminhao: statusCaminhao, status: 'normal' });
+    }
+}
+
+// ==================== GERAÇÃO AUTOMÁTICA GERAL ====================
 
 function gerarEscala4x2(silencioso = false) {
-    if (!silencioso && !confirm("Gerar escala inteligente 4x2? Isso substituirá a tela atual.")) return;
+    if (!silencioso && !confirm("Gerar escala inteligente 4x2 global? Isso substituirá a tela atual para TODOS.")) return;
     
     const filtroSelec = document.getElementById('filtroConjuntoEscala')?.value || 'todos';
     let motoristasAtualizados = 0;
@@ -279,50 +364,8 @@ function gerarEscala4x2(silencioso = false) {
         if (filtroSelec !== 'todos' && m.conjuntoId != filtroSelec) return;
         if (m.masterDrive === 'Não' || m.destra === 'Não' || !m.equipe || m.equipe === '-' || !m.conjuntoId) return;
 
-        const conjunto = conjuntos.find(c => c.id === m.conjuntoId);
-        if (!conjunto || !conjunto.caminhoes) return;
-
         motoristasAtualizados++;
-        
-        // Usa a data âncora individual (manual) ou a data global (padrão antigo)
-        const dataAncoraStr = m.data_ancora ? `${m.data_ancora}T00:00:00` : '2026-03-25T00:00:00';
-        const dataAncora = new Date(dataAncoraStr);
-        
-        let placa1 = conjunto.caminhoes.length > 0 ? (typeof conjunto.caminhoes[0] === 'string' ? conjunto.caminhoes[0] : conjunto.caminhoes[0].placa) : 'F';
-        let placa2 = conjunto.caminhoes.length > 1 ? (typeof conjunto.caminhoes[1] === 'string' ? conjunto.caminhoes[1] : conjunto.caminhoes[1].placa) : placa1;
-
-        currentDatas.forEach(d => {
-            const dataAtual = new Date(d.dateKey + 'T00:00:00');
-            const diffDays = Math.floor((dataAtual - dataAncora) / (1000 * 60 * 60 * 24));
-            
-            // Fórmula segura que aceita cálculos retroativos
-            let cicloDia = ((diffDays % 6) + 6) % 6; 
-            
-            let statusCaminhao = 'F';
-
-            switch (m.equipe) {
-                case 'A': // Caminhão 1 (Dia)
-                case 'D': // Caminhão 1 (Noite)
-                    statusCaminhao = (cicloDia === 0 || cicloDia === 1) ? 'F' : placa1;
-                    break;
-                case 'B': // Caminhão 2 (Dia)
-                case 'E': // Caminhão 2 (Noite)
-                    statusCaminhao = (cicloDia === 2 || cicloDia === 3) ? 'F' : placa2;
-                    break;
-                case 'C': // Folguista (Dia)
-                case 'F': // Folguista (Noite)
-                    if (cicloDia === 0 || cicloDia === 1) statusCaminhao = placa1;
-                    else if (cicloDia === 2 || cicloDia === 3) statusCaminhao = placa2;
-                    else statusCaminhao = 'F'; 
-                    break;
-            }
-
-            if (!escalas[m.id]) escalas[m.id] = {};
-            if (!escalas[m.id][d.dateKey]) escalas[m.id][d.dateKey] = { turno: m.turno };
-            
-            escalas[m.id][d.dateKey].caminhao = statusCaminhao;
-            db.upsertEscala({ id: `${m.id}_${d.dateKey}`, motorista_id: m.id, data: d.dateKey, turno: m.turno, caminhao: statusCaminhao, status: 'normal' });
-        });
+        recalcularEscalaUnica(m.id);
     });
 
     if (motoristasAtualizados === 0 && !silencioso) {
@@ -332,7 +375,7 @@ function gerarEscala4x2(silencioso = false) {
 
     salvarBackupLocal();
     renderizarEscala(); 
-    if (!silencioso) alert(`Escala automática gerada com sucesso!`);
+    if (!silencioso) alert(`Escala automática global gerada com sucesso!`);
 }
 
 function zerarEscala() {
