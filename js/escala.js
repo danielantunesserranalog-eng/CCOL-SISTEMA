@@ -25,14 +25,14 @@ function renderizarEscala() {
         const motoristasDoConjunto = motoristas.filter(m => m.conjuntoId === conj.id);
         if (motoristasDoConjunto.length === 0) return;
 
-        // Estrutura Visual idêntica à imagem (Número gigante na esquerda)
+        // Estrutura Visual (Número gigante na esquerda)
         html += `
         <div class="escala-conjunto-box">
             <div class="escala-conjunto-numero">${conj.id}</div>
             <div class="escala-conjunto-tabelas">
         `;
 
-        // Divisão Lógica: Caminhão 1 (A, B, C) e Caminhão 2 (D, E, F)
+        // Divisão Lógica: Equipes do Dia (A, B, C) e Equipes da Noite (D, E, F)
         const grupoCaminhao1 = motoristasDoConjunto.filter(m => ['A', 'B', 'C'].includes(m.equipe)).sort((a, b) => a.equipe.localeCompare(b.equipe));
         const grupoCaminhao2 = motoristasDoConjunto.filter(m => ['D', 'E', 'F'].includes(m.equipe)).sort((a, b) => a.equipe.localeCompare(b.equipe));
         const outros = motoristasDoConjunto.filter(m => !['A', 'B', 'C', 'D', 'E', 'F'].includes(m.equipe));
@@ -55,7 +55,7 @@ function renderizarEscala() {
 
             grupo.forEach(m => {
                 const isBlocked = m.masterDrive === 'Não' || m.destra === 'Não';
-                const goStr = conj.caminhoes?.map(c => c.go).filter(go=>go).join(' e ') || '-';
+                const goStr = conj.caminhoes?.map(c => typeof c === 'string' ? '' : c.go).filter(go=>go).join(' e ') || '-';
                 
                 // Se for folguista, mostramos "Misto" ou o turno original no layout
                 let displayTurno = (m.equipe === 'C' || m.equipe === 'F') ? 'Misto' : (m.turno || '-');
@@ -131,11 +131,12 @@ function renderizarAlocacao() {
     if (!tbody) return;
     
     if (motoristas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4">Nenhum motorista cadastrado</td></tr>'; return;
+        tbody.innerHTML = '<tr><td colspan="5">Nenhum motorista cadastrado</td></tr>'; return;
     }
     
     tbody.innerHTML = motoristas.map(m => {
         const isBlocked = m.masterDrive === 'Não' || m.destra === 'Não';
+        
         let equipeSelect = `<select class="select-aloc-equipe select-turno" data-id="${m.id}" ${isBlocked ? 'disabled' : ''}>
             <option value="-" ${m.equipe === '-' ? 'selected' : ''}>Sem Equipe</option>
             ${['A','B','C','D','E','F'].map(eq => `<option value="${eq}" ${m.equipe === eq ? 'selected' : ''}>Equipe ${eq}</option>`).join('')}
@@ -150,10 +151,19 @@ function renderizarAlocacao() {
             ${isBlocked ? '' : conjuntos.map(c => `<option value="${c.id}" ${m.conjuntoId === c.id ? 'selected' : ''}>Conjunto ${c.id}</option>`).join('')}
         </select>`;
         
-        return `<tr style="${isBlocked ? 'background-color: #ffe6e6;' : ''}"><td style="${isBlocked ? 'color: #cc0000;' : ''}"><strong>${m.nome}</strong></td><td>${equipeSelect}</td><td>${turnoSelect}</td><td>${conjuntoSelect}</td></tr>`;
+        // Novo input para Data Âncora Individual
+        let dataAncoraInput = `<input type="date" class="input-aloc-data dark-select" data-id="${m.id}" value="${m.data_ancora || ''}" ${isBlocked ? 'disabled' : ''} style="padding: 8px; width: 140px; text-align: center;">`;
+        
+        return `<tr style="${isBlocked ? 'background-color: #ffe6e6;' : ''}">
+            <td style="${isBlocked ? 'color: #cc0000;' : ''}"><strong>${m.nome}</strong></td>
+            <td>${equipeSelect}</td>
+            <td>${turnoSelect}</td>
+            <td>${conjuntoSelect}</td>
+            <td>${dataAncoraInput}</td>
+        </tr>`;
     }).join('');
     
-    document.querySelectorAll('.select-aloc-equipe, .select-aloc-turno, .select-aloc-conjunto').forEach(el => el.addEventListener('change', updateAlocacao));
+    document.querySelectorAll('.select-aloc-equipe, .select-aloc-turno, .select-aloc-conjunto, .input-aloc-data').forEach(el => el.addEventListener('change', updateAlocacao));
 }
 
 function updateAlocacao(e) {
@@ -165,70 +175,72 @@ function updateAlocacao(e) {
     motorista.turno = tr.querySelector('.select-aloc-turno').value;
     const conjVal = tr.querySelector('.select-aloc-conjunto').value;
     motorista.conjuntoId = conjVal ? parseInt(conjVal) : null;
+    motorista.data_ancora = tr.querySelector('.input-aloc-data').value; // Puxa a data digitada
     
-    db.updateMotorista(id, { equipe: motorista.equipe, turno: motorista.turno, conjuntoId: motorista.conjuntoId });
+    db.updateMotorista(id, { 
+        equipe: motorista.equipe, 
+        turno: motorista.turno, 
+        conjuntoId: motorista.conjuntoId,
+        data_ancora: motorista.data_ancora 
+    });
+    
     salvarBackupLocal();
     renderizarEscala(); atualizarStats();
 }
 
 function gerarEscala4x2() {
-    if (!confirm("Gerar escala inteligente com Folguistas? Isso substituirá a tela atual.")) return;
+    if (!confirm("Gerar escala inteligente 4x2? Isso substituirá a tela atual.")) return;
     const filtroSelec = document.getElementById('filtroConjuntoEscala')?.value || 'todos';
     
-    // Data base para iniciar o ciclo de 6 dias
-    const dataAncora = new Date('2026-03-25T00:00:00'); 
     let motoristasAtualizados = 0;
 
     motoristas.forEach(m => {
         if (filtroSelec !== 'todos' && m.conjuntoId != filtroSelec) return;
         if (m.masterDrive === 'Não' || m.destra === 'Não' || !m.equipe || m.equipe === '-' || !m.conjuntoId) return;
 
-        motoristasAtualizados++;
         const conjunto = conjuntos.find(c => c.id === m.conjuntoId);
+        if (!conjunto || !conjunto.caminhoes) return;
+
+        motoristasAtualizados++;
+        
+        // Se o motorista tem uma data específica usa ela, senão usa uma data global padrão
+        const dataAncoraStr = m.data_ancora ? `${m.data_ancora}T00:00:00` : '2026-03-25T00:00:00';
+        const dataAncora = new Date(dataAncoraStr);
         
         // Identifica as placas dos caminhões 1 e 2 do conjunto
-        let placa1 = conjunto?.caminhoes?.length > 0 ? (typeof conjunto.caminhoes[0] === 'string' ? conjunto.caminhoes[0] : conjunto.caminhoes[0].placa) : 'F';
-        let placa2 = conjunto?.caminhoes?.length > 1 ? (typeof conjunto.caminhoes[1] === 'string' ? conjunto.caminhoes[1] : conjunto.caminhoes[1].placa) : placa1;
+        let placa1 = conjunto.caminhoes.length > 0 ? (typeof conjunto.caminhoes[0] === 'string' ? conjunto.caminhoes[0] : conjunto.caminhoes[0].placa) : 'F';
+        let placa2 = conjunto.caminhoes.length > 1 ? (typeof conjunto.caminhoes[1] === 'string' ? conjunto.caminhoes[1] : conjunto.caminhoes[1].placa) : placa1;
 
         currentDatas.forEach(d => {
             const dataAtual = new Date(d.dateKey + 'T00:00:00');
-            const diffDays = Math.floor((dataAtual - dataAncora) / (1000 * 60 * 60 * 24));
+            const msPorDia = 1000 * 60 * 60 * 24;
+            const diffDays = Math.floor((dataAtual - dataAncora) / msPorDia);
             
-            // Ciclo de 6 dias (0 a 5).
+            // Ciclo de 6 dias (0 a 5). Fórmula segura que aceita cálculos retroativos
             let cicloDia = ((diffDays % 6) + 6) % 6; 
             
             let statusCaminhao = 'F';
 
-            // LÓGICA EXATA: 3 Motoristas por Caminhão
-            // CicloDia 0 e 1: Folga do Fixo Dia (Folguista trabalha de Dia)
-            // CicloDia 2 e 3: Folga do Fixo Noite (Folguista trabalha de Noite)
-            // CicloDia 4 e 5: Folga do Folguista (Fixos Dia e Noite trabalham)
-
-            if (m.equipe === 'A') { // Fixo Dia Caminhão 1
-                statusCaminhao = (cicloDia === 0 || cicloDia === 1) ? 'F' : placa1;
-            } 
-            else if (m.equipe === 'B') { // Fixo Noite Caminhão 1
-                statusCaminhao = (cicloDia === 2 || cicloDia === 3) ? 'F' : placa1;
-            } 
-            else if (m.equipe === 'C') { // FOLGUISTA Caminhão 1
-                if (cicloDia === 0 || cicloDia === 1 || cicloDia === 2 || cicloDia === 3) {
-                    statusCaminhao = placa1;
-                } else {
-                    statusCaminhao = 'F'; // CicloDia 4 e 5 ele descansa
-                }
-            }
-            else if (m.equipe === 'D') { // Fixo Dia Caminhão 2
-                statusCaminhao = (cicloDia === 0 || cicloDia === 1) ? 'F' : placa2;
-            } 
-            else if (m.equipe === 'E') { // Fixo Noite Caminhão 2
-                statusCaminhao = (cicloDia === 2 || cicloDia === 3) ? 'F' : placa2;
-            } 
-            else if (m.equipe === 'F') { // FOLGUISTA Caminhão 2
-                if (cicloDia === 0 || cicloDia === 1 || cicloDia === 2 || cicloDia === 3) {
-                    statusCaminhao = placa2;
-                } else {
-                    statusCaminhao = 'F'; // CicloDia 4 e 5 ele descansa
-                }
+            // LÓGICA EXATA DO PDF SERRANA FLORESTAL
+            switch (m.equipe) {
+                case 'A': // Fixo Caminhão 1 (Dia)
+                case 'D': // Fixo Caminhão 1 (Noite)
+                    statusCaminhao = (cicloDia === 0 || cicloDia === 1) ? 'F' : placa1;
+                    break;
+                case 'B': // Fixo Caminhão 2 (Dia)
+                case 'E': // Fixo Caminhão 2 (Noite)
+                    statusCaminhao = (cicloDia === 2 || cicloDia === 3) ? 'F' : placa2;
+                    break;
+                case 'C': // Folguista (Dia)
+                case 'F': // Folguista (Noite)
+                    if (cicloDia === 0 || cicloDia === 1) {
+                        statusCaminhao = placa1; // Cobre A/D no caminhão 1
+                    } else if (cicloDia === 2 || cicloDia === 3) {
+                        statusCaminhao = placa2; // Cobre B/E no caminhão 2
+                    } else {
+                        statusCaminhao = 'F'; // Dias 4 e 5 o folguista descansa
+                    }
+                    break;
             }
 
             if (!escalas[m.id]) escalas[m.id] = {};
@@ -241,13 +253,13 @@ function gerarEscala4x2() {
     });
 
     if (motoristasAtualizados === 0) {
-        alert("Nenhum motorista foi gerado! Verifique a aba de Alocação.");
+        alert("Nenhum motorista válido foi gerado! Verifique as equipes e o Master/Destra.");
         return;
     }
 
     salvarBackupLocal();
     renderizarEscala(); 
-    alert(`Escala automática gerada perfeitamente com a lógica de Folguistas!`);
+    alert(`Escala automática gerada com a lógica de Folguistas!`);
 }
 
 function zerarEscala() {
