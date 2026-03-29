@@ -25,14 +25,12 @@ function renderizarEscala() {
         const motoristasDoConjunto = motoristas.filter(m => m.conjuntoId === conj.id);
         if (motoristasDoConjunto.length === 0) return;
 
-        // Estrutura Visual (Número gigante na esquerda)
         html += `
         <div class="escala-conjunto-box">
             <div class="escala-conjunto-numero">${conj.id}</div>
             <div class="escala-conjunto-tabelas">
         `;
 
-        // Divisão Lógica: Equipes do Dia (A, B, C) e Equipes da Noite (D, E, F)
         const grupoCaminhao1 = motoristasDoConjunto.filter(m => ['A', 'B', 'C'].includes(m.equipe)).sort((a, b) => a.equipe.localeCompare(b.equipe));
         const grupoCaminhao2 = motoristasDoConjunto.filter(m => ['D', 'E', 'F'].includes(m.equipe)).sort((a, b) => a.equipe.localeCompare(b.equipe));
         const outros = motoristasDoConjunto.filter(m => !['A', 'B', 'C', 'D', 'E', 'F'].includes(m.equipe));
@@ -56,8 +54,6 @@ function renderizarEscala() {
             grupo.forEach(m => {
                 const isBlocked = m.masterDrive === 'Não' || m.destra === 'Não';
                 const goStr = conj.caminhoes?.map(c => typeof c === 'string' ? '' : c.go).filter(go=>go).join(' e ') || '-';
-                
-                // Se for folguista, mostramos "Misto" ou o turno original no layout
                 let displayTurno = (m.equipe === 'C' || m.equipe === 'F') ? 'Misto' : (m.turno || '-');
 
                 tHtml += `<tr>`;
@@ -151,19 +147,18 @@ function renderizarAlocacao() {
             ${isBlocked ? '' : conjuntos.map(c => `<option value="${c.id}" ${m.conjuntoId === c.id ? 'selected' : ''}>Conjunto ${c.id}</option>`).join('')}
         </select>`;
         
-        // Novo input para Data Âncora Individual
-        let dataAncoraInput = `<input type="date" class="input-aloc-data dark-select" data-id="${m.id}" value="${m.data_ancora || ''}" ${isBlocked ? 'disabled' : ''} style="padding: 8px; width: 140px; text-align: center;">`;
+        let botaoManual = `<button class="btn-primary-blue" style="padding: 8px 12px; font-size: 0.8rem;" onclick="abrirModalEscalaManual(${m.id})" ${isBlocked ? 'disabled' : ''}>⚙️ Ajustar Ciclo</button>`;
         
         return `<tr style="${isBlocked ? 'background-color: #ffe6e6;' : ''}">
             <td style="${isBlocked ? 'color: #cc0000;' : ''}"><strong>${m.nome}</strong></td>
             <td>${equipeSelect}</td>
             <td>${turnoSelect}</td>
             <td>${conjuntoSelect}</td>
-            <td>${dataAncoraInput}</td>
+            <td>${botaoManual}</td>
         </tr>`;
     }).join('');
     
-    document.querySelectorAll('.select-aloc-equipe, .select-aloc-turno, .select-aloc-conjunto, .input-aloc-data').forEach(el => el.addEventListener('change', updateAlocacao));
+    document.querySelectorAll('.select-aloc-equipe, .select-aloc-turno, .select-aloc-conjunto').forEach(el => el.addEventListener('change', updateAlocacao));
 }
 
 function updateAlocacao(e) {
@@ -175,23 +170,109 @@ function updateAlocacao(e) {
     motorista.turno = tr.querySelector('.select-aloc-turno').value;
     const conjVal = tr.querySelector('.select-aloc-conjunto').value;
     motorista.conjuntoId = conjVal ? parseInt(conjVal) : null;
-    motorista.data_ancora = tr.querySelector('.input-aloc-data').value; // Puxa a data digitada
     
-    db.updateMotorista(id, { 
-        equipe: motorista.equipe, 
-        turno: motorista.turno, 
-        conjuntoId: motorista.conjuntoId,
-        data_ancora: motorista.data_ancora 
-    });
-    
+    db.updateMotorista(id, { equipe: motorista.equipe, turno: motorista.turno, conjuntoId: motorista.conjuntoId });
     salvarBackupLocal();
     renderizarEscala(); atualizarStats();
 }
 
-function gerarEscala4x2() {
-    if (!confirm("Gerar escala inteligente 4x2? Isso substituirá a tela atual.")) return;
-    const filtroSelec = document.getElementById('filtroConjuntoEscala')?.value || 'todos';
+// ==================== LÓGICA DO MENU DE ESCALA MANUAL ====================
+
+window.abrirModalEscalaManual = function(id) {
+    const m = motoristas.find(mot => mot.id === id);
+    if (!m) return;
     
+    if(!m.equipe || m.equipe === '-') {
+        alert("O motorista precisa ter uma equipe (A-F) antes de configurar a escala!");
+        return;
+    }
+
+    document.getElementById('manualMotId').value = m.id;
+    document.getElementById('manualMotNome').innerText = m.nome;
+    document.getElementById('manualMotEquipe').innerText = `${m.equipe}`;
+    
+    // Reconstrói visualmente qual seria o "Dia 1" de trabalho atual dele
+    let dia1 = new Date();
+    if (m.data_ancora) {
+        let offset = 0;
+        if (m.equipe === 'A' || m.equipe === 'D') offset = 2;
+        if (m.equipe === 'B' || m.equipe === 'E') offset = 4;
+        if (m.equipe === 'C' || m.equipe === 'F') offset = 0;
+        
+        let d = new Date(m.data_ancora + 'T00:00:00');
+        d.setDate(d.getDate() + offset);
+        dia1 = d;
+    }
+    
+    document.getElementById('manualDataInicio').value = dia1.toISOString().split('T')[0];
+    window.atualizarPreviewManual();
+    document.getElementById('modalEscalaManual').classList.add('show');
+}
+
+window.fecharModalManual = function() {
+    document.getElementById('modalEscalaManual').classList.remove('show');
+}
+
+window.atualizarPreviewManual = function() {
+    const dataStr = document.getElementById('manualDataInicio').value;
+    const container = document.getElementById('previewManualContainer');
+    if(!dataStr) return;
+
+    const dBase = new Date(dataStr + 'T00:00:00');
+    let html = '';
+    
+    // Mostra os 4 dias de trabalho e 2 de folga para ficar claro
+    for(let i = 0; i < 6; i++) {
+        let d = new Date(dBase);
+        d.setDate(d.getDate() + i);
+        let isTrab = i < 4; 
+        let colorBg = isTrab ? 'rgba(59, 130, 246, 0.15)' : 'rgba(249, 115, 22, 0.15)';
+        let colorBorder = isTrab ? '#3b82f6' : '#f97316';
+        let icon = isTrab ? '🚚' : '🛋️';
+        let txt = isTrab ? 'TRAB' : 'FOLGA';
+        
+        html += `<div style="background: ${colorBg}; border: 1px solid ${colorBorder}; padding: 12px 10px; border-radius: 8px; flex: 1; text-align: center; min-width: 60px;">
+            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 5px;">${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}</div>
+            <div style="font-size: 1.8rem; margin-bottom: 5px;">${icon}</div>
+            <div style="font-size: 0.85rem; font-weight: 800; color: ${colorBorder};">${txt}</div>
+        </div>`;
+    }
+    container.innerHTML = html;
+}
+
+window.salvarEscalaManual = function() {
+    const id = parseInt(document.getElementById('manualMotId').value);
+    const dataEscolhida = document.getElementById('manualDataInicio').value;
+    const m = motoristas.find(mot => mot.id === id);
+    
+    if (m && dataEscolhida) {
+        // A mágica: Ajusta a data âncora nos bastidores para que a data que o usuário escolheu 
+        // seja sempre o "Dia 1" de trabalho daquela equipe na matemática do sistema.
+        let offset = 0;
+        if (m.equipe === 'A' || m.equipe === 'D') offset = 2;
+        if (m.equipe === 'B' || m.equipe === 'E') offset = 4;
+        if (m.equipe === 'C' || m.equipe === 'F') offset = 0;
+
+        let dAncora = new Date(dataEscolhida + 'T00:00:00');
+        dAncora.setDate(dAncora.getDate() - offset);
+        
+        m.data_ancora = dAncora.toISOString().split('T')[0];
+        db.updateMotorista(id, { data_ancora: m.data_ancora });
+        salvarBackupLocal();
+        
+        fecharModalManual();
+        gerarEscala4x2(true); // Chama a geração de forma silenciosa
+        
+        alert(`Sucesso! A escala de ${m.nome} foi ajustada e salva.`);
+    }
+}
+
+// ==================== GERAÇÃO AUTOMÁTICA ====================
+
+function gerarEscala4x2(silencioso = false) {
+    if (!silencioso && !confirm("Gerar escala inteligente 4x2? Isso substituirá a tela atual.")) return;
+    
+    const filtroSelec = document.getElementById('filtroConjuntoEscala')?.value || 'todos';
     let motoristasAtualizados = 0;
 
     motoristas.forEach(m => {
@@ -203,43 +284,36 @@ function gerarEscala4x2() {
 
         motoristasAtualizados++;
         
-        // Se o motorista tem uma data específica usa ela, senão usa uma data global padrão
+        // Usa a data âncora individual (manual) ou a data global (padrão antigo)
         const dataAncoraStr = m.data_ancora ? `${m.data_ancora}T00:00:00` : '2026-03-25T00:00:00';
         const dataAncora = new Date(dataAncoraStr);
         
-        // Identifica as placas dos caminhões 1 e 2 do conjunto
         let placa1 = conjunto.caminhoes.length > 0 ? (typeof conjunto.caminhoes[0] === 'string' ? conjunto.caminhoes[0] : conjunto.caminhoes[0].placa) : 'F';
         let placa2 = conjunto.caminhoes.length > 1 ? (typeof conjunto.caminhoes[1] === 'string' ? conjunto.caminhoes[1] : conjunto.caminhoes[1].placa) : placa1;
 
         currentDatas.forEach(d => {
             const dataAtual = new Date(d.dateKey + 'T00:00:00');
-            const msPorDia = 1000 * 60 * 60 * 24;
-            const diffDays = Math.floor((dataAtual - dataAncora) / msPorDia);
+            const diffDays = Math.floor((dataAtual - dataAncora) / (1000 * 60 * 60 * 24));
             
-            // Ciclo de 6 dias (0 a 5). Fórmula segura que aceita cálculos retroativos
+            // Fórmula segura que aceita cálculos retroativos
             let cicloDia = ((diffDays % 6) + 6) % 6; 
             
             let statusCaminhao = 'F';
 
-            // LÓGICA EXATA DO PDF SERRANA FLORESTAL
             switch (m.equipe) {
-                case 'A': // Fixo Caminhão 1 (Dia)
-                case 'D': // Fixo Caminhão 1 (Noite)
+                case 'A': // Caminhão 1 (Dia)
+                case 'D': // Caminhão 1 (Noite)
                     statusCaminhao = (cicloDia === 0 || cicloDia === 1) ? 'F' : placa1;
                     break;
-                case 'B': // Fixo Caminhão 2 (Dia)
-                case 'E': // Fixo Caminhão 2 (Noite)
+                case 'B': // Caminhão 2 (Dia)
+                case 'E': // Caminhão 2 (Noite)
                     statusCaminhao = (cicloDia === 2 || cicloDia === 3) ? 'F' : placa2;
                     break;
                 case 'C': // Folguista (Dia)
                 case 'F': // Folguista (Noite)
-                    if (cicloDia === 0 || cicloDia === 1) {
-                        statusCaminhao = placa1; // Cobre A/D no caminhão 1
-                    } else if (cicloDia === 2 || cicloDia === 3) {
-                        statusCaminhao = placa2; // Cobre B/E no caminhão 2
-                    } else {
-                        statusCaminhao = 'F'; // Dias 4 e 5 o folguista descansa
-                    }
+                    if (cicloDia === 0 || cicloDia === 1) statusCaminhao = placa1;
+                    else if (cicloDia === 2 || cicloDia === 3) statusCaminhao = placa2;
+                    else statusCaminhao = 'F'; 
                     break;
             }
 
@@ -247,19 +321,18 @@ function gerarEscala4x2() {
             if (!escalas[m.id][d.dateKey]) escalas[m.id][d.dateKey] = { turno: m.turno };
             
             escalas[m.id][d.dateKey].caminhao = statusCaminhao;
-
             db.upsertEscala({ id: `${m.id}_${d.dateKey}`, motorista_id: m.id, data: d.dateKey, turno: m.turno, caminhao: statusCaminhao, status: 'normal' });
         });
     });
 
-    if (motoristasAtualizados === 0) {
-        alert("Nenhum motorista válido foi gerado! Verifique as equipes e o Master/Destra.");
+    if (motoristasAtualizados === 0 && !silencioso) {
+        alert("Nenhum motorista válido foi encontrado! Verifique as equipes e o Master/Destra.");
         return;
     }
 
     salvarBackupLocal();
     renderizarEscala(); 
-    alert(`Escala automática gerada com a lógica de Folguistas!`);
+    if (!silencioso) alert(`Escala automática gerada com sucesso!`);
 }
 
 function zerarEscala() {

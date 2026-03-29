@@ -79,7 +79,7 @@
 
             <div class="tab-content" id="tab-alocacao">
                 <div class="content-panel">
-                    <div class="panel-header"><h3>🔄 Gerenciar Alocação de Motoristas</h3></div>
+                    <div class="panel-header"><h3>🔄 Gerenciar Alocação e Escala Manual</h3></div>
                     <div class="table-modern-wrapper">
                         <table class="data-table-modern">
                             <thead>
@@ -88,7 +88,7 @@
                                     <th>Equipe</th>
                                     <th>Turno Padrão</th>
                                     <th>Conjunto</th>
-                                    <th>Início do Ciclo (Dia 1)</th>
+                                    <th>Escala Manual</th>
                                 </tr>
                             </thead>
                             <tbody id="alocacaoList"></tbody>
@@ -285,6 +285,41 @@
             <div class="modal-footer">
                 <button class="btn-secondary-dark" onclick="fecharModalEdicao()">Cancelar</button>
                 <button class="btn-primary-green" onclick="salvarEdicaoMotorista()">💾 Salvar Alterações</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalEscalaManual" class="modal-overlay">
+        <div class="custom-modal" style="max-width: 650px;">
+            <div class="modal-header">
+                <h3>⚙️ Configurar Escala Manual (Ciclo 4x2)</h3>
+                <button class="close-modal" onclick="fecharModalManual()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 0.85rem;">
+                    Defina abaixo quando o colaborador começa seus 4 dias de trabalho. O sistema projetará o ciclo (4 Trab / 2 Folga) automaticamente sem quebrar a lógica da equipe.
+                </p>
+                <input type="hidden" id="manualMotId">
+                
+                <div style="display: flex; justify-content: space-between; margin-bottom: 15px; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; border: 1px solid var(--border-dim);">
+                    <div style="font-size: 0.95rem;"><strong>Motorista:</strong> <span id="manualMotNome" style="color: var(--ccol-blue-bright);"></span></div>
+                    <div style="font-size: 0.95rem;"><strong>Equipe:</strong> <span id="manualMotEquipe" style="color: var(--ccol-green-bright); font-weight: bold;"></span></div>
+                </div>
+                
+                <div class="form-group-dark">
+                    <label>📅 Data do 1º Dia de Trabalho (Início do Bloco):</label>
+                    <input type="date" id="manualDataInicio" class="dark-select" onchange="atualizarPreviewManual()">
+                </div>
+                
+                <div style="margin-top: 25px;">
+                    <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 600;">PRÉ-VISUALIZAÇÃO DO CICLO:</label>
+                    <div id="previewManualContainer" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px;">
+                        </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary-dark" onclick="fecharModalManual()">Cancelar</button>
+                <button class="btn-primary-green" onclick="salvarEscalaManual()">💾 Salvar e Aplicar Escala</button>
             </div>
         </div>
     </div>
