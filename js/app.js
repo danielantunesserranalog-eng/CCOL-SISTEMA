@@ -1,4 +1,4 @@
-// ==================== MÓDULO: NAVEGAÇÃO E INICIALIZAÇÃO ====================
+// ==================== MÓDULO: NAVEGAÇÃO E INICIALIZAÇÃO DO DASHBOARD ====================
 
 function initTabs() {
     const tabs = document.querySelectorAll('.nav-item[data-tab], .dropdown-item[data-tab]');
@@ -50,24 +50,18 @@ function initTabs() {
     }
 }
 
-// INICIALIZAÇÃO PRINCIPAL DA APLICAÇÃO
 window.atualizarStats = function() {
     const statConjuntos = document.getElementById('statConjuntos');
     const statCaminhoes = document.getElementById('statCaminhoes');
     const statMotoristas = document.getElementById('statMotoristas');
-    const statEscalasHoje = document.getElementById('statEscalasHoje');
     
     if (statConjuntos) statConjuntos.innerText = conjuntos.length;
     if (statCaminhoes) statCaminhoes.innerText = conjuntos.reduce((acc, c) => acc + (c.caminhoes?.length || 0), 0);
     if (statMotoristas) statMotoristas.innerText = motoristas.length;
-    
-    if (statEscalasHoje && typeof window.getEscalaDiaComputada === 'function') {
-        const hoje = new Date().toISOString().split('T')[0];
-        statEscalasHoje.innerText = motoristas.filter(m => window.getEscalaDiaComputada(m, hoje).caminhao !== 'F').length;
-    }
 }
 
-async function init() {
+// ESTA FUNÇÃO AGORA SÓ É CHAMADA PELO auth.js QUANDO O LOGIN É APROVADO
+window.initDashboard = async function() {
     initTabs();
     await carregarDadosIniciais();
     
@@ -116,11 +110,4 @@ async function init() {
         currentDatas = getDatasSemana(inputData ? inputData.value : null); 
         renderizarEscala();
     });
-
-    const btnGerarRelatorio = document.getElementById('btnGerarRelatorio');
-    if (btnGerarRelatorio) btnGerarRelatorio.addEventListener('click', () => {
-        window.print();
-    });
 }
-
-document.addEventListener('DOMContentLoaded', init);

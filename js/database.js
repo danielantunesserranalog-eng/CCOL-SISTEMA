@@ -4,6 +4,31 @@ const supabaseKey = 'sb_publishable_JpMZhW5ZrFKBr7m9KXBkoQ_cpxy1k3x';
 const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
 const db = {
+    // --- SISTEMA DE LOGIN E USUÁRIOS ---
+    async getUsuarioByUsername(username) {
+        const { data, error } = await supabaseClient.from('usuarios').select('*').eq('username', username).single();
+        if (error) return null;
+        return data;
+    },
+    async updateUsuarioSenha(id, senha_hash) {
+        await supabaseClient.from('usuarios').update({ senha_hash: senha_hash, primeiro_acesso: false }).eq('id', id);
+    },
+    async getUsuarios() {
+        const { data } = await supabaseClient.from('usuarios').select('*').order('id', { ascending: true });
+        return data || [];
+    },
+    async addUsuario(usuario) {
+        const { error } = await supabaseClient.from('usuarios').insert([usuario]);
+        if (error) throw error;
+    },
+    async updateUsuarioSenhaEReset(id, senha_hash) {
+        await supabaseClient.from('usuarios').update({ senha_hash: senha_hash, primeiro_acesso: true }).eq('id', id);
+    },
+    async deleteUsuario(id) {
+        await supabaseClient.from('usuarios').delete().eq('id', id);
+    },
+
+    // --- CONJUNTOS ---
     async getConjuntos() {
         const { data } = await supabaseClient.from('conjuntos').select('*');
         return data || [];
@@ -18,6 +43,7 @@ const db = {
         await supabaseClient.from('conjuntos').update({ caminhoes }).eq('id', id);
     },
 
+    // --- MOTORISTAS ---
     async getMotoristas() {
         const { data } = await supabaseClient.from('motoristas').select('*');
         return data || [];
@@ -32,6 +58,7 @@ const db = {
         await supabaseClient.from('motoristas').delete().eq('id', id);
     },
 
+    // --- ESCALAS ---
     async getEscalas() {
         const { data } = await supabaseClient.from('escalas').select('*');
         return data || [];
@@ -43,6 +70,7 @@ const db = {
         await supabaseClient.from('escalas').delete().eq('motorista_id', motorista_id);
     },
     
+    // --- TREINAMENTOS ---
     async getInstrutores() {
         const { data } = await supabaseClient.from('instrutores').select('*');
         return data || [];
@@ -64,7 +92,6 @@ const db = {
         await supabaseClient.from('treinamentos').delete().eq('id', id);
     },
 
-    // FUNÇÃO QUE VAI LIMPAR AS 6.944 LINHAS DO BANCO
     async limparApenasEscalas() {
         const { error } = await supabaseClient.from('escalas').delete().neq('id', '0');
         if (error) console.error("Erro ao limpar escalas:", error);
