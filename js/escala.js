@@ -278,13 +278,7 @@ window.abrirModalEscalaManual = function(id) {
     let dia1 = new Date();
     if (m.data_ancora) {
         dia1 = new Date(m.data_ancora + 'T00:00:00');
-    } else {
-        let offset = 0;
-        if (m.equipe === 'A' || m.equipe === 'D') offset = 2;
-        if (m.equipe === 'B' || m.equipe === 'E') offset = 0;
-        if (m.equipe === 'C' || m.equipe === 'F') offset = 0;
-        dia1.setDate(dia1.getDate() + offset);
-    }
+    } 
     
     document.getElementById('manualDataInicio').value = dia1.toISOString().split('T')[0];
     window.atualizarPreviewManual();
@@ -297,32 +291,20 @@ window.fecharModalManual = function() {
 
 window.atualizarPreviewManual = function() {
     const dataStr = document.getElementById('manualDataInicio').value;
-    const motId = parseInt(document.getElementById('manualMotId').value);
-    const m = motoristas.find(mot => mot.id === motId);
     const container = document.getElementById('previewManualContainer');
-    if(!dataStr || !m) return;
+    if(!dataStr) return;
 
     const dBase = new Date(dataStr + 'T00:00:00');
     let html = '';
     
+    // Todos os motoristas, sem exceção, trabalham 4 dias e folgam 2.
     for(let i = 0; i < 6; i++) {
         let d = new Date(dBase);
         d.setDate(d.getDate() + i);
         
-        let isTrab = true;
-        let txt = 'TRAB';
-        let icon = '🚚';
-
-        if (m.equipe === 'A' || m.equipe === 'D' || m.equipe === 'B' || m.equipe === 'E') {
-            isTrab = i < 4; 
-        } else if (m.equipe === 'C' || m.equipe === 'F') {
-            if (i === 2 || i === 3) isTrab = false; 
-        }
-
-        if (!isTrab) {
-            txt = 'FOLGA';
-            icon = '🛋️';
-        }
+        let isTrab = i < 4; 
+        let txt = isTrab ? 'TRAB' : 'FOLGA';
+        let icon = isTrab ? '🚚' : '🛋️';
 
         let colorBg = isTrab ? 'rgba(59, 130, 246, 0.15)' : 'rgba(249, 115, 22, 0.15)';
         let colorBorder = isTrab ? '#3b82f6' : '#f97316';
@@ -342,30 +324,40 @@ window.salvarEscalaManual = function() {
     const m = motoristas.find(mot => mot.id === id);
     
     if (m && dataEscolhida) {
-        let offset = 0;
-        if (m.equipe === 'A' || m.equipe === 'D') offset = 2;
-        if (m.equipe === 'B' || m.equipe === 'E') offset = 0;
-        if (m.equipe === 'C' || m.equipe === 'F') offset = 0;
-
-        let dAncora = new Date(dataEscolhida + 'T00:00:00');
-        dAncora.setDate(dAncora.getDate() - offset);
-        const novaDataAncora = dAncora.toISOString().split('T')[0];
-        
-        // MAGICA AQUI: Atualiza APENAS o motorista selecionado. 
-        // Os outros do conjunto ficam intactos.
-        m.data_ancora = novaDataAncora;
-        db.updateMotorista(m.id, { data_ancora: novaDataAncora });
+        // 1. Atualiza apenas a âncora DESTE motorista específico. Ele é independente.
+        m.data_ancora = dataEscolhida;
+        db.updateMotorista(id, { data_ancora: dataEscolhida });
         recalcularEscalaUnica(m.id); 
+
+        // 2. MAGICA DA SINCRONIA: Se você ajustou um motorista Fixo (A, B, D, E), 
+        // o sistema recalcula silenciosamente o Folguista do turno dele, 
+        // para que o Folguista pegue o caminhão na nova data de folga do Fixo!
+        if (m.equipe === 'A' || m.equipe === 'B') {
+            const folguistaC = motoristas.find(mot => mot.conjuntoId === m.conjuntoId && mot.equipe === 'C');
+            if (folguistaC && folguistaC.data_ancora) recalcularEscalaUnica(folguistaC.id);
+        }
+        if (m.equipe === 'D' || m.equipe === 'E') {
+            const folguistaF = motoristas.find(mot => mot.conjuntoId === m.conjuntoId && mot.equipe === 'F');
+            if (folguistaF && folguistaF.data_ancora) recalcularEscalaUnica(folguistaF.id);
+        }
 
         salvarBackupLocal();
         fecharModalManual();
-
         renderizarEscala(); 
         renderizarAlocacao();
     }
 }
 
-// ==================== RECALCULO INDIVIDUAL ====================
+// Helper para descobrir se o motorista Fixo está trabalhando ou de folga no dia
+function getStatusMotorista(m, dDate) {
+    if (!m || !m.data_ancora) return 'F';
+    const dataAncora = new Date(m.data_ancora + 'T00:00:00');
+    const diffDays = Math.floor((dDate - dataAncora) / (1000 * 60 * 60 * 24));
+    const cicloDia = ((diffDays % 6) + 6) % 6;
+    return cicloDia < 4 ? 'TRAB' : 'F';
+}
+
+// ==================== RECALCULO INDIVIDUAL COM RADAR DO FOLGUISTA ====================
 function recalcularEscalaUnica(motoristaId) {
     const m = motoristas.find(mot => mot.id === motoristaId);
     if (!m || m.masterDrive === 'Não' || m.destra === 'Não' || !m.equipe || m.equipe === '-' || !m.conjuntoId) return;
@@ -373,7 +365,6 @@ function recalcularEscalaUnica(motoristaId) {
     const conjunto = conjuntos.find(c => c.id === m.conjuntoId);
     if (!conjunto || !conjunto.caminhoes) return;
 
-    // Se o motorista NÃO tiver data_ancora (ex: acabou de ser zerado), limpa a escala dele com "F"
     if (!m.data_ancora) {
         const dataLimpeza = new Date();
         for(let i = -30; i <= 60; i++) {
@@ -398,31 +389,47 @@ function recalcularEscalaUnica(motoristaId) {
 
     const baseDate = new Date(dataAncoraStr);
     
-    // Projeta a escala 30 dias pra trás e 60 pra frente
     for(let i = -30; i <= 60; i++) {
         let dDate = new Date(baseDate);
         dDate.setDate(dDate.getDate() + i);
         let dKey = dDate.toISOString().split('T')[0];
 
-        const diffDays = Math.floor((dDate - dataAncora) / (1000 * 60 * 60 * 24));
-        let cicloDia = ((diffDays % 6) + 6) % 6; 
+        const statusMotoristaLocal = getStatusMotorista(m, dDate);
         let statusCaminhao = 'F';
 
-        switch (m.equipe) {
-            case 'A': 
-            case 'D': 
-                statusCaminhao = (cicloDia === 0 || cicloDia === 1) ? 'F' : placa1;
-                break;
-            case 'B': 
-            case 'E': 
-                statusCaminhao = (cicloDia === 4 || cicloDia === 5) ? 'F' : placa2;
-                break;
-            case 'C': 
-            case 'F': 
-                if (cicloDia === 0 || cicloDia === 1) statusCaminhao = placa1; 
-                else if (cicloDia === 4 || cicloDia === 5) statusCaminhao = placa2; 
-                else statusCaminhao = 'F'; 
-                break;
+        // Se é o dia de trabalho dele no ciclo 4x2, vamos ver que caminhão ele pega
+        if (statusMotoristaLocal === 'TRAB') {
+            if (m.equipe === 'A' || m.equipe === 'D') {
+                statusCaminhao = placa1; // Fixos 1 pegam o Cami 1
+            } 
+            else if (m.equipe === 'B' || m.equipe === 'E') {
+                statusCaminhao = placa2; // Fixos 2 pegam o Cami 2
+            } 
+            else if (m.equipe === 'C') { 
+                // O Radar do Folguista Dia! Ele olha os fixos A e B.
+                const fixoA = motoristas.find(mot => mot.conjuntoId === m.conjuntoId && mot.equipe === 'A');
+                const fixoB = motoristas.find(mot => mot.conjuntoId === m.conjuntoId && mot.equipe === 'B');
+                
+                const statusA = getStatusMotorista(fixoA, dDate);
+                const statusB = getStatusMotorista(fixoB, dDate);
+                
+                // Inteligência: Pega o caminhão de quem está de folga 'F'
+                if (statusA === 'F') statusCaminhao = placa1;
+                else if (statusB === 'F') statusCaminhao = placa2;
+                else statusCaminhao = placa1; // Conflito: Se os dois estiverem trabalhando, pega o 1.
+            } 
+            else if (m.equipe === 'F') {
+                // O Radar do Folguista Noite! Ele olha os fixos D e E.
+                const fixoD = motoristas.find(mot => mot.conjuntoId === m.conjuntoId && mot.equipe === 'D');
+                const fixoE = motoristas.find(mot => mot.conjuntoId === m.conjuntoId && mot.equipe === 'E');
+                
+                const statusD = getStatusMotorista(fixoD, dDate);
+                const statusE = getStatusMotorista(fixoE, dDate);
+                
+                if (statusD === 'F') statusCaminhao = placa1;
+                else if (statusE === 'F') statusCaminhao = placa2;
+                else statusCaminhao = placa1;
+            }
         }
 
         if (!escalas[m.id]) escalas[m.id] = {};
