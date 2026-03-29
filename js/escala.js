@@ -230,7 +230,8 @@ function renderizarAlocacao() {
         const currentConjunto = m.conjuntoId || 'sem_conjunto';
 
         if (currentConjunto !== lastConjunto) {
-            const tituloConjunto = m.conjuntoId ? `🚛 CONJUNTO ${m.conjuntoId}` : `⚠️ NÃO ALOCADOS / SEM CONJUNTO`;
+            // AQUI ESTÁ O NOME DA SEÇÃO ALTERADO PARA ATENDER SUA MELHORIA
+            const tituloConjunto = m.conjuntoId ? `🚛 CONJUNTO ${m.conjuntoId}` : `🚨 MOTORISTAS NÃO LIBERADOS (Reserva / Falta / Atestado / Novatos)`;
             const btnReset = m.conjuntoId ? `<button onclick="resetarCicloConjunto(${m.conjuntoId})" style="float: right; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #ef4444; padding: 4px 12px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-weight: bold; transition: all 0.2s;">🔄 ZERAR CICLO</button>` : '';
 
             html += `
@@ -422,8 +423,7 @@ window.renderizarTrocaTurno = function() {
     let htmlFolga = '';
 
     motoristas.forEach(m => {
-        if (m.masterDrive === 'Não' || m.destra === 'Não') return;
-
+        const isBlocked = (m.masterDrive === 'Não' || m.destra === 'Não');
         const dDate = new Date(hojeStr + 'T00:00:00');
         const statusCiclo = window.getStatusMotorista(m, dDate); 
         const escalaHoje = window.getEscalaDiaComputada(m, hojeStr);
@@ -434,7 +434,10 @@ window.renderizarTrocaTurno = function() {
         let plantaoSemCaminhao = false;
         let emFolga = false;
 
-        if (statusEscala === 'manual') {
+        // AQUI ESTÁ A MÁGICA: Se ele não tem conjunto (novato/falta/atestado) ou está bloqueado, vai forçado pro Plantão
+        if (!m.conjuntoId || isBlocked) {
+            plantaoSemCaminhao = true;
+        } else if (statusEscala === 'manual') {
             if (caminhaoHoje === 'F') emFolga = true;
             else trabalhando = true;
         } else {
@@ -455,7 +458,7 @@ window.renderizarTrocaTurno = function() {
                     let diferenca = tempoFimTotais - minutosAtuaisTotais;
                     if (diferenca < -720) diferenca += (24 * 60); 
 
-                    // AGORA SÓ MOSTRA SE A DIFERENÇA FOR MAIOR OU IGUAL A ZERO (IGNORA OS ATRASADOS)
+                    // Remove os atrasados, só mostra quem tem diferença >= 0
                     if (diferenca >= 0) {
                         let avisoStatus = '';
                         if(diferenca <= 120) {
@@ -476,11 +479,16 @@ window.renderizarTrocaTurno = function() {
                 }
             }
         } else if (plantaoSemCaminhao) {
+            // Etiquetas visuais para bater o olho e saber quem é o problema
+            let tags = [];
+            if (isBlocked) tags.push(`<span style="background: rgba(239, 68, 68, 0.1); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; margin-left: 5px;">Bloqueado</span>`);
+            if (!m.conjuntoId) tags.push(`<span style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; margin-left: 5px;">Reserva/Inativo</span>`);
+
             htmlSemCaminhao += `
                 <tr>
-                    <td style="text-align: left; padding-left: 15px; color: var(--ccol-blue-bright);"><strong>${m.nome}</strong></td>
-                    <td><strong>${m.equipe || '-'}</strong></td>
-                    <td>${m.turno || '-'}</td>
+                    <td style="text-align: left; padding-left: 15px; color: var(--ccol-blue-bright);"><strong>${m.nome}</strong> ${tags.join('')}</td>
+                    <td><strong>${m.equipe && m.equipe !== '-' ? m.equipe : 'N/A'}</strong></td>
+                    <td>${m.turno && m.turno !== '-' ? m.turno : 'N/A'}</td>
                     <td>${m.cidade || '-'}</td>
                 </tr>
             `;
@@ -497,7 +505,7 @@ window.renderizarTrocaTurno = function() {
     });
 
     if (htmlProximos === '') htmlProximos = '<tr><td colspan="4" style="padding: 20px; color: var(--text-secondary); text-align:center;">Ninguém próximo da troca neste momento.</td></tr>';
-    if (htmlSemCaminhao === '') htmlSemCaminhao = '<tr><td colspan="4" style="padding: 20px; color: var(--text-secondary); text-align:center;">Nenhum motorista de plantão sem caminhão.</td></tr>';
+    if (htmlSemCaminhao === '') htmlSemCaminhao = '<tr><td colspan="4" style="padding: 20px; color: var(--text-secondary); text-align:center;">Nenhum motorista de plantão ou inativo.</td></tr>';
     if (htmlFolga === '') htmlFolga = '<tr><td colspan="4" style="padding: 20px; color: var(--text-secondary); text-align:center;">Nenhum motorista de folga hoje.</td></tr>';
 
     listaProximos.innerHTML = htmlProximos;
