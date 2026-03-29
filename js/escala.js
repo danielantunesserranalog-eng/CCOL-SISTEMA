@@ -500,24 +500,87 @@ window.imprimirRelatorioTrabalhoHoje = function() {
         }
     });
 
-    const sortFn = (a, b) => (a.conjuntoId || 999) - (b.conjuntoId || 999) || a.nome.localeCompare(b.nome);
-    trabalhandoDia.sort(sortFn); trabalhandoNoite.sort(sortFn);
+    // NOVA ORDENAÇÃO: Prioridade para o Horário de Troca (Crescente), depois Conjunto, depois Nome
+    const sortFn = (a, b) => {
+        const timeA = a.fimTurno && a.fimTurno !== '-' ? a.fimTurno : '24:00';
+        const timeB = b.fimTurno && b.fimTurno !== '-' ? b.fimTurno : '24:00';
+        
+        if (timeA !== timeB) {
+            return timeA.localeCompare(timeB); // Ordem crescente de horário
+        }
+        // Desempate por Conjunto e depois Nome
+        return (a.conjuntoId || 999) - (b.conjuntoId || 999) || a.nome.localeCompare(b.nome);
+    };
+
+    trabalhandoDia.sort(sortFn); 
+    trabalhandoNoite.sort(sortFn);
 
     const buildTable = (titulo, lista) => {
-        if (lista.length === 0) return `<p style="text-align: center; color: #555;">Nenhum motorista alocado.</p>`;
-        let html = `<h3 style="margin-top: 30px; border-bottom: 2px solid #333; padding-bottom: 5px;">${titulo}</h3>
-            <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px;">
-                <tr style="background-color: #f4f4f5;"><th style="border: 1px solid #d4d4d8; padding: 10px; text-align: left;">Motorista</th><th style="border: 1px solid #d4d4d8; padding: 10px;">Conjunto</th><th style="border: 1px solid #d4d4d8; padding: 10px;">Placa Alocada</th><th style="border: 1px solid #d4d4d8; padding: 10px;">Horário Troca</th><th style="border: 1px solid #d4d4d8; padding: 10px;">Equipe</th><th style="border: 1px solid #d4d4d8; padding: 10px; text-align: left;">Base</th></tr><tbody>`;
+        if (lista.length === 0) return `<p style="text-align: center; color: #555; font-size: 11px;">Nenhum motorista alocado.</p>`;
+        
+        // Fontes e margens reduzidas para caber em uma página só
+        let html = `<h3 style="margin-top: 15px; margin-bottom: 5px; border-bottom: 2px solid #333; padding-bottom: 3px; font-size: 13px;">${titulo}</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 11px;">
+                <thead>
+                    <tr style="background-color: #f4f4f5;">
+                        <th style="border: 1px solid #d4d4d8; padding: 4px; text-align: left;">Motorista</th>
+                        <th style="border: 1px solid #d4d4d8; padding: 4px;">Conjunto</th>
+                        <th style="border: 1px solid #d4d4d8; padding: 4px;">Placa Alocada</th>
+                        <th style="border: 1px solid #d4d4d8; padding: 4px;">Horário Troca</th>
+                        <th style="border: 1px solid #d4d4d8; padding: 4px;">Equipe</th>
+                        <th style="border: 1px solid #d4d4d8; padding: 4px; text-align: left;">Base</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+        
         lista.forEach(m => {
-            html += `<tr><td style="border: 1px solid #d4d4d8; padding: 8px;"><strong>${m.nome}</strong></td><td style="border: 1px solid #d4d4d8; padding: 8px; text-align: center;">${m.conjuntoId || '-'}</td><td style="border: 1px solid #d4d4d8; padding: 8px; text-align: center; font-weight: bold; color: #2563eb;">${m.caminhaoHoje}</td><td style="border: 1px solid #d4d4d8; padding: 8px; text-align: center; font-weight: bold; color: #ea580c;">${m.fimTurno}</td><td style="border: 1px solid #d4d4d8; padding: 8px; text-align: center;">${m.equipe || '-'}</td><td style="border: 1px solid #d4d4d8; padding: 8px;">${m.cidade || '-'}</td></tr>`;
+            html += `<tr>
+                <td style="border: 1px solid #d4d4d8; padding: 3px;"><strong>${m.nome}</strong></td>
+                <td style="border: 1px solid #d4d4d8; padding: 3px; text-align: center;">${m.conjuntoId || '-'}</td>
+                <td style="border: 1px solid #d4d4d8; padding: 3px; text-align: center; font-weight: bold; color: #2563eb;">${m.caminhaoHoje}</td>
+                <td style="border: 1px solid #d4d4d8; padding: 3px; text-align: center; font-weight: bold; color: #ea580c;">${m.fimTurno}</td>
+                <td style="border: 1px solid #d4d4d8; padding: 3px; text-align: center;">${m.equipe || '-'}</td>
+                <td style="border: 1px solid #d4d4d8; padding: 3px;">${m.cidade || '-'}</td>
+            </tr>`;
         });
         return html + `</tbody></table>`;
     };
 
     const janelaImp = window.open('', '', 'width=900,height=700');
-    janelaImp.document.write(`<html><head><title>Escala Diária - ${dataFormatada}</title><style>body { font-family: sans-serif; margin: 40px; } .print-header { text-align: center; border-bottom: 2px solid #2563eb; padding-bottom: 20px; } @media print { .no-print { display: none; } body { margin: 0; padding: 20px; } }</style></head><body>
-        <div class="print-header"><h1>Serrana Florestal - CCOL</h1><p><strong>Relatório: Escala Diária</strong></p><p>Data: <strong>${dataFormatada}</strong></p></div>
-        ${buildTable('☀️ TURNO DO DIA (Equipes A, B e C)', trabalhandoDia)} <br> ${buildTable('🌙 TURNO DA NOITE (Equipes D, E e F)', trabalhandoNoite)}
-        <div class="no-print" style="text-align: center; margin-top: 50px;"><button style="padding: 10px 20px; background: #2563eb; color: #fff; border: none; cursor: pointer;" onclick="window.print()">Imprimir Agora</button></div></body></html>`);
+    janelaImp.document.write(`
+        <html>
+        <head>
+            <title>Escala Diária - ${dataFormatada}</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 15px; color: #000; } 
+                .print-header { text-align: center; border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 10px; } 
+                h1 { font-size: 16px; margin: 0 0 5px 0; }
+                p { margin: 2px 0; font-size: 11px; }
+                
+                /* Configurações forçadas para PDF e Impressão em 1 Página */
+                @media print { 
+                    @page { size: A4 portrait; margin: 10mm; }
+                    body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .no-print { display: none; } 
+                    table { page-break-inside: auto; }
+                    tr { page-break-inside: avoid; page-break-after: auto; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="print-header">
+                <h1>Serrana Florestal - CCOL</h1>
+                <p><strong>Relatório: Escala Diária</strong> | Data: <strong>${dataFormatada}</strong></p>
+            </div>
+            
+            ${buildTable('☀️ TURNO DO DIA (Equipes A, B e C)', trabalhandoDia)} 
+            ${buildTable('🌙 TURNO DA NOITE (Equipes D, E e F)', trabalhandoNoite)}
+            
+            <div class="no-print" style="text-align: center; margin-top: 30px;">
+                <button style="padding: 10px 20px; background: #2563eb; color: #fff; border: none; cursor: pointer; border-radius: 6px; font-weight: bold; font-size: 14px;" onclick="window.print()">🖨️ Salvar como PDF / Imprimir</button>
+            </div>
+        </body>
+        </html>
+    `);
     janelaImp.document.close();
 };
