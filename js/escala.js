@@ -482,3 +482,81 @@ function zerarEscala() {
     salvarBackupLocal();
     renderizarEscala();
 }
+
+// ==================== PAINEL DE TROCA DE TURNO ====================
+
+window.renderizarTrocaTurno = function() {
+    const listaProximos = document.getElementById('listaProximosTroca');
+    const listaDisponiveis = document.getElementById('listaDisponiveis');
+    if (!listaProximos || !listaDisponiveis) return;
+
+    // Pega a data de hoje no formato YYYY-MM-DD
+    const hojeStr = new Date().toISOString().split('T')[0];
+    
+    // Pega a hora atual do computador
+    const agora = new Date();
+    const minutosAtuaisTotais = (agora.getHours() * 60) + agora.getMinutes();
+
+    let htmlProximos = '';
+    let htmlDisponiveis = '';
+
+    motoristas.forEach(m => {
+        // Ignorar motoristas bloqueados (sem curso)
+        if (m.masterDrive === 'Não' || m.destra === 'Não') return;
+
+        const escalaHoje = escalas[m.id]?.[hojeStr];
+        const estaTrabalhando = escalaHoje && escalaHoje.caminhao !== 'F';
+
+        if (estaTrabalhando) {
+            // Lógica: Está na escala com um caminhão. Falta muito para acabar o turno?
+            const turno = m.turno; // Ex: "06:00-18:00"
+            if (turno && turno !== '-') {
+                const fimStr = turno.split('-')[1]; // "18:00"
+                if (fimStr) {
+                    const fimHoras = parseInt(fimStr.split(':')[0]);
+                    const fimMinutos = parseInt(fimStr.split(':')[1]);
+                    let tempoFimTotais = (fimHoras * 60) + fimMinutos;
+
+                    // Diferença de minutos entre agora e o fim do turno
+                    let diferenca = tempoFimTotais - minutosAtuaisTotais;
+                    
+                    // Ajuste para viradas de noite (ex: turno acaba às 06:00 mas agora são 23:00)
+                    if (diferenca < -720) diferenca += (24 * 60); 
+
+                    // REGRA: Mostrar se faltam 3 HORAS (180 min) ou menos para acabar o turno, 
+                    // ou se passou do horário até 1 hora (atraso na troca).
+                    if (diferenca <= 180 && diferenca >= -60) {
+                        
+                        let avisoStatus = '';
+                        if(diferenca < 0) avisoStatus = `<span style="color: #ef4444; font-size: 0.75rem;">(Atrasado)</span>`;
+                        else if(diferenca <= 60) avisoStatus = `<span style="color: #fb923c; font-size: 0.75rem;">(Falta ${diferenca}m)</span>`;
+
+                        htmlProximos += `
+                            <tr>
+                                <td style="text-align: left; padding-left: 15px;"><strong>${m.nome}</strong></td>
+                                <td>Conjunto ${m.conjuntoId || '-'}</td>
+                                <td><strong style="color: var(--ccol-rust-bright);">${fimStr}</strong> ${avisoStatus}</td>
+                            </tr>
+                        `;
+                    }
+                }
+            }
+        } else {
+            // Lógica: Não está trabalhando hoje (Caminhão === 'F' ou não alocado)
+            // É um excelente candidato para cobertura ou troca.
+            htmlDisponiveis += `
+                <tr>
+                    <td style="text-align: left; padding-left: 15px; color: var(--ccol-green-bright);"><strong>${m.nome}</strong></td>
+                    <td><strong>${m.equipe || '-'}</strong></td>
+                    <td>${m.cidade || 'Não informada'}</td>
+                </tr>
+            `;
+        }
+    });
+
+    if (htmlProximos === '') htmlProximos = '<tr><td colspan="3" style="padding: 20px; color: var(--text-secondary);">Ninguém próximo do horário de troca no momento.</td></tr>';
+    if (htmlDisponiveis === '') htmlDisponiveis = '<tr><td colspan="3" style="padding: 20px; color: var(--text-secondary);">Nenhum motorista de folga/disponível hoje.</td></tr>';
+
+    listaProximos.innerHTML = htmlProximos;
+    listaDisponiveis.innerHTML = htmlDisponiveis;
+};

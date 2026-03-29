@@ -34,6 +34,7 @@ function initTabs() {
             else if (tabId === 'caminhoes') renderizarConjuntos();
             else if (tabId === 'escala') renderizarEscala();
             else if (tabId === 'alocacao') renderizarAlocacao();
+            else if (tabId === 'troca') renderizarTrocaTurno();
         });
     });
 

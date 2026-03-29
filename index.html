@@ -45,6 +45,7 @@
             </div>
 
             <button class="nav-item" data-tab="config">⚙️ Configurações</button>
+            <button class="nav-item" data-tab="troca">⏱️ Painel de Troca</button>
         </nav>
 
         <main class="main-content">
@@ -220,6 +221,51 @@
                                 <input type="file" id="importFile" accept=".json" style="display: none;">
                                 <button id="btnResetData" class="btn-danger-block">⚠️ Resetar Tudo</button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-troca">
+                <div class="action-bar">
+                    <h3 style="color: var(--text-primary); margin: 0; align-self: center;">⏱️ Painel em Tempo Real: Troca de Turno</h3>
+                    <button id="btnAtualizarTroca" class="btn-primary-blue" onclick="renderizarTrocaTurno()">🔄 Atualizar Painel</button>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px;">
+                    <div class="content-panel">
+                        <div class="panel-header">
+                            <h3 style="color: var(--ccol-rust-bright);">⚠️ Próximos de Trocar o Turno</h3>
+                        </div>
+                        <div class="table-modern-wrapper">
+                            <table class="data-table-modern">
+                                <thead>
+                                    <tr>
+                                        <th>Motorista</th>
+                                        <th>Conjunto</th>
+                                        <th>Fim do Turno</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="listaProximosTroca"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="content-panel">
+                        <div class="panel-header">
+                            <h3 style="color: var(--ccol-green-bright);">✅ Disponíveis Hoje (Folga)</h3>
+                        </div>
+                        <div class="table-modern-wrapper">
+                            <table class="data-table-modern">
+                                <thead>
+                                    <tr>
+                                        <th>Motorista</th>
+                                        <th>Equipe</th>
+                                        <th>Cidade / Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="listaDisponiveis"></tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
