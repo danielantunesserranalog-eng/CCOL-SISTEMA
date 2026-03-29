@@ -156,7 +156,6 @@ function renderizarAlocacao() {
         if (currentConjunto !== lastConjunto) {
             const tituloConjunto = m.conjuntoId ? `🚛 CONJUNTO ${m.conjuntoId}` : `⚠️ NÃO ALOCADOS / SEM CONJUNTO`;
             
-            // NOVO BOTÃO DE ZERAR CICLO PARA O CONJUNTO
             const btnReset = m.conjuntoId ? `<button onclick="resetarCicloConjunto(${m.conjuntoId})" style="float: right; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #ef4444; padding: 4px 12px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-weight: bold; transition: all 0.2s;">🔄 ZERAR CICLO</button>` : '';
 
             html += `
@@ -230,8 +229,6 @@ function updateAlocacao(e) {
     renderizarAlocacao();
 }
 
-// ==================== LÓGICA DE RESET DO CONJUNTO INTEIRO ====================
-
 window.resetarCicloConjunto = function(conjuntoId) {
     if (!confirm(`Deseja realmente ZERAR as datas de todos os motoristas do Conjunto ${conjuntoId}?\nEles voltarão para o status azul "Ajustar Ciclo".`)) return;
 
@@ -242,7 +239,6 @@ window.resetarCicloConjunto = function(conjuntoId) {
             db.updateMotorista(m.id, { data_ancora: null });
             alterou = true;
             
-            // Recalcula a escala dele usando a data padrão antiga (limpando o ciclo visual)
             recalcularEscalaUnica(m.id);
         }
     });
@@ -281,14 +277,8 @@ window.abrirModalEscalaManual = function(id) {
     
     let dia1 = new Date();
     if (m.data_ancora) {
-        let offset = 0;
-        if (m.equipe === 'A' || m.equipe === 'D') offset = 2;
-        if (m.equipe === 'B' || m.equipe === 'E') offset = 4;
-        if (m.equipe === 'C' || m.equipe === 'F') offset = 0;
-        
-        let d = new Date(m.data_ancora + 'T00:00:00');
-        d.setDate(d.getDate() + offset);
-        dia1 = d;
+        // Agora a data ancora é exatamente o Dia 1 escolhido pelo usuário
+        dia1 = new Date(m.data_ancora + 'T00:00:00');
     }
     
     document.getElementById('manualDataInicio').value = dia1.toISOString().split('T')[0];
@@ -308,6 +298,7 @@ window.atualizarPreviewManual = function() {
     const dBase = new Date(dataStr + 'T00:00:00');
     let html = '';
     
+    // Todos trabalham 4 dias seguidos e folgam 2 dias na nova regra exata!
     for(let i = 0; i < 6; i++) {
         let d = new Date(dBase);
         d.setDate(d.getDate() + i);
@@ -334,32 +325,22 @@ window.salvarEscalaManual = function() {
     const m = motoristas.find(mot => mot.id === id);
     
     if (m && dataEscolhida) {
-        let offset = 0;
-        if (m.equipe === 'A' || m.equipe === 'D') offset = 2;
-        if (m.equipe === 'B' || m.equipe === 'E') offset = 4;
-        if (m.equipe === 'C' || m.equipe === 'F') offset = 0;
-
-        let dAncora = new Date(dataEscolhida + 'T00:00:00');
-        dAncora.setDate(dAncora.getDate() - offset);
-        const novaDataAncora = dAncora.toISOString().split('T')[0];
+        // ATUALIZA APENAS O MOTORISTA SELECIONADO (Individual)
+        m.data_ancora = dataEscolhida;
+        db.updateMotorista(id, { data_ancora: dataEscolhida });
         
-        motoristas.forEach(mot => {
-            if (mot.conjuntoId === m.conjuntoId) {
-                mot.data_ancora = novaDataAncora;
-                db.updateMotorista(mot.id, { data_ancora: novaDataAncora });
-                recalcularEscalaUnica(mot.id); 
-            }
-        });
+        recalcularEscalaUnica(id); 
 
         salvarBackupLocal();
         fecharModalManual();
 
+        // Apenas recarrega a tabela de alocação e de escala na aba atual
         renderizarEscala(); 
         renderizarAlocacao();
     }
 }
 
-// ==================== RECALCULO INDIVIDUAL ====================
+// ==================== RECALCULO INDIVIDUAL (Desvinculado) ====================
 function recalcularEscalaUnica(motoristaId) {
     const m = motoristas.find(mot => mot.id === motoristaId);
     if (!m || m.masterDrive === 'Não' || m.destra === 'Não' || !m.equipe || m.equipe === '-' || !m.conjuntoId) return;
@@ -374,30 +355,32 @@ function recalcularEscalaUnica(motoristaId) {
     let placa2 = conjunto.caminhoes.length > 1 ? (typeof conjunto.caminhoes[1] === 'string' ? conjunto.caminhoes[1] : conjunto.caminhoes[1].placa) : placa1;
 
     const baseDate = new Date(dataAncoraStr);
-    for(let i = -10; i <= 30; i++) {
+    
+    // Calculando um raio amplo (-30 dias pra trás e +60 pra frente) para garantir histórico e futuro
+    for(let i = -30; i <= 60; i++) {
         let dDate = new Date(baseDate);
         dDate.setDate(dDate.getDate() + i);
         let dKey = dDate.toISOString().split('T')[0];
 
         const diffDays = Math.floor((dDate - dataAncora) / (1000 * 60 * 60 * 24));
+        // Matemática modular perfeita que nunca quebra o ciclo, mesmo em datas passadas
         let cicloDia = ((diffDays % 6) + 6) % 6; 
         let statusCaminhao = 'F';
 
-        switch (m.equipe) {
-            case 'A': 
-            case 'D': 
-                statusCaminhao = (cicloDia === 0 || cicloDia === 1) ? 'F' : placa1;
-                break;
-            case 'B': 
-            case 'E': 
-                statusCaminhao = (cicloDia === 2 || cicloDia === 3) ? 'F' : placa2;
-                break;
-            case 'C': 
-            case 'F': 
-                if (cicloDia === 0 || cicloDia === 1) statusCaminhao = placa1; 
-                else if (cicloDia === 2 || cicloDia === 3) statusCaminhao = placa2; 
-                else statusCaminhao = 'F'; 
-                break;
+        // LÓGICA PERFEITA: 4 DIAS DE TRABALHO (0,1,2,3) e 2 DE FOLGA (4,5)
+        if (cicloDia >= 0 && cicloDia <= 3) {
+            if (m.equipe === 'A' || m.equipe === 'D') {
+                statusCaminhao = placa1;
+            } 
+            else if (m.equipe === 'B' || m.equipe === 'E') {
+                statusCaminhao = placa2;
+            } 
+            else if (m.equipe === 'C' || m.equipe === 'F') {
+                // Folguista: 2 dias na Placa 2, depois 2 dias na Placa 1. E depois folga.
+                statusCaminhao = (cicloDia === 0 || cicloDia === 1) ? placa2 : placa1;
+            }
+        } else {
+            statusCaminhao = 'F'; // Dias 4 e 5 são sempre folga.
         }
 
         if (!escalas[m.id]) escalas[m.id] = {};
@@ -411,7 +394,7 @@ function recalcularEscalaUnica(motoristaId) {
 // ==================== GERAÇÃO AUTOMÁTICA GERAL ====================
 
 function gerarEscala4x2(silencioso = false) {
-    if (!silencioso && !confirm("Gerar escala inteligente 4x2 global? Isso substituirá a tela atual para TODOS.")) return;
+    if (!silencioso && !confirm("Gerar escala inteligente 4x2 global? Isso atualizará TODOS os motoristas com base em suas datas individuais.")) return;
     
     const filtroSelec = document.getElementById('filtroConjuntoEscala')?.value || 'todos';
     let motoristasAtualizados = 0;
