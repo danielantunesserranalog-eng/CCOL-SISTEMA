@@ -6,7 +6,7 @@ function initTabs() {
     const contents = document.querySelectorAll('.tab-content');
     
     tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
+        tab.addEventListener('click', (e) => {
             const tabId = tab.getAttribute('data-tab');
             if(!tabId) return; // Segurança
             
@@ -37,7 +37,7 @@ function initTabs() {
         });
     });
 
-    // ==================== LÓGICA DO MENU CADASTROS (CLIQUE E HOVER) ====================
+    // ==================== LÓGICA DO MENU CADASTROS (CLIQUE) ====================
     const dropdownToggle = document.querySelector('.dropdown-toggle');
     const dropdownMenu = document.querySelector('.dropdown-menu');
 
@@ -49,7 +49,7 @@ function initTabs() {
             dropdownMenu.classList.toggle('show');
         });
 
-        // Fecha o menu se o utilizador clicar em qualquer outro lugar fora do menu
+        // Fecha o menu se o utilizador clicar em qualquer outro lugar da página
         document.addEventListener('click', (e) => {
             if (!dropdownToggle.contains(e.target) && !dropdownMenu.contains(e.target)) {
                 dropdownMenu.classList.remove('show');

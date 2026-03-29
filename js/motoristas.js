@@ -14,23 +14,24 @@ function renderizarMotoristas() {
     
     tbody.innerHTML = filtered.map(m => {
         const isBlocked = m.masterDrive === 'Não' || m.destra === 'Não';
-        const rowStyle = isBlocked ? 'background-color: #ffe6e6; color: #cc0000;' : '';
+        const rowStyle = isBlocked ? 'background-color: rgba(239, 68, 68, 0.05); color: #f87171;' : '';
         const blockedIcon = isBlocked ? ' ⛔' : '';
 
         return `
             <tr style="${rowStyle}">
-                <td><strong>${m.nome}${blockedIcon}</strong></td>
+                <td style="text-align: left; padding-left: 15px;"><strong>${m.nome}${blockedIcon}</strong></td>
                 <td>${m.masterDrive || '-'}</td>
                 <td>${m.destra || '-'}</td>
                 <td>${m.cidade || '-'}</td>
                 <td>
-                    <button class="btn-edit-motorista" data-id="${m.id}" style="background:#28a745; color:white; border:none; padding:5px 10px; border-radius:6px; margin-right:5px;">✏️</button>
-                    <button class="btn-delete-motorista" data-id="${m.id}" style="background:#dc3545; color:white; border:none; padding:5px 10px; border-radius:6px;">🗑️</button>
+                    <button class="btn-edit-motorista" data-id="${m.id}" style="background:#3b82f6; color:white; border:none; padding:8px 12px; border-radius:6px; margin-right:5px; cursor:pointer; font-weight:bold;">✏️ Editar</button>
+                    <button class="btn-delete-motorista" data-id="${m.id}" style="background:transparent; border: 1px solid #ef4444; color:#ef4444; padding:8px 12px; border-radius:6px; cursor:pointer;">🗑️</button>
                 </td>
             </tr>
         `;
     }).join('');
     
+    // Adiciona os eventos de clique APÓS renderizar os botões
     document.querySelectorAll('.btn-edit-motorista').forEach(btn => btn.addEventListener('click', handleEditMotorista));
     document.querySelectorAll('.btn-delete-motorista').forEach(btn => btn.addEventListener('click', handleRemoveMotorista));
 }
@@ -60,33 +61,61 @@ function adicionarMotorista() {
     document.getElementById('motoristaCidade').value = '';
     
     db.addMotorista(novoMot);
-    salvarBackupLocal(); // Salva no LocalStorage
+    salvarBackupLocal();
     
     renderizarMotoristas(); renderizarEscala(); renderizarAlocacao(); atualizarStats();
 }
+
+// ==================== LÓGICA DO MODAL DE EDIÇÃO ====================
 
 function handleEditMotorista(e) {
     const id = parseInt(e.target.dataset.id);
     const motorista = motoristas.find(m => m.id === id);
     if (!motorista) return;
     
-    const novoNome = prompt('Nome do Motorista:', motorista.nome);
-    if (novoNome === null) return;
+    // Preenche a caixa (modal) com os dados atuais do motorista
+    document.getElementById('editMotoristaId').value = motorista.id;
+    document.getElementById('editMotoristaNome').value = motorista.nome;
+    document.getElementById('editMotoristaMasterDrive').value = motorista.masterDrive || 'Sim';
+    document.getElementById('editMotoristaDestra').value = motorista.destra || 'Sim';
+    document.getElementById('editMotoristaCidade').value = motorista.cidade || '';
     
-    motorista.nome = novoNome.trim() || motorista.nome;
-    motorista.masterDrive = prompt('Possui Master Drive? (Sim ou Não):', motorista.masterDrive) || motorista.masterDrive;
-    motorista.destra = prompt('Possui curso Destra? (Sim ou Não):', motorista.destra) || motorista.destra;
-    motorista.cidade = prompt('Cidade:', motorista.cidade) || motorista.cidade;
-    
-    db.updateMotorista(id, { nome: motorista.nome, masterDrive: motorista.masterDrive, destra: motorista.destra, cidade: motorista.cidade });
-    salvarBackupLocal();
-    
-    renderizarMotoristas(); renderizarEscala(); renderizarAlocacao();
+    // Exibe o modal no centro da tela
+    document.getElementById('modalEdicaoMotorista').classList.add('show');
 }
+
+// Exportadas para a janela global (window) para que o HTML consiga ativar através do onclick
+window.fecharModalEdicao = function() {
+    document.getElementById('modalEdicaoMotorista').classList.remove('show');
+};
+
+window.salvarEdicaoMotorista = function() {
+    const id = parseInt(document.getElementById('editMotoristaId').value);
+    const nome = document.getElementById('editMotoristaNome').value.trim();
+    const masterDrive = document.getElementById('editMotoristaMasterDrive').value;
+    const destra = document.getElementById('editMotoristaDestra').value;
+    const cidade = document.getElementById('editMotoristaCidade').value.trim();
+    
+    if (!nome) { alert('O nome do motorista é obrigatório!'); return; }
+    
+    const motorista = motoristas.find(m => m.id === id);
+    if (motorista) {
+        motorista.nome = nome;
+        motorista.masterDrive = masterDrive;
+        motorista.destra = destra;
+        motorista.cidade = cidade;
+        
+        db.updateMotorista(id, { nome: motorista.nome, masterDrive: motorista.masterDrive, destra: motorista.destra, cidade: motorista.cidade });
+        salvarBackupLocal();
+        
+        window.fecharModalEdicao(); // Fecha a janela após salvar
+        renderizarMotoristas(); renderizarEscala(); renderizarAlocacao();
+    }
+};
 
 function handleRemoveMotorista(e) {
     const id = parseInt(e.target.dataset.id);
-    if (confirm('Remover este motorista?')) {
+    if (confirm('Tem certeza que deseja remover este motorista?')) {
         motoristas = motoristas.filter(m => m.id !== id);
         delete escalas[id];
         

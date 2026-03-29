@@ -52,7 +52,7 @@
                 <div class="action-bar">
                     <div class="filter-group">
                         <label for="filtroConjuntoEscala">Conjunto:</label>
-                        <select id="filtroConjuntoEscala">
+                        <select id="filtroConjuntoEscala" class="dark-select">
                             <option value="todos">Todos</option>
                         </select>
                         <button id="refreshEscalaBtn" class="btn-icon-only" title="Atualizar">🔄</button>
@@ -65,7 +65,7 @@
                 </div>
                 
                 <div id="escalaContainer" class="escala-viz-container">
-                    <p class="loading-text">Iniciando terminal CCOL...</p>
+                    <p class="loading-text" style="padding: 20px; text-align: center; color: #fff;">Iniciando terminal CCOL...</p>
                 </div>
                 
                 <div class="system-note">
@@ -103,11 +103,17 @@
                         </div>
                         <div class="form-group-dark">
                             <label>Curso Master Drive?</label>
-                            <select id="motoristaMasterDrive"><option>Sim</option><option>Não</option></select>
+                            <select id="motoristaMasterDrive" class="dark-select">
+                                <option value="Sim">Sim</option>
+                                <option value="Não">Não</option>
+                            </select>
                         </div>
                         <div class="form-group-dark">
                             <label>Curso Destra?</label>
-                            <select id="motoristaDestra"><option>Sim</option><option>Não</option></select>
+                            <select id="motoristaDestra" class="dark-select">
+                                <option value="Sim">Sim</option>
+                                <option value="Não">Não</option>
+                            </select>
                         </div>
                         <div class="form-group-dark">
                             <label>Cidade que Mora</label>
@@ -197,8 +203,44 @@
         </main>
         
         <footer class="main-footer">
-            <p>&copy; 2024 Serrana Florestal - Divisão CCOL. Terminal v1.0 | <span id="statCaminhoes">0</span> Caminhões</p>
+            <p>&copy; 2026 Serrana Florestal - Divisão CCOL. Terminal v1.0 | <span id="statCaminhoes">0</span> Caminhões</p>
         </footer>
+    </div> <div id="modalEdicaoMotorista" class="modal-overlay">
+        <div class="custom-modal">
+            <div class="modal-header">
+                <h3>✏️ Editar Motorista</h3>
+                <button class="close-modal" onclick="fecharModalEdicao()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editMotoristaId">
+                <div class="form-group-dark">
+                    <label>Nome Completo</label>
+                    <input type="text" id="editMotoristaNome">
+                </div>
+                <div class="form-group-dark">
+                    <label>Curso Master Drive?</label>
+                    <select id="editMotoristaMasterDrive" class="dark-select">
+                        <option value="Sim">Sim</option>
+                        <option value="Não">Não</option>
+                    </select>
+                </div>
+                <div class="form-group-dark">
+                    <label>Curso Destra?</label>
+                    <select id="editMotoristaDestra" class="dark-select">
+                        <option value="Sim">Sim</option>
+                        <option value="Não">Não</option>
+                    </select>
+                </div>
+                <div class="form-group-dark">
+                    <label>Cidade que Mora</label>
+                    <input type="text" id="editMotoristaCidade">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary-dark" onclick="fecharModalEdicao()">Cancelar</button>
+                <button class="btn-primary-green" onclick="salvarEdicaoMotorista()">💾 Salvar Alterações</button>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
