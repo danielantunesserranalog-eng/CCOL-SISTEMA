@@ -3,224 +3,203 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Sistema de Controle de Jornada - Frotas</title>
-    <link rel="stylesheet" href="style.css">
+    <title>CCOL Dashboard - Serrana Florestal</title>
+    <link rel="icon" href="assets/logo.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
-    <div class="container">
-        <header class="header">
-            <div class="header-title">
-                <h1>🚛 Sistema de Controle de Jornada</h1>
-                <p>Gestão de Conjuntos, Motoristas e Escalas</p>
+<body class="dark-mode">
+    <div class="app-layout">
+        <header class="main-header">
+            <div class="header-left">
+                <div class="ccol-logo-modern">CCOL</div>
+                <div class="header-titles">
+                    <h1>Serrana Florestal</h1>
+                    <p>Terminal de Controle de Jornada e Frotas</p>
+                </div>
             </div>
             
-            <div class="header-logo">
-                <img src="logo.png" alt="Serrana Florestal Logo" class="logo-img">
-            </div>
-
-            <div class="header-stats">
-                <div class="stat-item">
-                    <span class="stat-label">Conjuntos</span>
-                    <span class="stat-value" id="statConjuntos">0</span>
+            <div class="header-right">
+                <div class="logo-container">
+                    <img src="assets/logo.png" alt="Serrana Florestal Logo" class="company-logo-img">
                 </div>
-                <div class="stat-item">
-                    <span class="stat-label">Caminhões</span>
-                    <span class="stat-value" id="statCaminhoes">0</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Motoristas</span>
-                    <span class="stat-value" id="statMotoristas">0</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Escalas Hoje</span>
-                    <span class="stat-value" id="statEscalasHoje">0</span>
+                <div class="quick-stats-header">
+                    <div class="q-stat" title="Total de Conjuntos">🚛 <span id="statConjuntos">0</span></div>
+                    <div class="q-stat" title="Motoristas Cadastrados">👨‍✈️ <span id="statMotoristas">0</span></div>
                 </div>
             </div>
         </header>
 
-        <div class="tabs">
-            <button class="tab-btn active" data-tab="escala">📅 Escala Semanal</button>
-            <button class="tab-btn" data-tab="alocacao">🔄 Alocação Geral</button>
-            <button class="tab-btn" data-tab="motoristas">👨‍✈️ Motoristas</button>
-            <button class="tab-btn" data-tab="caminhoes">🚛 Conjuntos & Caminhões</button>
-            <button class="tab-btn" data-tab="config">⚙️ Configurações</button>
-        </div>
+        <nav class="main-nav">
+            <button class="nav-item active" data-tab="escala">📅 Escala Semanal</button>
+            <button class="nav-item" data-tab="alocacao">🔄 Alocação Geral</button>
+            <button class="nav-item" data-tab="motoristas">👨‍✈️ Motoristas</button>
+            <button class="nav-item" data-tab="caminhoes">🚛 Conjuntos & Caminhões</button>
+            <button class="nav-item" data-tab="config">⚙️ Configurações</button>
+        </nav>
 
-        <div class="tab-content active" id="tab-escala">
-            <div class="period-selector" style="justify-content: space-between; flex-wrap: wrap;">
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <label>Filtro por Conjunto:</label>
-                    <select id="filtroConjuntoEscala">
-                        <option value="todos">Todos os Conjuntos</option>
-                    </select>
-                    <button id="refreshEscalaBtn" class="btn-secondary">🔄 Atualizar Visualização</button>
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <button id="btnGerarRelatorio" class="btn-primary" style="background-color: #17a2b8;">🖨️ Relatório / Imprimir</button>
-                    <button id="btnGerarEscalaAuto" class="btn-primary" style="background-color: #28a745;">⚡ Gerar Escala 4x2 Automática</button>
-                    <button id="btnZerarEscala" class="btn-danger">🗑️ Zerar Escala</button>
-                </div>
-            </div>
-            
-            <div id="escalaContainer">
-                <p>Carregando dados do banco...</p>
-            </div>
-            
-            <div class="info-note">
-                💡 <strong>Dica:</strong> A geração 4x2 usa a <strong>Equipe (A, B, C, D, E, F)</strong> do motorista para calcular automaticamente os dias de folga (F) e trabalho. Certifique-se de que os motoristas estão alocados corretamente na aba "Alocação Geral".<br>
-                ⚠️ <strong>Atenção:</strong> Motoristas sem o curso Master Drive ou Destra ficam bloqueados e não podem ser escalados.
-            </div>
-        </div>
-
-        <div class="tab-content" id="tab-alocacao">
-            <div class="list-panel">
-                <h3>🔄 Gerenciar Alocação de Motoristas</h3>
-                <p style="margin-bottom: 15px; color: #555;">Associe os motoristas às suas respectivas Equipes, Turnos e Conjuntos de forma rápida.</p>
-                <div class="table-wrapper">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Motorista</th>
-                                <th>Equipe</th>
-                                <th>Turno Padrão</th>
-                                <th>Conjunto</th>
-                            </tr>
-                        </thead>
-                        <tbody id="alocacaoList"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <div class="tab-content" id="tab-motoristas">
-            <div class="form-panel">
-                <h3>➕ Cadastrar Novo Motorista</h3>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Nome Completo</label>
-                        <input type="text" id="motoristaNome" placeholder="Ex: João Silva">
-                    </div>
-                    <div class="form-group">
-                        <label>Curso Master Drive?</label>
-                        <select id="motoristaMasterDrive">
-                            <option value="Sim">Sim</option>
-                            <option value="Não">Não</option>
+        <main class="main-content">
+            <div class="tab-content active" id="tab-escala">
+                <div class="action-bar">
+                    <div class="filter-group">
+                        <label for="filtroConjuntoEscala">Conjunto:</label>
+                        <select id="filtroConjuntoEscala">
+                            <option value="todos">Todos</option>
                         </select>
+                        <button id="refreshEscalaBtn" class="btn-icon-only" title="Atualizar">🔄</button>
+                    </div>
+                    <div class="button-group">
+                        <button id="btnGerarRelatorio" class="btn-primary-blue">🖨️ Imprimir Relatório</button>
+                        <button id="btnGerarEscalaAuto" class="btn-primary-green">⚡ Gerar 4x2 Automática</button>
+                        <button id="btnZerarEscala" class="btn-danger-outline">🗑️ Zerar</button>
                     </div>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Curso Destra?</label>
-                        <select id="motoristaDestra">
-                            <option value="Sim">Sim</option>
-                            <option value="Não">Não</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Cidade que Mora</label>
-                        <input type="text" id="motoristaCidade" placeholder="Ex: São Paulo">
-                    </div>
-                    <div class="form-group" style="display: flex; align-items: flex-end;">
-                        <button id="btnAddMotorista" class="btn-primary" style="width: 100%;">✅ Cadastrar Motorista</button>
+                
+                <div id="escalaContainer" class="escala-viz-container">
+                    <p class="loading-text">Iniciando terminal CCOL...</p>
+                </div>
+                
+                <div class="system-note">
+                    <span class="note-icon">💡</span>
+                    <p>O sistema CCOL gera automaticamente escalas 4x2 baseadas na Equipe (A-F). Para melhor visualização, dias de Trabalho estão em <span class="viz-sample trabalho">Azul</span> e Folgas em <span class="viz-sample folga">Laranja</span>. Motoristas sem curso ficam bloqueados.</p>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-alocacao">
+                <div class="content-panel">
+                    <div class="panel-header"><h3>🔄 Gerenciar Alocação de Motoristas</h3></div>
+                    <div class="table-modern-wrapper">
+                        <table class="data-table-modern">
+                            <thead>
+                                <tr>
+                                    <th>Motorista</th>
+                                    <th>Equipe</th>
+                                    <th>Turno Padrão</th>
+                                    <th>Conjunto</th>
+                                </tr>
+                            </thead>
+                            <tbody id="alocacaoList"></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
 
-            <div class="list-panel">
-                <h3>📋 Lista de Motoristas</h3>
-                <div class="search-bar">
-                    <input type="text" id="searchMotorista" placeholder="Buscar motorista...">
+            <div class="tab-content" id="tab-motoristas">
+                <div class="content-panel form-panel-dark">
+                    <div class="panel-header"><h3>➕ Cadastrar Novo Motorista</h3></div>
+                    <div class="form-grid">
+                        <div class="form-group-dark">
+                            <label>Nome Completo</label>
+                            <input type="text" id="motoristaNome" placeholder="Ex: João Silva">
+                        </div>
+                        <div class="form-group-dark">
+                            <label>Curso Master Drive?</label>
+                            <select id="motoristaMasterDrive"><option>Sim</option><option>Não</option></select>
+                        </div>
+                        <div class="form-group-dark">
+                            <label>Curso Destra?</label>
+                            <select id="motoristaDestra"><option>Sim</option><option>Não</option></select>
+                        </div>
+                        <div class="form-group-dark">
+                            <label>Cidade que Mora</label>
+                            <input type="text" id="motoristaCidade" placeholder="Ex: São Paulo">
+                        </div>
+                        <div class="form-actions">
+                            <button id="btnAddMotorista" class="btn-primary-green btn-full">✅ Cadastrar</button>
+                        </div>
+                    </div>
                 </div>
-                <div class="table-wrapper">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Nome</th>
-                                <th>Master Drive</th>
-                                <th>Destra</th>
-                                <th>Cidade</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="motoristasList"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
 
-        <div class="tab-content" id="tab-caminhoes">
-            <div class="form-panel">
-                <h3>➕ Criar Novo Conjunto</h3>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>ID do Conjunto</label>
-                        <input type="number" id="conjuntoId" placeholder="Ex: 34">
+                <div class="content-panel">
+                    <div class="panel-header">
+                        <h3>📋 Lista de Motoristas</h3>
+                        <div class="panel-controls">
+                            <input type="text" id="searchMotorista" placeholder="Buscar motorista CCOL..." class="search-input-dark">
+                        </div>
                     </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Caminhão 1 (Placa)</label>
-                        <input type="text" id="caminhao1Placa" placeholder="Ex: TOQ-2A02">
+                    <div class="table-modern-wrapper">
+                        <table class="data-table-modern">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Master</th>
+                                    <th>Destra</th>
+                                    <th>Cidade</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="motoristasList"></tbody>
+                        </table>
                     </div>
-                    <div class="form-group">
-                        <label>GO</label>
-                        <input type="text" id="caminhao1Go" placeholder="Ex: GO-101">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Caminhão 2 (Placa)</label>
-                        <input type="text" id="caminhao2Placa" placeholder="Ex: TOQ-2B24">
-                    </div>
-                    <div class="form-group">
-                        <label>GO</label>
-                        <input type="text" id="caminhao2Go" placeholder="Ex: GO-102">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <button id="btnAddConjunto" class="btn-primary" style="width: 100%;">✅ Criar Conjunto</button>
                 </div>
             </div>
 
-            <div class="list-panel">
-                <h3>🚛 Conjuntos e Caminhões</h3>
-                <div id="conjuntosList" class="conjuntos-grid"></div>
-            </div>
-        </div>
-
-        <div class="tab-content" id="tab-config">
-            <div class="config-panel">
-                <h3>⚙️ Configurações do Sistema</h3>
-                <div class="config-item">
-                    <label>Horários Proibidos para Troca de Turno:</label>
-                    <div class="proibidos-list">
-                        <span class="badge-proibido">23:00</span>
-                        <span class="badge-proibido">00:00</span>
-                        <span class="badge-proibido">01:00</span>
+            <div class="tab-content" id="tab-caminhoes">
+                <div class="content-panel form-panel-dark">
+                    <div class="panel-header"><h3>➕ Criar Novo Conjunto</h3></div>
+                    <div class="form-grid-conjunto">
+                        <div class="form-group-dark conj-id">
+                            <label>ID Conjunto</label>
+                            <input type="number" id="conjuntoId" placeholder="Ex: 34">
+                        </div>
+                        <div class="cam-pair">
+                            <input type="text" id="caminhao1Placa" placeholder="Placa 1">
+                            <input type="text" id="caminhao1Go" placeholder="GO 1">
+                        </div>
+                        <div class="cam-pair">
+                            <input type="text" id="caminhao2Placa" placeholder="Placa 2">
+                            <input type="text" id="caminhao2Go" placeholder="GO 2">
+                        </div>
+                        <div class="form-actions conj-btn">
+                            <button id="btnAddConjunto" class="btn-primary-blue btn-full">✅ Criar</button>
+                        </div>
                     </div>
-                    <small>Nestes horários não é permitido realizar troca de turno para garantir segurança operacional.</small>
                 </div>
-                <div class="config-item">
-                    <label>Turnos Ativos:</label>
-                    <div class="turnos-info"></div>
-                </div>
-                <div class="config-item">
-                    <button id="btnResetData" class="btn-danger">⚠️ Resetar Dados</button>
-                    <button id="btnExportData" class="btn-secondary">📥 Exportar Dados (JSON)</button>
-                    <button id="btnImportData" class="btn-secondary">📤 Importar Dados</button>
-                    <input type="file" id="importFile" accept=".json" style="display: none;">
+
+                <div class="content-panel">
+                    <div class="panel-header"><h3>🚛 Conjuntos e Caminhões</h3></div>
+                    <div id="conjuntosList" class="conjuntos-cards-grid"></div>
                 </div>
             </div>
-        </div>
+
+            <div class="tab-content" id="tab-config">
+                <div class="content-panel">
+                    <div class="panel-header"><h3>⚙️ Configurações do Sistema CCOL</h3></div>
+                    <div class="config-grid">
+                        <div class="config-card-dark">
+                            <h4>Horários Proibidos de Troca</h4>
+                            <div class="proibidos-badges">
+                                <span>23:00</span><span>00:00</span><span>01:00</span>
+                            </div>
+                        </div>
+                        <div class="config-card-dark actions-card">
+                            <h4>Gerenciamento de Dados</h4>
+                            <p>Cuidado: Estas ações não podem ser desfeitas.</p>
+                            <div class="config-btns">
+                                <button id="btnExportData" class="btn-secondary-dark">📥 Exportar JSON</button>
+                                <button id="btnImportData" class="btn-secondary-dark">📤 Importar</button>
+                                <input type="file" id="importFile" accept=".json" style="display: none;">
+                                <button id="btnResetData" class="btn-danger-block">⚠️ Resetar Tudo</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <footer class="main-footer">
+            <p>&copy; 2024 Serrana Florestal - Divisão CCOL. Terminal v1.0 | <span id="statCaminhoes">0</span> Caminhões</p>
+        </footer>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="database.js"></script>
-    
-    <script src="estado.js"></script>
-    <script src="motoristas.js"></script>
-    <script src="conjuntos.js"></script>
-    <script src="escala.js"></script>
-    <script src="app.js"></script>
+    <script src="js/database.js"></script>
+    <script src="js/estado.js"></script>
+    <script src="js/motoristas.js"></script>
+    <script src="js/conjuntos.js"></script>
+    <script src="js/escala.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>
