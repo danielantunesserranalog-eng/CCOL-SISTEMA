@@ -262,6 +262,7 @@ window.concluirTreinamento = async function(id) {
     }
 }
 
+// SOLUÇÃO: GERAÇÃO COM LIMITADOR DE DIAS (PROMPT)
 window.gerarTreinamentoAuto = async function() {
     if(instrutoresMaster.length === 0) { alert('⚠️ Adicione um Instrutor Master Drive primeiro!'); return; }
     
@@ -272,16 +273,6 @@ window.gerarTreinamentoAuto = async function() {
     if(!dataInicioInput) { alert('⚠️ Selecione a Data de Início para agendar o treinamento!'); return; }
     if(!instrutorSelecionado) { alert('⚠️ Selecione qual Instrutor aplicará o treinamento!'); return; }
     
-    const dias = [];
-    const dataBase = new Date(dataInicioInput + 'T00:00:00');
-    const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-    for (let i = 0; i < 7; i++) {
-        const data = new Date(dataBase);
-        data.setDate(dataBase.getDate() + i);
-        const dataStr = data.toISOString().split('T')[0];
-        dias.push({ dateKey: dataStr, diaTexto: diasSemana[data.getDay()], diaNum: `${String(data.getDate()).padStart(2, '0')}/${String(data.getMonth()+1).padStart(2, '0')}` });
-    }
-    
     let alunosPendentes = listaViagemAssistida.filter(req => {
         const jaConcluido = treinamentosConcluidos.some(c => strNormalize(c.motoristaNome) === strNormalize(req.nome));
         const jaAgendado = cronogramaTreinamento.some(a => strNormalize(a.motoristaNome) === strNormalize(req.nome));
@@ -290,10 +281,36 @@ window.gerarTreinamentoAuto = async function() {
 
     if(alunosPendentes.length === 0) { alert('✅ Todos os motoristas da Lista do PDF já foram agendados ou concluídos!'); return; }
 
-    let msgConfirm = `Existem ${alunosPendentes.length} motoristas aguardando agendamento.\n\nDeseja distribuir para o instrutor ${instrutorSelecionado} a partir do dia ${dias[0].diaNum}?`;
-    if (turnoSelecionado !== 'Todos') msgConfirm += `\n(Aplicando filtro para agendar apenas quem é do turno do ${turnoSelecionado})`;
+    let msgPrompt = `Existem ${alunosPendentes.length} motoristas aguardando agendamento.\n\nQuantos dias/motoristas você deseja agendar para o instrutor ${instrutorSelecionado} a partir da data selecionada?\n(Digite um número, ex: 6)`;
+    if (turnoSelecionado !== 'Todos') msgPrompt += `\n(Aplicando filtro para agendar apenas quem é do turno do ${turnoSelecionado})`;
     
-    if(!confirm(msgConfirm)) return;
+    let qtdDiasResposta = prompt(msgPrompt);
+    
+    if (qtdDiasResposta === null) {
+        return; // Usuário clicou em cancelar
+    }
+
+    let quantidadeDias = parseInt(qtdDiasResposta);
+    if (isNaN(quantidadeDias) || quantidadeDias <= 0) {
+        alert("⚠️ Por favor, digite um número válido maior que zero.");
+        return;
+    }
+
+    if (quantidadeDias > alunosPendentes.length) {
+        alert(`Como temos apenas ${alunosPendentes.length} motoristas pendentes, o sistema vai agendar o máximo possível (${alunosPendentes.length}).`);
+        quantidadeDias = alunosPendentes.length;
+    }
+
+    // Agora geramos apenas a quantidade exata de dias que o utilizador escolheu
+    const dias = [];
+    const dataBase = new Date(dataInicioInput + 'T00:00:00');
+    const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    for (let i = 0; i < quantidadeDias; i++) {
+        const data = new Date(dataBase);
+        data.setDate(dataBase.getDate() + i);
+        const dataStr = data.toISOString().split('T')[0];
+        dias.push({ dateKey: dataStr, diaTexto: diasSemana[data.getDay()], diaNum: `${String(data.getDate()).padStart(2, '0')}/${String(data.getMonth()+1).padStart(2, '0')}` });
+    }
 
     let agendamentosNovos = 0;
 
@@ -321,7 +338,6 @@ window.gerarTreinamentoAuto = async function() {
         
         if(alunoEscolhido && infoPDF) {
             const novoTreino = {
-                // CORREÇÃO MÁXIMA AQUI: GERA UM NÚMERO INTEIRO PURO, SEM STRING COM PONTOS
                 id: Date.now() + Math.floor(Math.random() * 100000), 
                 data: dia.dateKey, 
                 dataTexto: dia.diaNum,
@@ -347,5 +363,5 @@ window.gerarTreinamentoAuto = async function() {
     if(typeof window.renderizarEscala === 'function') window.renderizarEscala(); 
     
     if (agendamentosNovos > 0) alert(`🎉 Sucesso! Foram agendados e salvos no banco ${agendamentosNovos} novos treinamentos com o Instrutor ${instrutorSelecionado}.`);
-    else alert(`⚠️ Nenhum agendamento foi feito. \nO Instrutor pode estar ocupado nesses dias ou os motoristas da lista não têm dias de trabalho agendados neste período/turno selecionado.`);
+    else alert(`⚠️ Nenhum agendamento foi feito. \nO Instrutor pode estar ocupado nestes dias ou os motoristas da lista não têm dias de trabalho agendados neste período/turno selecionado.`);
 }

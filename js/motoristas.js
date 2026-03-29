@@ -67,7 +67,8 @@ function renderizarMotoristas() {
 
 document.getElementById('searchMotorista')?.addEventListener('input', renderizarMotoristas);
 
-document.getElementById('btnAddMotorista')?.addEventListener('click', async () => {
+// SOLUÇÃO DO ERRO 'adicionarMotorista is not defined': A função agora é global
+window.adicionarMotorista = async function() {
     const nome = document.getElementById('motoristaNome').value.trim();
     if (!nome) { alert('⚠️ Digite o nome completo do motorista!'); return; }
 
@@ -98,7 +99,7 @@ document.getElementById('btnAddMotorista')?.addEventListener('click', async () =
     if(typeof renderizarEscala === 'function') renderizarEscala();
     
     alert('✅ Motorista cadastrado com sucesso!');
-});
+};
 
 window.abrirModalEdicao = function(id) {
     const m = motoristas.find(mot => mot.id === id);
