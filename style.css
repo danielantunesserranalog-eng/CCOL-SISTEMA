@@ -211,13 +211,13 @@ body {
     background: white;
 }
 
-.escala-table, .data-table {
+.data-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.85rem;
 }
 
-.escala-table th, .data-table th {
+.data-table th {
     background: #f4f6f9;
     padding: 12px 8px;
     text-align: center;
@@ -226,25 +226,14 @@ body {
     border-bottom: 2px solid #e0e4e8;
 }
 
-.escala-table td, .data-table td {
+.data-table td {
     padding: 10px 8px;
     text-align: center;
     border-bottom: 1px solid #eef2f5;
 }
 
-.escala-table tr:hover, .data-table tr:hover {
+.data-table tr:hover {
     background: #f8f9fa;
-}
-
-.select-escala {
-    padding: 6px 8px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 0.8rem;
-    background: white;
-    cursor: pointer;
-    width: 100%;
-    margin-bottom: 5px;
 }
 
 .select-turno {
@@ -255,11 +244,6 @@ body {
     background: white;
     cursor: pointer;
     width: 100%;
-}
-
-.badge-folga {
-    color: #dc3545;
-    font-weight: bold;
 }
 
 /* Conjuntos Grid */
@@ -515,4 +499,74 @@ body {
     .stat-value {
         font-size: 1.2rem;
     }
+}
+
+/* --- ESTILOS DA ESCALA MODERNA (ESTILO EXCEL) --- */
+.tabela-conjunto-wrapper {
+    margin-bottom: 30px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    border: 1px solid #c8d6e5;
+    background: white;
+}
+
+.tabela-excel {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+.tabela-excel th, .tabela-excel td {
+    border: 1px solid #c8d6e5;
+    padding: 8px 5px;
+    vertical-align: middle;
+}
+
+.tabela-excel th {
+    background-color: #a3d9a5; /* Verde do cabeçalho */
+    color: #1b4332;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.tabela-excel .th-dia {
+    background-color: #d1e7dd; /* Verde mais claro para os dias */
+}
+
+.conjunto-col {
+    font-size: 2.5rem;
+    font-weight: bold;
+    background-color: #f8f9fa;
+    width: 80px;
+}
+
+/* Cores de status */
+.celula-trabalho {
+    background-color: #9cb1d6; /* Azul do modelo Excel */
+    color: #000;
+}
+
+.celula-folga {
+    background-color: #f6b685; /* Laranja da folga do Excel */
+    color: #000;
+    font-weight: bold;
+}
+
+.select-escala-excel {
+    width: 100%;
+    background: transparent;
+    border: none;
+    font-size: 0.85rem;
+    text-align: center;
+    font-weight: inherit;
+    color: inherit;
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+}
+
+.select-escala-excel:hover {
+    background: rgba(255,255,255,0.3);
 }

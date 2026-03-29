@@ -42,24 +42,27 @@
         </div>
 
         <div class="tab-content active" id="tab-escala">
-            <div class="period-selector">
-                <label>Período:</label>
-                <select id="periodSelect">
-                    <option value="current">Semana Atual</option>
-                </select>
-                <button id="refreshEscalaBtn" class="btn-secondary">🔄 Atualizar</button>
+            <div class="period-selector" style="justify-content: space-between; flex-wrap: wrap;">
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <label>Filtro por Conjunto:</label>
+                    <select id="filtroConjuntoEscala">
+                        <option value="todos">Todos os Conjuntos</option>
+                        </select>
+                    <button id="refreshEscalaBtn" class="btn-secondary">🔄 Atualizar Visualização</button>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button id="btnGerarEscalaAuto" class="btn-primary" style="background-color: #28a745;">⚡ Gerar Escala 4x2 Automática</button>
+                    <button id="btnZerarEscala" class="btn-danger">🗑️ Zerar Escala</button>
+                </div>
             </div>
-            <div class="table-wrapper">
-                <table class="escala-table" id="escalaTable">
-                    <thead id="tableHeader"></thead>
-                    <tbody id="tableBody">
-                        <tr><td colspan="15">Carregando dados do banco...</td></tr>
-                    </tbody>
-                </table>
+            
+            <div id="escalaContainer">
+                <p>Carregando dados do banco...</p>
             </div>
+            
             <div class="info-note">
-                ⚠️ <strong>Atenção:</strong> Motoristas sem o curso Master Drive ou Destra ficam bloqueados (em vermelho) e não podem ser escalados.<br>
-                ⚠️ <strong>Horários proibidos:</strong> 23:00, 00:00, 01:00.
+                💡 <strong>Dica:</strong> A geração 4x2 usa a <strong>Equipe (A, B, C, D, E, F)</strong> do motorista para calcular automaticamente os dias de folga (F) e trabalho. Certifique-se de que os motoristas estão alocados corretamente na aba "Alocação Geral".<br>
+                ⚠️ <strong>Atenção:</strong> Motoristas sem o curso Master Drive ou Destra ficam bloqueados e não podem ser escalados.
             </div>
         </div>
 
@@ -207,6 +210,11 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="database.js"></script>
-    <script src="script.js"></script>
+    
+    <script src="estado.js"></script>
+    <script src="motoristas.js"></script>
+    <script src="conjuntos.js"></script>
+    <script src="escala.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
