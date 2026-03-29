@@ -629,6 +629,39 @@
         </div>
     </div>
 
+    <div id="modalEscalaManual" class="modal-overlay">
+        <div class="custom-modal" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>⚙️ Ajustar Ciclo Manual</h3>
+                <button class="close-modal" onclick="fecharModalManual()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="manualMotId">
+                
+                <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; border: 1px solid var(--border-dim); margin-bottom: 10px;">
+                    <p style="margin-bottom: 5px; color: var(--text-secondary); font-size: 0.85rem;">Motorista Selecionado:</p>
+                    <strong id="manualMotNome" style="font-size: 1.1rem; color: var(--ccol-blue-bright);"></strong>
+                    <p style="margin-top: 5px; color: var(--text-secondary); font-size: 0.85rem;">Equipe: <span id="manualMotEquipe" style="color: #fff; font-weight: bold;"></span></p>
+                </div>
+
+                <div class="form-group-dark">
+                    <label>Data Inicial do Ciclo (Dia em que ele começou ou começa a sequência de 4 dias)</label>
+                    <input type="date" id="manualDataInicio" class="dark-select" onchange="window.atualizarPreviewManual()">
+                </div>
+
+                <div style="margin-top: 15px;">
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 10px;">Preview de como o Ciclo ficará:</label>
+                    <div id="previewManualContainer" style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px;">
+                        </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary-dark" onclick="fecharModalManual()">Cancelar</button>
+                <button class="btn-primary-green" onclick="salvarEscalaManual()">💾 Salvar Ciclo</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/database.js"></script>
     <script src="js/auth.js"></script> 
