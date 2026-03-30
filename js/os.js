@@ -1,23 +1,107 @@
 // ==================== MÓDULO: ORDEM DE SERVIÇO (O.S.) ====================
 
-// Simulando banco de dados local para as O.S. (Depois você pode integrar no database.js)
+// Bancos de dados locais exclusivos da Manutenção
 let ordensServico = JSON.parse(localStorage.getItem('ccol_os')) || [];
+let frotasManutencao = JSON.parse(localStorage.getItem('ccol_frotas_manutencao')) || [];
 
 function alternarTelaOS(tela) {
     const telaLista = document.getElementById('telaListaOS');
     const telaNova = document.getElementById('telaNovaOS');
+    const telaFrota = document.getElementById('telaFrotaOS');
     
+    // Ocultar todas
+    telaLista.style.display = 'none';
+    telaNova.style.display = 'none';
+    telaFrota.style.display = 'none';
+
     if (tela === 'lista') {
         telaLista.style.display = 'block';
-        telaNova.style.display = 'none';
         renderizarTabelaOS();
-    } else {
-        telaLista.style.display = 'none';
+    } else if (tela === 'nova') {
         telaNova.style.display = 'block';
         carregarMotoristasSelectOS();
+        carregarDatalistCavalos();
         document.getElementById('osDataAbertura').value = new Date().toISOString().split('T')[0];
+    } else if (tela === 'frota') {
+        telaFrota.style.display = 'block';
+        renderizarTabelaFrotaManutencao();
     }
 }
+
+// ==================== PARTE 1: GESTÃO DE FROTA (O.S.) ====================
+
+function salvarFrotaManutencao() {
+    const cavalo = document.getElementById('osFrotaCavalo').value.toUpperCase().trim();
+    const carreta1 = document.getElementById('osFrotaCarreta1').value.toUpperCase().trim();
+    const carreta2 = document.getElementById('osFrotaCarreta2').value.toUpperCase().trim();
+    const carreta3 = document.getElementById('osFrotaCarreta3').value.toUpperCase().trim();
+
+    if (!cavalo) {
+        alert("A Placa do Cavalo é obrigatória!");
+        return;
+    }
+
+    // Verifica se já existe para atualizar, senão cria novo
+    const index = frotasManutencao.findIndex(f => f.cavalo === cavalo);
+    const novaFrota = { id: Date.now(), cavalo, carreta1, carreta2, carreta3 };
+
+    if (index >= 0) {
+        frotasManutencao[index] = novaFrota;
+    } else {
+        frotasManutencao.push(novaFrota);
+    }
+
+    localStorage.setItem('ccol_frotas_manutencao', JSON.stringify(frotasManutencao));
+    
+    // Limpar campos
+    document.getElementById('osFrotaCavalo').value = '';
+    document.getElementById('osFrotaCarreta1').value = '';
+    document.getElementById('osFrotaCarreta2').value = '';
+    document.getElementById('osFrotaCarreta3').value = '';
+
+    renderizarTabelaFrotaManutencao();
+    alert("Frota cadastrada com sucesso na manutenção!");
+}
+
+function renderizarTabelaFrotaManutencao() {
+    const tbody = document.getElementById('tabelaFrotaManutencao');
+    if (!tbody) return;
+
+    if (frotasManutencao.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px;">Nenhuma frota cadastrada na manutenção.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = frotasManutencao.map(f => `
+        <tr>
+            <td style="color: var(--ccol-blue-bright); font-weight: bold;">${f.cavalo}</td>
+            <td>${f.carreta1 || '-'}</td>
+            <td>${f.carreta2 || '-'}</td>
+            <td>${f.carreta3 || '-'}</td>
+            <td>
+                <button onclick="deletarFrotaManutencao(${f.id})" style="background: transparent; border: none; color: #ef4444; font-size: 1.2rem; cursor: pointer;" title="Excluir">🗑️</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function deletarFrotaManutencao(id) {
+    if (confirm("Excluir este conjunto da lista de manutenção?")) {
+        frotasManutencao = frotasManutencao.filter(f => f.id !== id);
+        localStorage.setItem('ccol_frotas_manutencao', JSON.stringify(frotasManutencao));
+        renderizarTabelaFrotaManutencao();
+    }
+}
+
+function carregarDatalistCavalos() {
+    const datalist = document.getElementById('listaCavalosOS');
+    if (!datalist) return;
+    
+    datalist.innerHTML = frotasManutencao.map(f => `<option value="${f.cavalo}">`).join('');
+}
+
+
+// ==================== PARTE 2: ABERTURA E ACOMPANHAMENTO DE O.S. ====================
 
 function carregarMotoristasSelectOS() {
     const select = document.getElementById('osMotorista');
@@ -84,7 +168,7 @@ function salvarNovaOS() {
     }
 
     const novaOS = {
-        id: Date.now(), // Gera um ID único
+        id: Date.now(),
         placa, go, motorista, dataAbertura, tipo, problema, observacoes,
         status: 'Aberta'
     };
@@ -119,14 +203,16 @@ function deletarOS(id) {
     }
 }
 
-// Geração da versão de impressão idêntica ao PDF fornecido
+// Geração da versão de impressão
 function imprimirOS(id) {
     const os = ordensServico.find(o => o.id === id);
     if (!os) return;
 
+    // Busca as carretas amarradas a esse cavalo (se estiverem cadastradas)
+    const frota = frotasManutencao.find(f => f.cavalo === os.placa) || { carreta1: '', carreta2: '', carreta3: '' };
+
     const dataFormatada = os.dataAbertura.split('-').reverse().join('/');
     
-    // Gerar linhas vazias para a tabela de serviços para o mecânico preencher à mão
     let linhasServicos = '';
     for(let i=0; i<6; i++) {
         linhasServicos += `
@@ -165,17 +251,25 @@ function imprimirOS(id) {
                 @media print {
                     body { margin: 0; padding: 10px; }
                     .header, th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .no-print { display: none; }
                 }
             </style>
         </head>
         <body>
-            <div class="header">ORDEM DE SERVIÇO - MANUTENÇÃO DE CARRETA<br><span style="font-size: 12px;">Serranalog Transportes</span></div>
+            <div class="header">ORDEM DE SERVIÇO - MANUTENÇÃO DE CARRETA<br><span style="font-size: 12px;">Serrana Florestal - CCOL</span></div>
             
             <div class="info-grid">
-                <div class="info-box"><strong>Placa:</strong> ${os.placa}</div>
+                <div class="info-box"><strong>Cavalo:</strong> ${os.placa}</div>
                 <div class="info-box"><strong>GO:</strong> ${os.go || '-'}</div>
                 <div class="info-box"><strong>Motorista:</strong> ${os.motorista}</div>
                 <div class="info-box"><strong>Data Abertura:</strong> ${dataFormatada}</div>
+            </div>
+
+            <div class="full-box" style="background: #fafafa; font-size: 11px;">
+                <strong>Composição do Tritrem (Carretas vinculadas):</strong><br>
+                1º Comp: <strong>${frota.carreta1 || 'Não cadastrada'}</strong> &nbsp;|&nbsp; 
+                2º Comp: <strong>${frota.carreta2 || 'Não cadastrada'}</strong> &nbsp;|&nbsp; 
+                3º Comp: <strong>${frota.carreta3 || 'Não cadastrada'}</strong>
             </div>
 
             <div class="full-box">

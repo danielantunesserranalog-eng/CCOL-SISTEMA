@@ -297,6 +297,7 @@
                     <div class="button-group" style="margin-left: auto;">
                         <button class="btn-primary-blue" onclick="alternarTelaOS('lista')">📋 Acompanhamento</button>
                         <button class="btn-primary-green" onclick="alternarTelaOS('nova')">➕ Abrir Nova O.S.</button>
+                        <button class="btn-secondary-dark" onclick="alternarTelaOS('frota')">🚛 Cadastro Frota (Manutenção)</button>
                     </div>
                 </div>
 
@@ -313,7 +314,7 @@
                                 <tr>
                                     <th>Nº O.S.</th>
                                     <th>Data Abertura</th>
-                                    <th>Placa</th>
+                                    <th>Placa (Cavalo)</th>
                                     <th>Motorista</th>
                                     <th>Tipo</th>
                                     <th>Status</th>
@@ -329,8 +330,9 @@
                     <div class="panel-header"><h3>📝 Abertura de Nova O.S.</h3></div>
                     <div class="form-grid">
                         <div class="form-group-dark">
-                            <label>Placa do Caminhão/Carreta</label>
-                            <input type="text" id="osPlaca" placeholder="Ex: ABC-1234" style="text-transform: uppercase;">
+                            <label>Placa do Cavalo (Selecione ou Digite)</label>
+                            <input type="text" id="osPlaca" list="listaCavalosOS" placeholder="Ex: ABC-1234" style="text-transform: uppercase;">
+                            <datalist id="listaCavalosOS"></datalist>
                         </div>
                         <div class="form-group-dark">
                             <label>GO</label>
@@ -340,7 +342,7 @@
                             <label>Motorista Solicitante</label>
                             <select id="osMotorista" class="dark-select">
                                 <option value="">Selecione o motorista...</option>
-                                </select>
+                            </select>
                         </div>
                         <div class="form-group-dark">
                             <label>Data da Abertura</label>
@@ -366,6 +368,47 @@
                         <div class="form-actions" style="grid-column: 1 / -1; margin-top: 15px;">
                             <button class="btn-primary-green btn-full" onclick="salvarNovaOS()">💾 Salvar e Gerar O.S.</button>
                         </div>
+                    </div>
+                </div>
+
+                <div id="telaFrotaOS" class="content-panel form-panel-dark" style="display: none;">
+                    <div class="panel-header"><h3>🚛 Cadastro de Cavalos e Carretas (Tritrem) - Manutenção</h3></div>
+                    <div class="form-grid">
+                        <div class="form-group-dark">
+                            <label>Placa do Cavalo</label>
+                            <input type="text" id="osFrotaCavalo" placeholder="Ex: CAV-1234" style="text-transform: uppercase;">
+                        </div>
+                        <div class="form-group-dark">
+                            <label>Placa Carreta 1 (1º Comp.)</label>
+                            <input type="text" id="osFrotaCarreta1" placeholder="Ex: CAR-0001" style="text-transform: uppercase;">
+                        </div>
+                        <div class="form-group-dark">
+                            <label>Placa Carreta 2 (2º Comp.)</label>
+                            <input type="text" id="osFrotaCarreta2" placeholder="Ex: CAR-0002" style="text-transform: uppercase;">
+                        </div>
+                        <div class="form-group-dark">
+                            <label>Placa Carreta 3 (3º Comp.)</label>
+                            <input type="text" id="osFrotaCarreta3" placeholder="Ex: CAR-0003" style="text-transform: uppercase;">
+                        </div>
+                        
+                        <div class="form-actions" style="grid-column: 1 / -1; margin-top: 15px;">
+                            <button class="btn-primary-blue btn-full" onclick="salvarFrotaManutencao()">✅ Salvar Frota no Sistema de O.S.</button>
+                        </div>
+                    </div>
+
+                    <div class="table-modern-wrapper" style="margin-top: 20px;">
+                        <table class="data-table-modern">
+                            <thead>
+                                <tr>
+                                    <th>Cavalo</th>
+                                    <th>Carreta 1</th>
+                                    <th>Carreta 2</th>
+                                    <th>Carreta 3</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaFrotaManutencao"></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
