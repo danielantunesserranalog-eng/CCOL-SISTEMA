@@ -545,10 +545,27 @@ window.renderizarTrocaTurno = function() {
     listaFolga.innerHTML = htmlFolga;
 };
 
+// ==================== MODAL DE IMPRESSÃO DIÁRIA ====================
+window.abrirModalImpressao = function() {
+    document.getElementById('printData').value = new Date().toISOString().split('T')[0];
+    document.getElementById('modalImpressaoDiaria').classList.add('show');
+}
+
+window.fecharModalImpressao = function() {
+    document.getElementById('modalImpressaoDiaria').classList.remove('show');
+}
+
 // ==================== IMPRESSÃO DO RELATÓRIO DA TROCA DE TURNO ====================
-window.imprimirRelatorioTrabalhoHoje = function() {
-    const hojeStr = new Date().toISOString().split('T')[0];
-    const partes = hojeStr.split('-');
+window.gerarRelatorioImpressao = function() {
+    const dataEscolhida = document.getElementById('printData').value;
+    const turnoEscolhido = document.getElementById('printTurno').value;
+    
+    if (!dataEscolhida) {
+        alert("Por favor, selecione uma data.");
+        return;
+    }
+
+    const partes = dataEscolhida.split('-');
     const dataFormatada = `${partes[2]}/${partes[1]}/${partes[0]}`;
 
     let trabalhandoDia = [];
@@ -556,19 +573,32 @@ window.imprimirRelatorioTrabalhoHoje = function() {
 
     motoristas.forEach(m => {
         if (m.masterDrive === 'Não' || m.destra === 'Não') return;
-        const escalaHoje = window.getEscalaDiaComputada(m, hojeStr);
-        const caminhaoHoje = escalaHoje ? escalaHoje.caminhao : 'F';
-        if (caminhaoHoje !== 'F') {
+        const escalaDia = window.getEscalaDiaComputada(m, dataEscolhida);
+        const caminhaoAtivo = escalaDia ? escalaDia.caminhao : 'F';
+        
+        if (caminhaoAtivo !== 'F') {
             const isDia = ['A', 'B', 'C'].includes(m.equipe);
-            let fimTurno = m.turno && m.turno !== '-' ? (m.turno.split('-')[1] || m.turno) : '-';
-            if (isDia) trabalhandoDia.push({ ...m, caminhaoHoje, fimTurno });
-            else trabalhandoNoite.push({ ...m, caminhaoHoje, fimTurno });
+            
+            let hrEntrada = '-';
+            let hrSaida = '-';
+            
+            if (m.turno && m.turno !== '-' && m.turno !== 'Misto') {
+                const p = m.turno.split('-');
+                hrEntrada = p[0] || '-';
+                hrSaida = p[1] || '-';
+            } else if (m.turno === 'Misto') {
+                hrEntrada = 'Misto';
+                hrSaida = 'Misto';
+            }
+
+            if (isDia) trabalhandoDia.push({ ...m, caminhaoAtivo, hrEntrada, hrSaida });
+            else trabalhandoNoite.push({ ...m, caminhaoAtivo, hrEntrada, hrSaida });
         }
     });
 
     const sortFn = (a, b) => {
-        const timeA = a.fimTurno && a.fimTurno !== '-' ? a.fimTurno : '24:00';
-        const timeB = b.fimTurno && b.fimTurno !== '-' ? b.fimTurno : '24:00';
+        const timeA = a.hrEntrada !== '-' ? a.hrEntrada : '24:00';
+        const timeB = b.hrEntrada !== '-' ? b.hrEntrada : '24:00';
         
         if (timeA !== timeB) {
             return timeA.localeCompare(timeB); 
@@ -580,7 +610,7 @@ window.imprimirRelatorioTrabalhoHoje = function() {
     trabalhandoNoite.sort(sortFn);
 
     const buildTable = (titulo, lista) => {
-        if (lista.length === 0) return `<p style="text-align: center; color: #555; font-size: 11px;">Nenhum motorista alocado.</p>`;
+        if (lista.length === 0) return `<p style="text-align: center; color: #555; font-size: 11px;">Nenhum motorista alocado neste turno.</p>`;
         
         let html = `<h3 style="margin-top: 15px; margin-bottom: 5px; border-bottom: 2px solid #333; padding-bottom: 3px; font-size: 13px;">${titulo}</h3>
             <table style="width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 11px;">
@@ -589,8 +619,8 @@ window.imprimirRelatorioTrabalhoHoje = function() {
                         <th style="border: 1px solid #d4d4d8; padding: 4px; text-align: left;">Motorista</th>
                         <th style="border: 1px solid #d4d4d8; padding: 4px;">Conjunto</th>
                         <th style="border: 1px solid #d4d4d8; padding: 4px;">Placa Alocada</th>
-                        <th style="border: 1px solid #d4d4d8; padding: 4px;">Horário Troca</th>
-                        <th style="border: 1px solid #d4d4d8; padding: 4px;">Equipe</th>
+                        <th style="border: 1px solid #d4d4d8; padding: 4px;">Entrada</th>
+                        <th style="border: 1px solid #d4d4d8; padding: 4px;">Saída</th>
                         <th style="border: 1px solid #d4d4d8; padding: 4px; text-align: left;">Base</th>
                     </tr>
                 </thead>
@@ -600,14 +630,24 @@ window.imprimirRelatorioTrabalhoHoje = function() {
             html += `<tr>
                 <td style="border: 1px solid #d4d4d8; padding: 3px;"><strong>${m.nome}</strong></td>
                 <td style="border: 1px solid #d4d4d8; padding: 3px; text-align: center;">${m.conjuntoId || '-'}</td>
-                <td style="border: 1px solid #d4d4d8; padding: 3px; text-align: center; font-weight: bold; color: #2563eb;">${m.caminhaoHoje}</td>
-                <td style="border: 1px solid #d4d4d8; padding: 3px; text-align: center; font-weight: bold; color: #ea580c;">${m.fimTurno}</td>
-                <td style="border: 1px solid #d4d4d8; padding: 3px; text-align: center;">${m.equipe || '-'}</td>
+                <td style="border: 1px solid #d4d4d8; padding: 3px; text-align: center; font-weight: bold; color: #2563eb;">${m.caminhaoAtivo}</td>
+                <td style="border: 1px solid #d4d4d8; padding: 3px; text-align: center; font-weight: bold; color: #16a34a;">${m.hrEntrada}</td>
+                <td style="border: 1px solid #d4d4d8; padding: 3px; text-align: center; font-weight: bold; color: #ea580c;">${m.hrSaida}</td>
                 <td style="border: 1px solid #d4d4d8; padding: 3px;">${m.cidade || '-'}</td>
             </tr>`;
         });
         return html + `</tbody></table>`;
     };
+
+    let conteudoRelatorio = '';
+    
+    if (turnoEscolhido === 'Todos' || turnoEscolhido === 'Dia') {
+        conteudoRelatorio += buildTable('☀️ TURNO DO DIA', trabalhandoDia);
+    }
+    
+    if (turnoEscolhido === 'Todos' || turnoEscolhido === 'Noite') {
+        conteudoRelatorio += buildTable('🌙 TURNO DA NOITE', trabalhandoNoite);
+    }
 
     const janelaImp = window.open('', '', 'width=900,height=700');
     janelaImp.document.write(`
@@ -632,11 +672,10 @@ window.imprimirRelatorioTrabalhoHoje = function() {
         <body>
             <div class="print-header">
                 <h1>Serrana Florestal - CCOL</h1>
-                <p><strong>Relatório: Escala Diária</strong> | Data: <strong>${dataFormatada}</strong></p>
+                <p><strong>Relatório: Escala Diária</strong> | Data: <strong>${dataFormatada}</strong> | Turno: <strong>${turnoEscolhido}</strong></p>
             </div>
             
-            ${buildTable('☀️ TURNO DO DIA (Equipes A, B e C)', trabalhandoDia)} 
-            ${buildTable('🌙 TURNO DA NOITE (Equipes D, E e F)', trabalhandoNoite)}
+            ${conteudoRelatorio}
             
             <div class="no-print" style="text-align: center; margin-top: 30px;">
                 <button style="padding: 10px 20px; background: #2563eb; color: #fff; border: none; cursor: pointer; border-radius: 6px; font-weight: bold; font-size: 14px;" onclick="window.print()">🖨️ Salvar como PDF / Imprimir</button>
@@ -645,6 +684,8 @@ window.imprimirRelatorioTrabalhoHoje = function() {
         </html>
     `);
     janelaImp.document.close();
+    
+    fecharModalImpressao();
 };
 
 // ==================== IMPRESSÃO DA ESCALA SEMANAL ====================

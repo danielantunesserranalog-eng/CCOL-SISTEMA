@@ -564,7 +564,7 @@
                 <div class="action-bar" style="flex-wrap: wrap; gap: 15px;">
                     <h3 style="color: var(--text-primary); margin: 0; align-self: center;">⏱️ Painel em Tempo Real: Troca de Turno</h3>
                     <div class="button-group" style="margin-left: auto;">
-                        <button id="btnImprimirRelatorioHoje" class="btn-primary-green" onclick="imprimirRelatorioTrabalhoHoje()">🖨️ Imprimir Escala de Hoje</button>
+                        <button id="btnImprimirRelatorioHoje" class="btn-primary-green" onclick="abrirModalImpressao()">🖨️ Imprimir Escala de Hoje</button>
                         <button id="btnAtualizarTroca" class="btn-primary-blue" onclick="renderizarTrocaTurno()">🔄 Atualizar Painel</button>
                     </div>
                 </div>
@@ -923,6 +923,34 @@
             </div>
         </div>
     </div>
+
+    <div id="modalImpressaoDiaria" class="modal-overlay">
+        <div class="custom-modal" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>🖨️ Imprimir Escala Diária</h3>
+                <button class="close-modal" onclick="fecharModalImpressao()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group-dark">
+                    <label>Data da Escala</label>
+                    <input type="date" id="printData" class="dark-select">
+                </div>
+                <div class="form-group-dark">
+                    <label>Turno para Imprimir</label>
+                    <select id="printTurno" class="dark-select">
+                        <option value="Todos">Todos os Turnos (Dia e Noite)</option>
+                        <option value="Dia">Apenas Turno do Dia</option>
+                        <option value="Noite">Apenas Turno da Noite</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary-dark" onclick="fecharModalImpressao()">Cancelar</button>
+                <button class="btn-primary-green" onclick="gerarRelatorioImpressao()">🖨️ Gerar Relatório</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/database.js"></script>
     <script src="js/auth.js"></script> 
