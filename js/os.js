@@ -1,10 +1,36 @@
 // ==================== MÓDULO: ORDEM DE SERVIÇO (O.S.) ====================
 
-// Bancos de dados locais exclusivos da Manutenção
-let ordensServico = JSON.parse(localStorage.getItem('ccol_os')) || [];
-let frotasManutencao = JSON.parse(localStorage.getItem('ccol_frotas_manutencao')) || [];
+// Variáveis locais para armazenar os dados temporariamente na interface
+let ordensServico = [];
+let frotasManutencao = [];
 
-function alternarTelaOS(tela) {
+// Função para carregar os dados reais do Supabase
+async function carregarDadosOS() {
+    try {
+        // Carrega as O.S.
+        const { data: osData, error: osError } = await supabase
+            .from('ordens_servico')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (!osError && osData) {
+            ordensServico = osData;
+        }
+
+        // Carrega as Frotas
+        const { data: frotaData, error: frotaError } = await supabase
+            .from('frotas_manutencao')
+            .select('*');
+            
+        if (!frotaError && frotaData) {
+            frotasManutencao = frotaData;
+        }
+    } catch (error) {
+        console.error("Erro ao carregar dados do Supabase:", error);
+    }
+}
+
+async function alternarTelaOS(tela) {
     const telaLista = document.getElementById('telaListaOS');
     const telaNova = document.getElementById('telaNovaOS');
     const telaFrota = document.getElementById('telaFrotaOS');
@@ -13,6 +39,9 @@ function alternarTelaOS(tela) {
     telaLista.style.display = 'none';
     telaNova.style.display = 'none';
     telaFrota.style.display = 'none';
+
+    // Carregar os dados mais recentes do banco antes de mostrar a tela
+    await carregarDadosOS();
 
     if (tela === 'lista') {
         telaLista.style.display = 'block';
@@ -30,7 +59,7 @@ function alternarTelaOS(tela) {
 
 // ==================== PARTE 1: GESTÃO DE FROTA (O.S.) ====================
 
-function salvarFrotaManutencao() {
+async function salvarFrotaManutencao() {
     const cavalo = document.getElementById('osFrotaCavalo').value.toUpperCase().trim();
     const carreta1 = document.getElementById('osFrotaCarreta1').value.toUpperCase().trim();
     const carreta2 = document.getElementById('osFrotaCarreta2').value.toUpperCase().trim();
@@ -41,26 +70,43 @@ function salvarFrotaManutencao() {
         return;
     }
 
-    // Verifica se já existe para atualizar, senão cria novo
-    const index = frotasManutencao.findIndex(f => f.cavalo === cavalo);
-    const novaFrota = { id: Date.now(), cavalo, carreta1, carreta2, carreta3 };
+    // Verifica se já existe para atualizar
+    const frotaExistente = frotasManutencao.find(f => f.cavalo === cavalo);
 
-    if (index >= 0) {
-        frotasManutencao[index] = novaFrota;
+    const dadosFrota = { cavalo, carreta1, carreta2, carreta3 };
+
+    if (frotaExistente) {
+        // Atualiza no Supabase
+        const { error } = await supabase
+            .from('frotas_manutencao')
+            .update(dadosFrota)
+            .eq('id', frotaExistente.id);
+            
+        if (error) {
+            alert("Erro ao atualizar frota.");
+            return;
+        }
     } else {
-        frotasManutencao.push(novaFrota);
+        // Insere no Supabase
+        const { error } = await supabase
+            .from('frotas_manutencao')
+            .insert([dadosFrota]);
+            
+        if (error) {
+            alert("Erro ao inserir frota.");
+            return;
+        }
     }
 
-    localStorage.setItem('ccol_frotas_manutencao', JSON.stringify(frotasManutencao));
-    
     // Limpar campos
     document.getElementById('osFrotaCavalo').value = '';
     document.getElementById('osFrotaCarreta1').value = '';
     document.getElementById('osFrotaCarreta2').value = '';
     document.getElementById('osFrotaCarreta3').value = '';
 
+    await carregarDadosOS();
     renderizarTabelaFrotaManutencao();
-    alert("Frota cadastrada com sucesso na manutenção!");
+    alert("Frota guardada com sucesso na manutenção!");
 }
 
 function renderizarTabelaFrotaManutencao() {
@@ -68,7 +114,7 @@ function renderizarTabelaFrotaManutencao() {
     if (!tbody) return;
 
     if (frotasManutencao.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px;">Nenhuma frota cadastrada na manutenção.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px;">Nenhuma frota registada na manutenção.</td></tr>';
         return;
     }
 
@@ -85,18 +131,25 @@ function renderizarTabelaFrotaManutencao() {
     `).join('');
 }
 
-function deletarFrotaManutencao(id) {
+async function deletarFrotaManutencao(id) {
     if (confirm("Excluir este conjunto da lista de manutenção?")) {
-        frotasManutencao = frotasManutencao.filter(f => f.id !== id);
-        localStorage.setItem('ccol_frotas_manutencao', JSON.stringify(frotasManutencao));
-        renderizarTabelaFrotaManutencao();
+        const { error } = await supabase
+            .from('frotas_manutencao')
+            .delete()
+            .eq('id', id);
+
+        if (!error) {
+            await carregarDadosOS();
+            renderizarTabelaFrotaManutencao();
+        } else {
+            alert("Erro ao excluir o registo.");
+        }
     }
 }
 
 function carregarDatalistCavalos() {
     const datalist = document.getElementById('listaCavalosOS');
     if (!datalist) return;
-    
     datalist.innerHTML = frotasManutencao.map(f => `<option value="${f.cavalo}">`).join('');
 }
 
@@ -107,7 +160,7 @@ function carregarMotoristasSelectOS() {
     const select = document.getElementById('osMotorista');
     if (!select) return;
     
-    // Usa a variável global 'motoristas' do seu sistema
+    // Usa a variável global 'motoristas' do sistema CCOL
     let options = '<option value="">Selecione o motorista...</option>';
     motoristas.forEach(m => {
         options += `<option value="${m.nome}">${m.nome}</option>`;
@@ -121,7 +174,7 @@ function renderizarTabelaOS() {
     if (!tbody) return;
 
     if (ordensServico.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">Nenhuma O.S. registrada.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">Nenhuma O.S. registada.</td></tr>';
         return;
     }
 
@@ -138,7 +191,7 @@ function renderizarTabelaOS() {
         return `
             <tr>
                 <td><strong>#${os.id}</strong></td>
-                <td>${os.dataAbertura.split('-').reverse().join('/')}</td>
+                <td>${os.data_abertura.split('-').reverse().join('/')}</td>
                 <td style="color: var(--ccol-blue-bright); font-weight: bold;">${os.placa}</td>
                 <td>${os.motorista}</td>
                 <td>${os.tipo}</td>
@@ -153,11 +206,11 @@ function renderizarTabelaOS() {
     }).join('');
 }
 
-function salvarNovaOS() {
+async function salvarNovaOS() {
     const placa = document.getElementById('osPlaca').value.toUpperCase();
     const go = document.getElementById('osGo').value;
     const motorista = document.getElementById('osMotorista').value;
-    const dataAbertura = document.getElementById('osDataAbertura').value;
+    const data_abertura = document.getElementById('osDataAbertura').value;
     const tipo = document.getElementById('osTipo').value;
     const problema = document.getElementById('osProblema').value;
     const observacoes = document.getElementById('osObservacoes').value;
@@ -168,13 +221,16 @@ function salvarNovaOS() {
     }
 
     const novaOS = {
-        id: Date.now(),
-        placa, go, motorista, dataAbertura, tipo, problema, observacoes,
+        placa, go, motorista, data_abertura, tipo, problema, observacoes,
         status: 'Aberta'
     };
 
-    ordensServico.push(novaOS);
-    localStorage.setItem('ccol_os', JSON.stringify(ordensServico));
+    const { error } = await supabase.from('ordens_servico').insert([novaOS]);
+
+    if (error) {
+        alert("Erro ao gravar O.S.");
+        return;
+    }
     
     // Limpar formulário
     document.getElementById('osPlaca').value = '';
@@ -186,20 +242,35 @@ function salvarNovaOS() {
     alternarTelaOS('lista');
 }
 
-function concluirOS(id) {
-    const os = ordensServico.find(o => o.id === id);
-    if (os && confirm("Marcar O.S. como concluída?")) {
-        os.status = 'Concluída';
-        localStorage.setItem('ccol_os', JSON.stringify(ordensServico));
-        renderizarTabelaOS();
+async function concluirOS(id) {
+    if (confirm("Marcar O.S. como concluída?")) {
+        const { error } = await supabase
+            .from('ordens_servico')
+            .update({ status: 'Concluída' })
+            .eq('id', id);
+
+        if (!error) {
+            await carregarDadosOS();
+            renderizarTabelaOS();
+        } else {
+            alert("Erro ao concluir a O.S.");
+        }
     }
 }
 
-function deletarOS(id) {
+async function deletarOS(id) {
     if (confirm("Deseja realmente excluir esta O.S.?")) {
-        ordensServico = ordensServico.filter(o => o.id !== id);
-        localStorage.setItem('ccol_os', JSON.stringify(ordensServico));
-        renderizarTabelaOS();
+        const { error } = await supabase
+            .from('ordens_servico')
+            .delete()
+            .eq('id', id);
+
+        if (!error) {
+            await carregarDadosOS();
+            renderizarTabelaOS();
+        } else {
+            alert("Erro ao excluir a O.S.");
+        }
     }
 }
 
@@ -208,10 +279,8 @@ function imprimirOS(id) {
     const os = ordensServico.find(o => o.id === id);
     if (!os) return;
 
-    // Busca as carretas amarradas a esse cavalo (se estiverem cadastradas)
     const frota = frotasManutencao.find(f => f.cavalo === os.placa) || { carreta1: '', carreta2: '', carreta3: '' };
-
-    const dataFormatada = os.dataAbertura.split('-').reverse().join('/');
+    const dataFormatada = os.data_abertura.split('-').reverse().join('/');
     
     let linhasServicos = '';
     for(let i=0; i<6; i++) {
@@ -267,9 +336,9 @@ function imprimirOS(id) {
 
             <div class="full-box" style="background: #fafafa; font-size: 11px;">
                 <strong>Composição do Tritrem (Carretas vinculadas):</strong><br>
-                1º Comp: <strong>${frota.carreta1 || 'Não cadastrada'}</strong> &nbsp;|&nbsp; 
-                2º Comp: <strong>${frota.carreta2 || 'Não cadastrada'}</strong> &nbsp;|&nbsp; 
-                3º Comp: <strong>${frota.carreta3 || 'Não cadastrada'}</strong>
+                1º Comp: <strong>${frota.carreta1 || 'Não registada'}</strong> &nbsp;|&nbsp; 
+                2º Comp: <strong>${frota.carreta2 || 'Não registada'}</strong> &nbsp;|&nbsp; 
+                3º Comp: <strong>${frota.carreta3 || 'Não registada'}</strong>
             </div>
 
             <div class="full-box">
