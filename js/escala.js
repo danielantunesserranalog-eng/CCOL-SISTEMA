@@ -298,11 +298,11 @@ function renderizarAlocacao() {
         
         let equipeSelect = `<select class="select-aloc-equipe select-turno" data-id="${m.id}" ${isBlocked ? 'disabled' : ''}>
             <option value="-" ${m.equipe === '-' || !m.equipe ? 'selected' : ''}>Sem Equipe</option>
-            <option value="A" ${m.equipe === 'A' ? 'selected' : ''}>A (Fixo Dia - Cami 1)</option>
-            <option value="B" ${m.equipe === 'B' ? 'selected' : ''}>B (Fixo Dia - Cami 2)</option>
+            <option value="A" ${m.equipe === 'A' ? 'selected' : ''}>A (Fixo Dia - Frota 1 )</option>
+            <option value="B" ${m.equipe === 'B' ? 'selected' : ''}>B (Fixo Dia - Frota 2)</option>
             <option value="C" ${m.equipe === 'C' ? 'selected' : ''}>C (⭐ FOLGUISTA DIA)</option>
-            <option value="D" ${m.equipe === 'D' ? 'selected' : ''}>D (Fixo Noite - Cami 1)</option>
-            <option value="E" ${m.equipe === 'E' ? 'selected' : ''}>E (Fixo Noite - Cami 2)</option>
+            <option value="D" ${m.equipe === 'D' ? 'selected' : ''}>D (Fixo Noite - Frota 1 )</option>
+            <option value="E" ${m.equipe === 'E' ? 'selected' : ''}>E (Fixo Noite - Frota 2)</option>
             <option value="F" ${m.equipe === 'F' ? 'selected' : ''}>F (⭐ FOLGUISTA NOITE)</option>
         </select>`;
         
