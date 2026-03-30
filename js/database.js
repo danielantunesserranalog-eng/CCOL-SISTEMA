@@ -39,7 +39,8 @@ const db = {
 
     // --- CONJUNTOS ---
     async getConjuntos() {
-        const { data } = await supabaseClient.from('conjuntos').select('*');
+        // CORREÇÃO AQUI: Adicionado .order('id', { ascending: true })
+        const { data } = await supabaseClient.from('conjuntos').select('*').order('id', { ascending: true });
         return data || [];
     },
     async addConjunto(conjunto) {

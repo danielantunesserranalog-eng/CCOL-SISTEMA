@@ -108,6 +108,13 @@ window.renderizarEscala = function() {
         }
     }
 
+    // CORREÇÃO: Força a ordenação numérica dos conjuntos (1, 2, 3...)
+    conjuntosRender.sort((a, b) => {
+        if (a.isSemFrota) return 1; // Joga o "Sem Frota" para o final da lista
+        if (b.isSemFrota) return -1;
+        return parseInt(a.id) - parseInt(b.id);
+    });
+
     if (conjuntosRender.length === 0) {
         container.innerHTML = '<p style="padding: 20px; text-align: center;">Nenhum conjunto encontrado para este filtro.</p>';
         return;
