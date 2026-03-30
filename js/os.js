@@ -20,7 +20,8 @@ async function carregarDadosOS() {
         // Carrega as Frotas
         const { data: frotaData, error: frotaError } = await supabase
             .from('frotas_manutencao')
-            .select('*');
+            .select('*')
+            .order('cavalo', { ascending: true });
             
         if (!frotaError && frotaData) {
             frotasManutencao = frotaData;
@@ -49,8 +50,9 @@ async function alternarTelaOS(tela) {
     } else if (tela === 'nova') {
         telaNova.style.display = 'block';
         carregarMotoristasSelectOS();
-        carregarDatalistCavalos();
+        carregarSelectCavalosOS();
         document.getElementById('osDataAbertura').value = new Date().toISOString().split('T')[0];
+        togglePneuFields(); // Reseta os campos de borracharia
     } else if (tela === 'frota') {
         telaFrota.style.display = 'block';
         renderizarTabelaFrotaManutencao();
@@ -61,6 +63,7 @@ async function alternarTelaOS(tela) {
 
 async function salvarFrotaManutencao() {
     const cavalo = document.getElementById('osFrotaCavalo').value.toUpperCase().trim();
+    const go = document.getElementById('osFrotaGo').value.toUpperCase().trim();
     const carreta1 = document.getElementById('osFrotaCarreta1').value.toUpperCase().trim();
     const carreta2 = document.getElementById('osFrotaCarreta2').value.toUpperCase().trim();
     const carreta3 = document.getElementById('osFrotaCarreta3').value.toUpperCase().trim();
@@ -73,7 +76,7 @@ async function salvarFrotaManutencao() {
     // Verifica se já existe para atualizar
     const frotaExistente = frotasManutencao.find(f => f.cavalo === cavalo);
 
-    const dadosFrota = { cavalo, carreta1, carreta2, carreta3 };
+    const dadosFrota = { cavalo, go, carreta1, carreta2, carreta3 };
 
     if (frotaExistente) {
         // Atualiza no Supabase
@@ -100,6 +103,7 @@ async function salvarFrotaManutencao() {
 
     // Limpar campos
     document.getElementById('osFrotaCavalo').value = '';
+    document.getElementById('osFrotaGo').value = '';
     document.getElementById('osFrotaCarreta1').value = '';
     document.getElementById('osFrotaCarreta2').value = '';
     document.getElementById('osFrotaCarreta3').value = '';
@@ -114,13 +118,14 @@ function renderizarTabelaFrotaManutencao() {
     if (!tbody) return;
 
     if (frotasManutencao.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px;">Nenhuma frota registada na manutenção.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px;">Nenhuma frota registada na manutenção.</td></tr>';
         return;
     }
 
     tbody.innerHTML = frotasManutencao.map(f => `
         <tr>
             <td style="color: var(--ccol-blue-bright); font-weight: bold;">${f.cavalo}</td>
+            <td style="color: var(--ccol-rust-bright); font-weight: bold;">${f.go || '-'}</td>
             <td>${f.carreta1 || '-'}</td>
             <td>${f.carreta2 || '-'}</td>
             <td>${f.carreta3 || '-'}</td>
@@ -147,25 +152,47 @@ async function deletarFrotaManutencao(id) {
     }
 }
 
-function carregarDatalistCavalos() {
-    const datalist = document.getElementById('listaCavalosOS');
-    if (!datalist) return;
-    datalist.innerHTML = frotasManutencao.map(f => `<option value="${f.cavalo}">`).join('');
-}
-
 
 // ==================== PARTE 2: ABERTURA E ACOMPANHAMENTO DE O.S. ====================
+
+function carregarSelectCavalosOS() {
+    const select = document.getElementById('osPlaca');
+    if (!select) return;
+    
+    let options = '<option value="">Selecione o Conjunto...</option>';
+    frotasManutencao.forEach(f => {
+        const displayGo = f.go ? ` (GO: ${f.go})` : '';
+        options += `<option value="${f.cavalo}">${f.cavalo}${displayGo}</option>`;
+    });
+    select.innerHTML = options;
+}
 
 function carregarMotoristasSelectOS() {
     const select = document.getElementById('osMotorista');
     if (!select) return;
     
-    // Usa a variável global 'motoristas' do sistema CCOL
+    // Usa a variável global 'motoristas' do sistema e ordena de A a Z
+    let motoristasOrdenados = [...motoristas].sort((a, b) => a.nome.localeCompare(b.nome));
+
     let options = '<option value="">Selecione o motorista...</option>';
-    motoristas.forEach(m => {
+    motoristasOrdenados.forEach(m => {
         options += `<option value="${m.nome}">${m.nome}</option>`;
     });
     select.innerHTML = options;
+}
+
+function togglePneuFields() {
+    const tipo = document.getElementById('osTipo').value;
+    const camposPneu = document.getElementById('camposPneu');
+    if (tipo === 'Borracharia (PNEU)') {
+        camposPneu.style.display = 'block';
+    } else {
+        camposPneu.style.display = 'none';
+        // Limpar dados do pneu se trocar o tipo
+        document.getElementById('osPneuPosicao').value = '';
+        document.getElementById('osPneuServico').value = '';
+        document.getElementById('osPneuMotivo').value = '';
+    }
 }
 
 function renderizarTabelaOS() {
@@ -207,21 +234,36 @@ function renderizarTabelaOS() {
 }
 
 async function salvarNovaOS() {
-    const placa = document.getElementById('osPlaca').value.toUpperCase();
-    const go = document.getElementById('osGo').value;
+    const placa = document.getElementById('osPlaca').value;
     const motorista = document.getElementById('osMotorista').value;
     const data_abertura = document.getElementById('osDataAbertura').value;
+    const hodometro = document.getElementById('osHodometro').value;
+    const prioridade = document.getElementById('osPrioridade').value;
     const tipo = document.getElementById('osTipo').value;
     const problema = document.getElementById('osProblema').value;
     const observacoes = document.getElementById('osObservacoes').value;
 
     if (!placa || !motorista) {
-        alert("Placa e Motorista são obrigatórios!");
+        alert("Conjunto/Cavalo e Motorista são obrigatórios!");
         return;
     }
 
+    // Busca o GO atrelado a essa placa de forma automática
+    const frotaVinculada = frotasManutencao.find(f => f.cavalo === placa);
+    const go = frotaVinculada ? frotaVinculada.go : '';
+
+    // Monta o JSON de detalhes do pneu (se aplicável)
+    let detalhes_pneu = null;
+    if (tipo === 'Borracharia (PNEU)') {
+        detalhes_pneu = JSON.stringify({
+            posicao: document.getElementById('osPneuPosicao').value,
+            servico: document.getElementById('osPneuServico').value,
+            motivo: document.getElementById('osPneuMotivo').value
+        });
+    }
+
     const novaOS = {
-        placa, go, motorista, data_abertura, tipo, problema, observacoes,
+        placa, go, motorista, data_abertura, hodometro, prioridade, tipo, problema, observacoes, detalhes_pneu,
         status: 'Aberta'
     };
 
@@ -229,14 +271,19 @@ async function salvarNovaOS() {
 
     if (error) {
         alert("Erro ao gravar O.S.");
+        console.error(error);
         return;
     }
     
     // Limpar formulário
     document.getElementById('osPlaca').value = '';
-    document.getElementById('osGo').value = '';
+    document.getElementById('osMotorista').value = '';
+    document.getElementById('osHodometro').value = '';
     document.getElementById('osProblema').value = '';
     document.getElementById('osObservacoes').value = '';
+    document.getElementById('osPneuPosicao').value = '';
+    document.getElementById('osPneuServico').value = '';
+    document.getElementById('osPneuMotivo').value = '';
 
     alert("O.S. Aberta com sucesso!");
     alternarTelaOS('lista');
@@ -282,8 +329,23 @@ function imprimirOS(id) {
     const frota = frotasManutencao.find(f => f.cavalo === os.placa) || { carreta1: '', carreta2: '', carreta3: '' };
     const dataFormatada = os.data_abertura.split('-').reverse().join('/');
     
+    let painelBorracharia = '';
+    if (os.tipo === 'Borracharia (PNEU)' && os.detalhes_pneu) {
+        try {
+            const pneu = JSON.parse(os.detalhes_pneu);
+            painelBorracharia = `
+                <div class="full-box" style="background: #eef2ff; border-color: #3b82f6;">
+                    <strong style="color: #1d4ed8;">🛞 DETALHES DE BORRACHARIA:</strong><br><br>
+                    <strong>Posição/Eixo:</strong> ${pneu.posicao || 'Não informada'} <br>
+                    <strong>Serviço Exigido:</strong> ${pneu.servico || 'Não informado'} <br>
+                    <strong>Motivo/Diagnóstico:</strong> ${pneu.motivo || 'Não informado'}
+                </div>
+            `;
+        } catch(e) {}
+    }
+
     let linhasServicos = '';
-    for(let i=0; i<6; i++) {
+    for(let i=0; i<5; i++) {
         linhasServicos += `
             <tr>
                 <td style="height: 30px;"></td>
@@ -308,9 +370,8 @@ function imprimirOS(id) {
             <style>
                 body { font-family: Arial, sans-serif; font-size: 12px; margin: 20px; color: #000; }
                 .header { text-align: center; border: 2px solid #000; padding: 10px; font-weight: bold; font-size: 16px; margin-bottom: 10px; background-color: #f0f0f0; }
-                .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+                .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
                 .info-box { border: 1px solid #000; padding: 8px; }
-                .info-box strong { display: inline-block; width: 120px; }
                 .full-box { border: 1px solid #000; padding: 8px; margin-bottom: 15px; }
                 table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
                 th, td { border: 1px solid #000; padding: 5px; text-align: center; }
@@ -319,19 +380,21 @@ function imprimirOS(id) {
                 .sig-line { border-top: 1px solid #000; width: 45%; text-align: center; padding-top: 5px; }
                 @media print {
                     body { margin: 0; padding: 10px; }
-                    .header, th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .header, th, .full-box { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                     .no-print { display: none; }
                 }
             </style>
         </head>
         <body>
-            <div class="header">ORDEM DE SERVIÇO - MANUTENÇÃO DE CARRETA<br><span style="font-size: 12px;">Serrana Florestal - CCOL</span></div>
+            <div class="header">ORDEM DE SERVIÇO - MANUTENÇÃO E FROTAS<br><span style="font-size: 12px;">Serrana Florestal - CCOL</span></div>
             
             <div class="info-grid">
                 <div class="info-box"><strong>Cavalo:</strong> ${os.placa}</div>
                 <div class="info-box"><strong>GO:</strong> ${os.go || '-'}</div>
-                <div class="info-box"><strong>Motorista:</strong> ${os.motorista}</div>
                 <div class="info-box"><strong>Data Abertura:</strong> ${dataFormatada}</div>
+                <div class="info-box"><strong>Motorista:</strong> ${os.motorista}</div>
+                <div class="info-box"><strong>Hodômetro (Km):</strong> ${os.hodometro || 'Não informado'}</div>
+                <div class="info-box"><strong>Prioridade:</strong> ${os.prioridade}</div>
             </div>
 
             <div class="full-box" style="background: #fafafa; font-size: 11px;">
@@ -342,18 +405,17 @@ function imprimirOS(id) {
             </div>
 
             <div class="full-box">
-                <strong>Problema relatado pelo motorista:</strong><br><br>
+                <strong>Classificação da Manutenção:</strong> ${os.tipo}
+            </div>
+
+            ${painelBorracharia}
+
+            <div class="full-box">
+                <strong>Diagnóstico Inicial do Condutor / Problema Relatado:</strong><br><br>
                 ${os.problema || 'Nenhum problema detalhado.'}
             </div>
 
-            <div class="full-box">
-                <strong>Tipo:</strong> 
-                CNP(${os.tipo === 'CNP' ? 'X' : ' '}) &nbsp;&nbsp; 
-                S.O.S(${os.tipo === 'S.O.S' ? 'X' : ' '}) &nbsp;&nbsp; 
-                PNEU(${os.tipo === 'PNEU' ? 'X' : ' '})
-            </div>
-
-            <h3 style="margin: 0 0 5px 0;">Serviços Executados:</h3>
+            <h3 style="margin: 0 0 5px 0;">Serviços Executados (Preenchimento da Oficina):</h3>
             <table>
                 <thead>
                     <tr>
@@ -362,7 +424,7 @@ function imprimirOS(id) {
                         <th style="width: 15%;">Compartimentos<br>(Tritrem)</th>
                         <th style="width: 15%;">Eixo<br>LD/LE</th>
                         <th style="width: 10%;">PLACA</th>
-                        <th style="width: 10%;">Executante</th>
+                        <th style="width: 10%;">Mecânico</th>
                         <th style="width: 10%;">Hora Fim</th>
                     </tr>
                 </thead>
@@ -371,7 +433,7 @@ function imprimirOS(id) {
                 </tbody>
             </table>
 
-            <h3 style="margin: 0 0 5px 0;">Pedido de Peça Almoxarifado / Peças Utilizadas:</h3>
+            <h3 style="margin: 0 0 5px 0;">Requisição de Peças / Almoxarifado:</h3>
             <table>
                 <thead>
                     <tr>
@@ -384,24 +446,24 @@ function imprimirOS(id) {
                 </tbody>
             </table>
 
-            <div class="info-grid">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
                 <div class="info-box" style="height: 60px;"><strong>Movimentação Pneu:</strong><br>Saiu da Frota:<br>Para Entrar:</div>
-                <div class="info-box" style="height: 60px;"><strong>Observações:</strong><br>${os.observacoes || ''}</div>
+                <div class="info-box" style="height: 60px;"><strong>Observações Administrativas:</strong><br>${os.observacoes || ''}</div>
             </div>
 
             <div class="signatures">
-                <div class="sig-line">Ass. Controlador</div>
-                <div class="sig-line">Ass. Encarregado de Manutenção</div>
+                <div class="sig-line">Assinatura do Condutor / CCOL</div>
+                <div class="sig-line">Assinatura do Encarregado de Manutenção</div>
             </div>
             
             <div style="text-align: center; margin-top: 20px;" class="no-print">
-                <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">🖨️ Imprimir O.S.</button>
+                <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor: pointer; border: 1px solid #333; background: #fff;">🖨️ Imprimir Documento de O.S.</button>
             </div>
         </body>
         </html>
     `;
 
-    const janela = window.open('', '', 'width=900,height=700');
+    const janela = window.open('', '', 'width=900,height=800');
     janela.document.write(htmlImpressao);
     janela.document.close();
 }

@@ -293,7 +293,7 @@
 
             <div class="tab-content" id="tab-os">
                 <div class="action-bar" style="flex-wrap: wrap; gap: 15px;">
-                    <h3 style="color: var(--text-primary); margin: 0; align-self: center;">🛠️ Gestão de O.S. (Tritrem)</h3>
+                    <h3 style="color: var(--text-primary); margin: 0; align-self: center;">🛠️ Gestão de Manutenção (O.S.)</h3>
                     <div class="button-group" style="margin-left: auto;">
                         <button class="btn-primary-blue" onclick="alternarTelaOS('lista')">📋 Acompanhamento</button>
                         <button class="btn-primary-green" onclick="alternarTelaOS('nova')">➕ Abrir Nova O.S.</button>
@@ -327,42 +327,89 @@
                 </div>
 
                 <div id="telaNovaOS" class="content-panel form-panel-dark" style="display: none;">
-                    <div class="panel-header"><h3>📝 Abertura de Nova O.S.</h3></div>
+                    <div class="panel-header"><h3>📝 Abertura de Nova O.S. (Padrão Completo)</h3></div>
                     <div class="form-grid">
+                        
                         <div class="form-group-dark">
-                            <label>Placa do Cavalo (Selecione ou Digite)</label>
-                            <input type="text" id="osPlaca" list="listaCavalosOS" placeholder="Ex: ABC-1234" style="text-transform: uppercase;">
-                            <datalist id="listaCavalosOS"></datalist>
+                            <label>Conjunto / Cavalo (Cadastrado)</label>
+                            <select id="osPlaca" class="dark-select">
+                                <option value="">Selecione o Conjunto...</option>
+                                </select>
                         </div>
-                        <div class="form-group-dark">
-                            <label>GO</label>
-                            <input type="text" id="osGo" placeholder="Nº GO">
-                        </div>
+                        
                         <div class="form-group-dark">
                             <label>Motorista Solicitante</label>
                             <select id="osMotorista" class="dark-select">
                                 <option value="">Selecione o motorista...</option>
-                            </select>
+                                </select>
                         </div>
+                        
                         <div class="form-group-dark">
                             <label>Data da Abertura</label>
                             <input type="date" id="osDataAbertura" class="dark-select">
                         </div>
+
                         <div class="form-group-dark">
-                            <label>Tipo de O.S.</label>
-                            <select id="osTipo" class="dark-select">
-                                <option value="CNP">CNP</option>
-                                <option value="S.O.S">S.O.S</option>
-                                <option value="PNEU">PNEU</option>
+                            <label>Hodômetro (Km Atual)</label>
+                            <input type="number" id="osHodometro" placeholder="Ex: 150500">
+                        </div>
+
+                        <div class="form-group-dark">
+                            <label>Prioridade da Manutenção</label>
+                            <select id="osPrioridade" class="dark-select">
+                                <option value="Baixa">🟢 Baixa (Pode esperar rotina)</option>
+                                <option value="Normal" selected>🟡 Normal (Manutenção regular)</option>
+                                <option value="Alta">🟠 Alta (Risco de quebra/falha)</option>
+                                <option value="Urgente">🔴 Urgente (Veículo quebrado / S.O.S)</option>
                             </select>
                         </div>
-                        <div class="form-group-dark" style="grid-column: 1 / -1;">
-                            <label>Problema Relatado pelo Motorista</label>
-                            <input type="text" id="osProblema" placeholder="Descreva o problema relatado...">
+
+                        <div class="form-group-dark">
+                            <label>Classificação do Serviço</label>
+                            <select id="osTipo" class="dark-select" onchange="togglePneuFields()">
+                                <option value="Mecânica - Corretiva">🔧 Mecânica - Corretiva</option>
+                                <option value="Mecânica - Preventiva (CNP)">🛠️ Mecânica - Preventiva (CNP)</option>
+                                <option value="Elétrica">⚡ Elétrica</option>
+                                <option value="Lubrificação / Filtros">🛢️ Lubrificação / Filtros</option>
+                                <option value="Borracharia (PNEU)">🛞 Borracharia (PNEU)</option>
+                                <option value="S.O.S (Socorro Externo)">🚨 S.O.S (Socorro Externo)</option>
+                                <option value="Lavação / Estética">🚿 Lavação / Limpeza</option>
+                            </select>
                         </div>
+
+                        <div id="camposPneu" style="display: none; grid-column: 1 / -1; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; border: 1px dashed var(--ccol-blue-bright); margin-top: 10px;">
+                            <h4 style="color: var(--ccol-blue-bright); margin-bottom: 10px; font-size: 0.9rem;">🛞 Detalhes Específicos de Borracharia</h4>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                                <div class="form-group-dark">
+                                    <label>Eixo / Posição do Pneu</label>
+                                    <input type="text" id="osPneuPosicao" placeholder="Ex: 2º Eixo, Lado Esq. Ext.">
+                                </div>
+                                <div class="form-group-dark">
+                                    <label>Serviço Necessário</label>
+                                    <select id="osPneuServico" class="dark-select">
+                                        <option value="">Selecione...</option>
+                                        <option value="Calibragem">Calibragem / Rodízio</option>
+                                        <option value="Conserto (Furo)">Conserto (Furo/Corte)</option>
+                                        <option value="Troca / Substituição">Troca / Substituição</option>
+                                        <option value="Ressulagem">Enviar para Ressulagem</option>
+                                        <option value="Descarte (Sucata)">Descarte (Sucata)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group-dark">
+                                    <label>Motivo</label>
+                                    <input type="text" id="osPneuMotivo" placeholder="Ex: Estouro, Desgaste irregular...">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group-dark" style="grid-column: 1 / -1; margin-top: 10px;">
+                            <label>Problema Relatado pelo Motorista (Diagnóstico Inicial)</label>
+                            <input type="text" id="osProblema" placeholder="Descreva o problema detalhadamente...">
+                        </div>
+                        
                         <div class="form-group-dark" style="grid-column: 1 / -1;">
-                            <label>Observações Gerais</label>
-                            <input type="text" id="osObservacoes" placeholder="Observações adicionais...">
+                            <label>Observações Adicionais / Peças Específicas Requisitadas</label>
+                            <input type="text" id="osObservacoes" placeholder="Ex: Lâmpada de freio queimada, rolamento roncando...">
                         </div>
                         
                         <div class="form-actions" style="grid-column: 1 / -1; margin-top: 15px;">
@@ -372,11 +419,20 @@
                 </div>
 
                 <div id="telaFrotaOS" class="content-panel form-panel-dark" style="display: none;">
-                    <div class="panel-header"><h3>🚛 Cadastro de Cavalos e Carretas (Tritrem) - Manutenção</h3></div>
+                    <div class="panel-header">
+                        <h3>🚛 Cadastro de Conjuntos (Manutenção)</h3>
+                    </div>
+                    <div style="padding: 15px 20px; font-size: 0.8rem; color: var(--text-secondary); background: rgba(0,0,0,0.1); border-bottom: 1px solid var(--border-dim);">
+                        Este cadastro cria um vínculo entre a placa do cavalo e as placas das carretas/GO. Ao abrir uma O.S., basta selecionar o Cavalo que o sistema preencherá as carretas e o GO no documento de impressão automaticamente.
+                    </div>
                     <div class="form-grid">
                         <div class="form-group-dark">
                             <label>Placa do Cavalo</label>
                             <input type="text" id="osFrotaCavalo" placeholder="Ex: CAV-1234" style="text-transform: uppercase;">
+                        </div>
+                        <div class="form-group-dark">
+                            <label>Número do GO</label>
+                            <input type="text" id="osFrotaGo" placeholder="Ex: GO-01" style="text-transform: uppercase;">
                         </div>
                         <div class="form-group-dark">
                             <label>Placa Carreta 1 (1º Comp.)</label>
@@ -392,7 +448,7 @@
                         </div>
                         
                         <div class="form-actions" style="grid-column: 1 / -1; margin-top: 15px;">
-                            <button class="btn-primary-blue btn-full" onclick="salvarFrotaManutencao()">✅ Salvar Frota no Sistema de O.S.</button>
+                            <button class="btn-primary-blue btn-full" onclick="salvarFrotaManutencao()">✅ Salvar Vínculo no Sistema</button>
                         </div>
                     </div>
 
@@ -401,6 +457,7 @@
                             <thead>
                                 <tr>
                                     <th>Cavalo</th>
+                                    <th>GO</th>
                                     <th>Carreta 1</th>
                                     <th>Carreta 2</th>
                                     <th>Carreta 3</th>
