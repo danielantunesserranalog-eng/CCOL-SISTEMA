@@ -108,9 +108,9 @@ window.renderizarEscala = function() {
         }
     }
 
-    // CORREÇÃO: Força a ordenação numérica dos conjuntos (1, 2, 3...)
+    // Ordenação numérica dos conjuntos (1, 2, 3...)
     conjuntosRender.sort((a, b) => {
-        if (a.isSemFrota) return 1; // Joga o "Sem Frota" para o final da lista
+        if (a.isSemFrota) return 1; 
         if (b.isSemFrota) return -1;
         return parseInt(a.id) - parseInt(b.id);
     });
@@ -156,15 +156,36 @@ window.renderizarEscala = function() {
 
             grupo.forEach(m => {
                 const isBlocked = m.masterDrive === 'Não' || m.destra === 'Não';
-                const goStr = conj.caminhoes?.map(c => typeof c === 'string' ? '' : c.go).filter(go=>go).join(' e ') || '-';
                 const isFolguista = (m.equipe === 'C' || m.equipe === 'F');
+                
+                // --- NOVA LÓGICA DO GO ---
+                let goStr = '-';
+                if (conj.caminhoes && conj.caminhoes.length > 0) {
+                    let cam1 = conj.caminhoes[0];
+                    let cam2 = conj.caminhoes.length > 1 ? conj.caminhoes[1] : cam1;
+                    
+                    let go1 = (typeof cam1 === 'string' || !cam1.go) ? '-' : cam1.go;
+                    let go2 = (typeof cam2 === 'string' || !cam2.go) ? '-' : cam2.go;
+
+                    if (m.equipe === 'A' || m.equipe === 'D') {
+                        goStr = go1;
+                    } else if (m.equipe === 'B' || m.equipe === 'E') {
+                        goStr = go2;
+                    } else if (isFolguista) {
+                        // Se for folguista e os GOs forem diferentes, exibe ambos
+                        goStr = (go1 !== '-' && go2 !== '-' && go1 !== go2) ? `${go1} e ${go2}` : (go1 !== '-' ? go1 : go2);
+                    } else {
+                        goStr = go1 !== '-' ? go1 : '-';
+                    }
+                }
+                
                 const tagFolguista = isFolguista ? `<span style="background:#f97316; color:#fff; font-size:0.65rem; font-weight:bold; padding:2px 5px; border-radius:4px; margin-left:8px; vertical-align:middle;">FOLGUISTA</span>` : '';
                 let displayTurno = isFolguista ? 'Misto' : (m.turno || '-');
 
                 tHtml += `<tr>`;
                 tHtml += `<td class="td-name" style="${isBlocked ? 'color: red;' : ''}"><strong>${m.nome}</strong> ${tagFolguista}</td>`;
                 tHtml += `<td style="text-align: center;">${displayTurno}</td>`;
-                tHtml += `<td style="text-align: center;">${goStr}</td>`;
+                tHtml += `<td style="text-align: center; font-weight: bold; color: #1e3a8a;">${goStr}</td>`;
                 tHtml += `<td style="text-align: center;"><strong>${m.equipe && m.equipe !== '-' ? m.equipe : ''}</strong></td>`;
 
                 (window.currentDatas || []).forEach(d => {
