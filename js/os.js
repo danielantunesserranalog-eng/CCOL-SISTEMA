@@ -1,31 +1,23 @@
-// ==================== MÓDULO: ORDEM DE SERVIÇO (O.S.) ====================
+// ==================== MÓDULO: ORDEM DE SERVIÇO E RELATÓRIO ====================
 
-// Variáveis locais para armazenar os dados temporariamente na interface
 let ordensServico = [];
 let frotasManutencao = [];
 
-// Função para carregar os dados reais do Supabase
 async function carregarDadosOS() {
     try {
-        // Carrega as O.S.
         const { data: osData, error: osError } = await supabase
             .from('ordens_servico')
             .select('*')
             .order('created_at', { ascending: false });
         
-        if (!osError && osData) {
-            ordensServico = osData;
-        }
+        if (!osError && osData) ordensServico = osData;
 
-        // Carrega as Frotas
         const { data: frotaData, error: frotaError } = await supabase
             .from('frotas_manutencao')
             .select('*')
             .order('cavalo', { ascending: true });
             
-        if (!frotaError && frotaData) {
-            frotasManutencao = frotaData;
-        }
+        if (!frotaError && frotaData) frotasManutencao = frotaData;
     } catch (error) {
         console.error("Erro ao carregar dados do Supabase:", error);
     }
@@ -35,13 +27,22 @@ async function alternarTelaOS(tela) {
     const telaLista = document.getElementById('telaListaOS');
     const telaNova = document.getElementById('telaNovaOS');
     const telaFrota = document.getElementById('telaFrotaOS');
+    const telaRelatorio = document.getElementById('telaRelatorioOS');
     
+    // Verificação de Segurança para o Relatório Gerencial
+    if (tela === 'relatorio') {
+        if (!currentUser || currentUser.role !== 'Admin') {
+            alert('⛔ Acesso Restrito: Apenas Administradores do CCOL podem visualizar o Relatório Gerencial de Custos e Manutenção.');
+            return;
+        }
+    }
+
     // Ocultar todas
     telaLista.style.display = 'none';
     telaNova.style.display = 'none';
     telaFrota.style.display = 'none';
+    if(telaRelatorio) telaRelatorio.style.display = 'none';
 
-    // Carregar os dados mais recentes do banco antes de mostrar a tela
     await carregarDadosOS();
 
     if (tela === 'lista') {
@@ -52,14 +53,102 @@ async function alternarTelaOS(tela) {
         carregarMotoristasSelectOS();
         carregarSelectCavalosOS();
         document.getElementById('osDataAbertura').value = new Date().toISOString().split('T')[0];
-        togglePneuFields(); // Reseta os campos de borracharia
+        togglePneuFields(); 
     } else if (tela === 'frota') {
         telaFrota.style.display = 'block';
         renderizarTabelaFrotaManutencao();
+    } else if (tela === 'relatorio') {
+        telaRelatorio.style.display = 'block';
+        renderizarRelatorioGerencialOS();
     }
 }
 
-// ==================== PARTE 1: GESTÃO DE FROTA (O.S.) ====================
+// ==================== PARTE 1: RELATÓRIO GERENCIAL ====================
+
+function renderizarRelatorioGerencialOS() {
+    if (ordensServico.length === 0) {
+        document.getElementById('kpiTotalOS').innerText = '0';
+        return;
+    }
+
+    const total = ordensServico.length;
+    const abertas = ordensServico.filter(o => o.status === 'Aberta').length;
+    const concluidas = ordensServico.filter(o => o.status === 'Concluída').length;
+    const taxa = ((concluidas / total) * 100).toFixed(1);
+
+    document.getElementById('kpiTotalOS').innerText = total;
+    document.getElementById('kpiAbertasOS').innerText = abertas;
+    document.getElementById('kpiConcluidasOS').innerText = concluidas;
+    document.getElementById('kpiTaxaOS').innerText = taxa + '%';
+
+    // 1. Agrupar por Cavalo (Top 5)
+    const porCavalo = {};
+    ordensServico.forEach(o => { porCavalo[o.placa] = (porCavalo[o.placa] || 0) + 1; });
+    const topCavalos = Object.entries(porCavalo).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    
+    const maxCavaloCount = topCavalos.length > 0 ? topCavalos[0][1] : 1;
+    let htmlCavalos = '';
+    topCavalos.forEach(([placa, qtd], index) => {
+        const percent = (qtd / maxCavaloCount) * 100;
+        let color = '#ef4444'; // Vermelho pro que mais quebra
+        if (index > 1) color = '#f59e0b';
+        if (index > 3) color = 'var(--ccol-blue-bright)';
+        
+        htmlCavalos += `
+            <div style="margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.85rem; color: #e2e8f0;">
+                    <strong>${index + 1}º ${placa}</strong>
+                    <span>${qtd} O.S. abertas</span>
+                </div>
+                <div style="background: rgba(255,255,255,0.1); border-radius: 4px; height: 12px; overflow: hidden;">
+                    <div style="background: ${color}; width: ${percent}%; height: 100%; border-radius: 4px;"></div>
+                </div>
+            </div>`;
+    });
+    document.getElementById('rankingCavalosOS').innerHTML = htmlCavalos || '<p>Sem dados.</p>';
+
+    // 2. Agrupar por Tipo de Serviço
+    const porTipo = {};
+    ordensServico.forEach(o => { porTipo[o.tipo] = (porTipo[o.tipo] || 0) + 1; });
+    const listaTipos = Object.entries(porTipo).sort((a, b) => b[1] - a[1]);
+    
+    let htmlTipos = '<ul style="list-style: none; padding: 0; margin: 0;">';
+    listaTipos.forEach(([tipo, qtd]) => {
+        const percGlobal = ((qtd / total) * 100).toFixed(1);
+        htmlTipos += `
+            <li style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); color: #cbd5e1; font-size: 0.9rem;">
+                <span>${tipo}</span>
+                <strong style="color: var(--ccol-blue-bright);">${qtd} <span style="font-size:0.75rem; color:var(--text-secondary);">(${percGlobal}%)</span></strong>
+            </li>`;
+    });
+    htmlTipos += '</ul>';
+    document.getElementById('graficoTipoOS').innerHTML = htmlTipos;
+
+    // 3. Agrupar por Prioridade
+    const porPrioridade = { 'Urgente': 0, 'Alta': 0, 'Normal': 0, 'Baixa': 0 };
+    ordensServico.forEach(o => { if(porPrioridade[o.prioridade] !== undefined) porPrioridade[o.prioridade]++; });
+    
+    const colors = { 'Urgente': '#ef4444', 'Alta': '#f97316', 'Normal': '#eab308', 'Baixa': 'var(--ccol-green-bright)' };
+    
+    let htmlPrio = '';
+    Object.keys(porPrioridade).forEach(p => {
+        const qtd = porPrioridade[p];
+        const percent = total > 0 ? (qtd / total) * 100 : 0;
+        htmlPrio += `
+            <div style="margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.85rem; color: #e2e8f0;">
+                    <span>Prioridade <strong>${p}</strong></span>
+                    <span>${qtd} ocorrências</span>
+                </div>
+                <div style="background: rgba(255,255,255,0.1); border-radius: 4px; height: 10px; overflow: hidden;">
+                    <div style="background: ${colors[p]}; width: ${percent}%; height: 100%; border-radius: 4px;"></div>
+                </div>
+            </div>`;
+    });
+    document.getElementById('graficoPrioridadeOS').innerHTML = htmlPrio;
+}
+
+// ==================== PARTE 2: GESTÃO DE FROTA (O.S.) ====================
 
 async function salvarFrotaManutencao() {
     const cavalo = document.getElementById('osFrotaCavalo').value.toUpperCase().trim();
@@ -73,35 +162,17 @@ async function salvarFrotaManutencao() {
         return;
     }
 
-    // Verifica se já existe para atualizar
     const frotaExistente = frotasManutencao.find(f => f.cavalo === cavalo);
-
     const dadosFrota = { cavalo, go, carreta1, carreta2, carreta3 };
 
     if (frotaExistente) {
-        // Atualiza no Supabase
-        const { error } = await supabase
-            .from('frotas_manutencao')
-            .update(dadosFrota)
-            .eq('id', frotaExistente.id);
-            
-        if (error) {
-            alert("Erro ao atualizar frota.");
-            return;
-        }
+        const { error } = await supabase.from('frotas_manutencao').update(dadosFrota).eq('id', frotaExistente.id);
+        if (error) { alert("Erro ao atualizar frota."); return; }
     } else {
-        // Insere no Supabase
-        const { error } = await supabase
-            .from('frotas_manutencao')
-            .insert([dadosFrota]);
-            
-        if (error) {
-            alert("Erro ao inserir frota.");
-            return;
-        }
+        const { error } = await supabase.from('frotas_manutencao').insert([dadosFrota]);
+        if (error) { alert("Erro ao inserir frota."); return; }
     }
 
-    // Limpar campos
     document.getElementById('osFrotaCavalo').value = '';
     document.getElementById('osFrotaGo').value = '';
     document.getElementById('osFrotaCarreta1').value = '';
@@ -138,11 +209,7 @@ function renderizarTabelaFrotaManutencao() {
 
 async function deletarFrotaManutencao(id) {
     if (confirm("Excluir este conjunto da lista de manutenção?")) {
-        const { error } = await supabase
-            .from('frotas_manutencao')
-            .delete()
-            .eq('id', id);
-
+        const { error } = await supabase.from('frotas_manutencao').delete().eq('id', id);
         if (!error) {
             await carregarDadosOS();
             renderizarTabelaFrotaManutencao();
@@ -153,7 +220,7 @@ async function deletarFrotaManutencao(id) {
 }
 
 
-// ==================== PARTE 2: ABERTURA E ACOMPANHAMENTO DE O.S. ====================
+// ==================== PARTE 3: ABERTURA E ACOMPANHAMENTO DE O.S. ====================
 
 function carregarSelectCavalosOS() {
     const select = document.getElementById('osPlaca');
@@ -171,7 +238,6 @@ function carregarMotoristasSelectOS() {
     const select = document.getElementById('osMotorista');
     if (!select) return;
     
-    // Usa a variável global 'motoristas' do sistema e ordena de A a Z
     let motoristasOrdenados = [...motoristas].sort((a, b) => a.nome.localeCompare(b.nome));
 
     let options = '<option value="">Selecione o motorista...</option>';
@@ -188,7 +254,6 @@ function togglePneuFields() {
         camposPneu.style.display = 'block';
     } else {
         camposPneu.style.display = 'none';
-        // Limpar dados do pneu se trocar o tipo
         document.getElementById('osPneuPosicao').value = '';
         document.getElementById('osPneuServico').value = '';
         document.getElementById('osPneuMotivo').value = '';
@@ -248,11 +313,9 @@ async function salvarNovaOS() {
         return;
     }
 
-    // Busca o GO atrelado a essa placa de forma automática
     const frotaVinculada = frotasManutencao.find(f => f.cavalo === placa);
     const go = frotaVinculada ? frotaVinculada.go : '';
 
-    // Monta o JSON de detalhes do pneu (se aplicável)
     let detalhes_pneu = null;
     if (tipo === 'Borracharia (PNEU)') {
         detalhes_pneu = JSON.stringify({
@@ -275,7 +338,6 @@ async function salvarNovaOS() {
         return;
     }
     
-    // Limpar formulário
     document.getElementById('osPlaca').value = '';
     document.getElementById('osMotorista').value = '';
     document.getElementById('osHodometro').value = '';
@@ -321,7 +383,6 @@ async function deletarOS(id) {
     }
 }
 
-// Geração da versão de impressão
 function imprimirOS(id) {
     const os = ordensServico.find(o => o.id === id);
     if (!os) return;
