@@ -158,7 +158,7 @@ window.renderizarEscala = function() {
                 const isBlocked = m.masterDrive === 'Não' || m.destra === 'Não';
                 const isFolguista = (m.equipe === 'C' || m.equipe === 'F');
                 
-                // --- NOVA LÓGICA DO GO ---
+                // --- LÓGICA DO GO ---
                 let goStr = '-';
                 if (conj.caminhoes && conj.caminhoes.length > 0) {
                     let cam1 = conj.caminhoes[0];
@@ -172,7 +172,6 @@ window.renderizarEscala = function() {
                     } else if (m.equipe === 'B' || m.equipe === 'E') {
                         goStr = go2;
                     } else if (isFolguista) {
-                        // Se for folguista e os GOs forem diferentes, exibe ambos
                         goStr = (go1 !== '-' && go2 !== '-' && go1 !== go2) ? `${go1} e ${go2}` : (go1 !== '-' ? go1 : go2);
                     } else {
                         goStr = go1 !== '-' ? go1 : '-';
@@ -546,7 +545,7 @@ window.renderizarTrocaTurno = function() {
     listaFolga.innerHTML = htmlFolga;
 };
 
-// ==================== IMPRESSÃO DO RELATÓRIO ====================
+// ==================== IMPRESSÃO DO RELATÓRIO DA TROCA DE TURNO ====================
 window.imprimirRelatorioTrabalhoHoje = function() {
     const hojeStr = new Date().toISOString().split('T')[0];
     const partes = hojeStr.split('-');
@@ -647,3 +646,179 @@ window.imprimirRelatorioTrabalhoHoje = function() {
     `);
     janelaImp.document.close();
 };
+
+// ==================== IMPRESSÃO DA ESCALA SEMANAL ====================
+window.imprimirRelatorioEscalaSemanal = function() {
+    const inputData = document.getElementById('dataInicioEscala');
+    const dataStr = inputData && inputData.value ? inputData.value : new Date().toISOString().split('T')[0];
+    const partes = dataStr.split('-');
+    const dataFormatada = `${partes[2]}/${partes[1]}/${partes[0]}`;
+
+    const filtroSelectEl = document.getElementById('filtroConjuntoEscala');
+    const filtroSelec = filtroSelectEl ? filtroSelectEl.value : 'todos';
+
+    let conjuntosRender = filtroSelec !== 'todos' ? conjuntos.filter(c => c.id.toString() === filtroSelec.toString()) : [...conjuntos];
+
+    if (filtroSelec === 'todos') {
+        const motoristasSemConjunto = motoristas.filter(m => !m.conjuntoId);
+        if (motoristasSemConjunto.length > 0) {
+            conjuntosRender.push({ id: 'S/F', isSemFrota: true, caminhoes: [] });
+        }
+    }
+
+    conjuntosRender.sort((a, b) => {
+        if (a.isSemFrota) return 1;
+        if (b.isSemFrota) return -1;
+        return parseInt(a.id) - parseInt(b.id);
+    });
+
+    if (conjuntosRender.length === 0) {
+        alert("Nenhum dado para imprimir com este filtro.");
+        return;
+    }
+
+    let html = `
+    <html>
+    <head>
+        <title>Escala Semanal - Serrana Florestal</title>
+        <style>
+            @page { size: A4 landscape; margin: 10mm; }
+            body { font-family: Arial, sans-serif; margin: 0; padding: 0; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .header { text-align: center; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; margin-bottom: 20px; }
+            .header h1 { margin: 0; font-size: 22px; color: #1e3a8a; text-transform: uppercase; letter-spacing: 1px;}
+            .header p { margin: 5px 0 0 0; font-size: 14px; color: #555; }
+            
+            .conjunto-box { display: flex; margin-bottom: 20px; border: 2px solid #000; border-radius: 4px; page-break-inside: avoid; }
+            .conjunto-num { width: 60px; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: bold; background-color: #f8f9fa; border-right: 2px solid #000; text-align: center;}
+            .conjunto-num.sf { background-color: #fef3c7; color: #d97706; border-right: 2px solid #f59e0b; font-size: 14px; border-color: #f59e0b;}
+            .conjunto-tabelas { flex: 1; }
+            
+            table { width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed; }
+            .tabela-subsequente { border-top: 2px solid #000; }
+            th, td { border: 1px solid #000; text-align: center; vertical-align: middle; padding: 6px 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+            th { background-color: #a9d08e; font-weight: bold; text-transform: uppercase; color: #000; }
+            th.th-dia { background-color: #bdd7ee; }
+            
+            .col-nome { width: 22%; text-align: left; padding-left: 8px; font-weight: bold; }
+            .col-turno { width: 8%; }
+            .col-go { width: 10%; font-weight: bold; color: #1e3a8a; }
+            .col-eq { width: 5%; font-weight: bold; }
+            .col-dia { width: 7.8%; font-weight: bold; }
+            
+            .celula-trabalho { background-color: #8faadc; color: #000; font-weight: bold; }
+            .celula-folga { background-color: #f4b084; color: #000; font-weight: bold; }
+            .celula-treino { background-color: #fde047; color: #000; font-weight: bold; }
+            
+            .tag-folguista { font-size: 9px; background: #ea580c; color: #fff; padding: 2px 4px; border-radius: 4px; margin-left: 5px; }
+            
+            .btn-print-container { text-align: center; margin: 30px 0; }
+            @media print { .btn-print-container { display: none; } }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>Serrana Florestal - CCOL</h1>
+            <p><strong>Relatório Completo de Escala Semanal</strong> | Semana Iniciada em: <strong>${dataFormatada}</strong></p>
+        </div>
+    `;
+
+    conjuntosRender.forEach(conj => {
+        let motoristasDoConjunto = conj.isSemFrota ? motoristas.filter(m => !m.conjuntoId) : motoristas.filter(m => m.conjuntoId === conj.id);
+        
+        let numClass = conj.isSemFrota ? "conjunto-num sf" : "conjunto-num";
+        let numBorder = conj.isSemFrota ? "border: 2px solid #f59e0b;" : "border: 2px solid #000;";
+        let numeroDisplay = conj.isSemFrota ? "SEM<br>FROTA" : conj.id;
+
+        html += `<div class="conjunto-box" style="${numBorder}"><div class="${numClass}">${numeroDisplay}</div><div class="conjunto-tabelas">`;
+
+        if (motoristasDoConjunto.length === 0) {
+            html += `<p style="padding: 15px; color: #555; font-size: 13px; margin:0;">Nenhum motorista alocado neste conjunto.</p></div></div>`;
+            return;
+        }
+
+        const grupoA = motoristasDoConjunto.filter(m => ['A', 'B', 'C'].includes(m.equipe)).sort((a, b) => a.equipe.localeCompare(b.equipe));
+        const grupoB = motoristasDoConjunto.filter(m => ['D', 'E', 'F'].includes(m.equipe)).sort((a, b) => a.equipe.localeCompare(b.equipe));
+        const grupoC = motoristasDoConjunto.filter(m => !['A', 'B', 'C', 'D', 'E', 'F'].includes(m.equipe));
+
+        const renderTable = (grupo, isFirst) => {
+            if (grupo.length === 0) return '';
+            let tHtml = `<table class="${isFirst ? '' : 'tabela-subsequente'}"><thead><tr>
+                <th class="col-nome">NOME DO COLABORADOR</th>
+                <th class="col-turno">HORÁRIO</th>
+                <th class="col-go">GO</th>
+                <th class="col-eq">EQ</th>`;
+            
+            (window.currentDatas || []).forEach(d => {
+                tHtml += `<th class="th-dia col-dia">${d.diaNum}<br>${d.diaTexto}</th>`;
+            });
+            tHtml += `</tr></thead><tbody>`;
+
+            grupo.forEach(m => {
+                const isBlocked = m.masterDrive === 'Não' || m.destra === 'Não';
+                const isFolguista = (m.equipe === 'C' || m.equipe === 'F');
+                
+                let goStr = '-';
+                if (conj.caminhoes && conj.caminhoes.length > 0) {
+                    let cam1 = conj.caminhoes[0];
+                    let cam2 = conj.caminhoes.length > 1 ? conj.caminhoes[1] : cam1;
+                    let go1 = (typeof cam1 === 'string' || !cam1.go) ? '-' : cam1.go;
+                    let go2 = (typeof cam2 === 'string' || !cam2.go) ? '-' : cam2.go;
+
+                    if (m.equipe === 'A' || m.equipe === 'D') goStr = go1;
+                    else if (m.equipe === 'B' || m.equipe === 'E') goStr = go2;
+                    else if (isFolguista) goStr = (go1 !== '-' && go2 !== '-' && go1 !== go2) ? `${go1} / ${go2}` : (go1 !== '-' ? go1 : go2);
+                    else goStr = go1 !== '-' ? go1 : '-';
+                }
+
+                let tagFolguista = isFolguista ? `<span class="tag-folguista">FOLG</span>` : '';
+                let displayTurno = isFolguista ? 'Misto' : (m.turno || '-');
+
+                tHtml += `<tr>`;
+                tHtml += `<td class="col-nome" style="${isBlocked ? 'color: red;' : ''}">${m.nome} ${tagFolguista}</td>`;
+                tHtml += `<td class="col-turno">${displayTurno}</td>`;
+                tHtml += `<td class="col-go">${goStr}</td>`;
+                tHtml += `<td class="col-eq">${m.equipe && m.equipe !== '-' ? m.equipe : ''}</td>`;
+
+                (window.currentDatas || []).forEach(d => {
+                    const escala = window.getEscalaDiaComputada(m, d.dateKey);
+                    let val = isBlocked ? 'Bloq' : escala.caminhao;
+                    
+                    let tdClass = '';
+                    if (!isBlocked) {
+                        if (val === 'F') tdClass = 'celula-folga';
+                        else tdClass = 'celula-trabalho';
+                    }
+                    
+                    let temTreinamento = false;
+                    if (typeof cronogramaTreinamento !== 'undefined') {
+                        const treinoDia = cronogramaTreinamento.find(t => t.motoristaId === m.id && t.data === d.dateKey && t.status === 'agendado');
+                        if (treinoDia) temTreinamento = true;
+                    }
+                    
+                    if (temTreinamento) tdClass = 'celula-treino';
+
+                    tHtml += `<td class="${tdClass}">${val}</td>`;
+                });
+                tHtml += `</tr>`;
+            });
+            tHtml += `</tbody></table>`;
+            return tHtml;
+        };
+
+        html += renderTable(grupoA, true);
+        html += renderTable(grupoB, grupoA.length === 0);
+        html += renderTable(grupoC, grupoA.length === 0 && grupoB.length === 0);
+        
+        html += `</div></div>`;
+    });
+
+    html += `
+        <div class="btn-print-container">
+            <button style="padding: 12px 25px; background: #2563eb; color: #fff; border: none; cursor: pointer; border-radius: 6px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.2);" onclick="window.print()">🖨️ Salvar como PDF / Imprimir Agora</button>
+        </div>
+    </body></html>`;
+
+    const janelaImp = window.open('', '', 'width=1200,height=800');
+    janelaImp.document.write(html);
+    janelaImp.document.close();
+}
