@@ -33,7 +33,11 @@ function renderizarMotoristas() {
     popularSelectsConjuntoMotorista();
 
     let html = '';
-    const motoristasFiltrados = motoristas.filter(m => m.nome.toLowerCase().includes(termoBusca));
+    
+    // Filtra pela busca e logo em seguida ORDENA em ordem alfabética de A a Z
+    const motoristasFiltrados = motoristas
+        .filter(m => m.nome.toLowerCase().includes(termoBusca))
+        .sort((a, b) => a.nome.localeCompare(b.nome));
 
     if (motoristasFiltrados.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">Nenhum motorista encontrado.</td></tr>';
