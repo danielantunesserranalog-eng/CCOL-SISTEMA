@@ -98,6 +98,8 @@
                 </div>
             </div>
 
+            <button class="nav-item" data-tab="os">🛠️ Ordem de Serviço</button>
+
             <button id="navConfigBtn" class="nav-item" data-tab="config">⚙️ Configurações</button>
             
             <button class="nav-item" data-tab="troca">⏱️ Painel de Troca</button>
@@ -286,6 +288,85 @@
                 <div class="content-panel">
                     <div class="panel-header"><h3>🚛 Conjuntos e Caminhões</h3></div>
                     <div id="conjuntosList" class="conjuntos-cards-grid"></div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-os">
+                <div class="action-bar" style="flex-wrap: wrap; gap: 15px;">
+                    <h3 style="color: var(--text-primary); margin: 0; align-self: center;">🛠️ Gestão de O.S. (Tritrem)</h3>
+                    <div class="button-group" style="margin-left: auto;">
+                        <button class="btn-primary-blue" onclick="alternarTelaOS('lista')">📋 Acompanhamento</button>
+                        <button class="btn-primary-green" onclick="alternarTelaOS('nova')">➕ Abrir Nova O.S.</button>
+                    </div>
+                </div>
+
+                <div id="telaListaOS" class="content-panel">
+                    <div class="panel-header">
+                        <h3>Acompanhamento de Ordens de Serviço</h3>
+                        <div class="panel-controls">
+                            <input type="text" id="searchOS" placeholder="Buscar placa ou motorista..." class="search-input-dark" onkeyup="renderizarTabelaOS()">
+                        </div>
+                    </div>
+                    <div class="table-modern-wrapper">
+                        <table class="data-table-modern">
+                            <thead>
+                                <tr>
+                                    <th>Nº O.S.</th>
+                                    <th>Data Abertura</th>
+                                    <th>Placa</th>
+                                    <th>Motorista</th>
+                                    <th>Tipo</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaAcompanhamentoOS"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="telaNovaOS" class="content-panel form-panel-dark" style="display: none;">
+                    <div class="panel-header"><h3>📝 Abertura de Nova O.S.</h3></div>
+                    <div class="form-grid">
+                        <div class="form-group-dark">
+                            <label>Placa do Caminhão/Carreta</label>
+                            <input type="text" id="osPlaca" placeholder="Ex: ABC-1234" style="text-transform: uppercase;">
+                        </div>
+                        <div class="form-group-dark">
+                            <label>GO</label>
+                            <input type="text" id="osGo" placeholder="Nº GO">
+                        </div>
+                        <div class="form-group-dark">
+                            <label>Motorista Solicitante</label>
+                            <select id="osMotorista" class="dark-select">
+                                <option value="">Selecione o motorista...</option>
+                                </select>
+                        </div>
+                        <div class="form-group-dark">
+                            <label>Data da Abertura</label>
+                            <input type="date" id="osDataAbertura" class="dark-select">
+                        </div>
+                        <div class="form-group-dark">
+                            <label>Tipo de O.S.</label>
+                            <select id="osTipo" class="dark-select">
+                                <option value="CNP">CNP</option>
+                                <option value="S.O.S">S.O.S</option>
+                                <option value="PNEU">PNEU</option>
+                            </select>
+                        </div>
+                        <div class="form-group-dark" style="grid-column: 1 / -1;">
+                            <label>Problema Relatado pelo Motorista</label>
+                            <input type="text" id="osProblema" placeholder="Descreva o problema relatado...">
+                        </div>
+                        <div class="form-group-dark" style="grid-column: 1 / -1;">
+                            <label>Observações Gerais</label>
+                            <input type="text" id="osObservacoes" placeholder="Observações adicionais...">
+                        </div>
+                        
+                        <div class="form-actions" style="grid-column: 1 / -1; margin-top: 15px;">
+                            <button class="btn-primary-green btn-full" onclick="salvarNovaOS()">💾 Salvar e Gerar O.S.</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -670,6 +751,7 @@
     <script src="js/conjuntos.js"></script>
     <script src="js/escala.js"></script>
     <script src="js/treinamento.js"></script>
+    <script src="js/os.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

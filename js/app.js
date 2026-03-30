@@ -35,6 +35,9 @@ function initTabs() {
             else if (tabId === 'alocacao') renderizarAlocacao();
             else if (tabId === 'troca') renderizarTrocaTurno();
             else if (tabId === 'treinamento') renderizarCronogramaTreinamento();
+            else if (tabId === 'os') {
+                if (typeof renderizarTabelaOS === 'function') renderizarTabelaOS();
+            }
         });
     });
 
