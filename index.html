@@ -629,33 +629,25 @@
             </div>
 
             <div class="tab-content" id="tab-jornada">
-                <div class="action-bar" style="flex-wrap: wrap; gap: 15px;">
-                    <h3 style="color: var(--text-primary); margin: 0; align-self: center;">⏳ Controle de Jornada (12 Horas)</h3>
-                    <div class="button-group" style="margin-left: auto;">
-                        <button class="btn-primary-blue" onclick="renderizarJornada()">🔄 Atualizar Painel</button>
+                <div class="content-panel">
+                    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="color: var(--ccol-rust-bright); margin: 0;">⚠️ Motoristas Ativos no Dia (Cruzamento c/ Escala)</h3>
+                        <span id="relogioJornada" style="font-weight: bold; color: var(--ccol-green-bright); font-size: 1.1rem; font-family: monospace; padding: 5px 15px; background: rgba(0,0,0,0.2); border-radius: 4px;"></span>
                     </div>
-                </div>
-
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
-                    <div class="content-panel" style="grid-column: 1 / -1;">
-                        <div class="panel-header" style="display: flex; justify-content: space-between;">
-                            <h3 style="color: var(--ccol-rust-bright);">⚠️ Motoristas Rodando Hoje (Cruza c/ Escala)</h3>
-                            <span id="relogioJornada" style="font-weight: bold; color: var(--ccol-green-bright); font-size: 1.1rem;"></span>
-                        </div>
-                        <div class="table-modern-wrapper">
-                            <table class="data-table-modern">
-                                <thead>
-                                    <tr>
-                                        <th style="text-align: left; padding-left: 20px;">Motorista / Conjunto</th>
-                                        <th>Turno Previsto</th>
-                                        <th>Tempo Decorrido</th>
-                                        <th>Status da Jornada</th>
-                                        <th>Finalizar</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="listaJornadaAtiva"></tbody>
-                            </table>
-                        </div>
+                    <div class="table-modern-wrapper">
+                        <table class="data-table-modern">
+                            <thead>
+                                <tr>
+                                    <th style="text-align: left; padding-left: 20px;">Motorista / Conjunto</th>
+                                    <th>Turno Previsto</th>
+                                    <th>Tempo Decorrido</th>
+                                    <th>Status da Jornada</th>
+                                    <th>Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="listaJornadaAtiva">
+                                </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -896,6 +888,39 @@
         </div>
     </div>
 
+    <div id="modalFinalizarJornada" class="modal-overlay">
+        <div class="custom-modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>🏁 Finalizar Jornada de Trabalho</h3>
+                <button class="close-modal" onclick="fecharModalJornada()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="jornadaMotId">
+                <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; border: 1px solid var(--border-dim); margin-bottom: 20px;">
+                    <p style="margin-bottom: 5px; color: var(--text-secondary); font-size: 0.85rem;">Motorista Selecionado:</p>
+                    <strong id="jornadaMotNome" style="font-size: 1.1rem; color: var(--ccol-blue-bright);"></strong>
+                    <p style="margin-top: 5px; color: var(--text-secondary); font-size: 0.85rem;">Turno Previsto: <span id="jornadaTurnoPrevisto" style="color: #fff; font-weight: bold;"></span></p>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group-dark">
+                        <label>Data de Finalização</label>
+                        <input type="date" id="jornadaDataFim" class="dark-select">
+                    </div>
+                    <div class="form-group-dark">
+                        <label>Hora de Finalização</label>
+                        <input type="time" id="jornadaHoraFim" class="dark-select">
+                    </div>
+                </div>
+                <div style="background: rgba(251, 146, 60, 0.1); border-left: 3px solid var(--ccol-rust-bright); padding: 10px; margin-top: 20px; font-size: 0.75rem; color: var(--text-secondary);">
+                    <strong>Atenção:</strong> O tempo total será calculado com base na hora de início do turno cruzado com a escala do dia. Se exceder 12 horas, ficará marcado no histórico.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary-dark" onclick="fecharModalJornada()">Cancelar</button>
+                <button class="btn-primary-green" onclick="confirmarFinalizarJornada()">💾 Salvar e Finalizar</button>
+            </div>
+        </div>
+    </div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/database.js"></script>
     <script src="js/auth.js"></script> 

@@ -1,124 +1,115 @@
+// js/jornada.js
+
 // ==================== MÓDULO: CONTROLE DE JORNADA (12 HORAS) ====================
 
-// Armazena as jornadas finalizadas no cache local
-let jornadasFinalizadas = JSON.parse(localStorage.getItem('ccol_jornadas_finalizadas') || '{}');
-let intervaloJornada = null;
+let intervalJornada = null; // Armazena o ID do intervalo do cronômetro
+const LIMITE_JORNADA_MS = 12 * 60 * 60 * 1000; // 12 horas em milissegundos
+const ALERTA_JORNADA_MS = 11 * 60 * 60 * 1000; // 11 horas para o primeiro alerta
 
-function iniciarRelogioJornada() {
-    if (intervaloJornada) clearInterval(intervaloJornada);
-    intervaloJornada = setInterval(() => {
-        const agora = new Date();
-        const relogioEl = document.getElementById('relogioJornada');
-        if (relogioEl) relogioEl.innerText = agora.toLocaleTimeString('pt-BR');
-        
-        const tabJornada = document.getElementById('tab-jornada');
-        if (tabJornada && tabJornada.classList.contains('active')) {
-            renderizarJornada(false); 
-        }
-    }, 1000); 
+// Inicializa a aba de jornada
+function initJornadaTab() {
+    console.log("Iniciando Módulo de Jornada...");
+    
+    // Configura o relógio digital no cabeçalho
+    iniciarRelogioJornada();
+
+    // Inicia o cronômetro para atualizar a tabela a cada segundo
+    if (intervalJornada) clearInterval(intervalJornada);
+    intervalJornada = setInterval(renderWorkdayTable, 1000);
+    
+    // Renderiza a primeira vez para não esperar 1 segundo
+    renderWorkdayTable();
 }
 
-window.renderizarJornada = function(forcarReload = true) {
+// Desativa o cronômetro quando sair da aba (para performance)
+function deactivateJornadaTab() {
+    if (intervalJornada) clearInterval(intervalJornada);
+}
+
+// Função para renderizar a tabela, cruzando motoristas com a escala do dia
+function renderWorkdayTable() {
     const tbody = document.getElementById('listaJornadaAtiva');
     if (!tbody) return;
 
-    const hojeStr = new Date().toISOString().split('T')[0];
-    const agora = new Date();
+    const hojeStr = new Date().toISOString().split('T')[0]; // Data de hoje em formato ISO
+    const agora = new Date(); // Hora atual para o cálculo
     
-    if (!jornadasFinalizadas[hojeStr]) jornadasFinalizadas[hojeStr] = {};
-
     let html = '';
     let temGenteRodando = false;
 
-    const motoristasHoje = [...motoristas].sort((a, b) => a.nome.localeCompare(b.nome));
+    // Supomos que a variável 'motoristas' (lista completa) já exista no escopo global
+    // Caso contrário, você precisaria pegá-la de 'window.estadoApp.motoristas'
+    const motoristasList = typeof motoristas !== 'undefined' ? motoristas : [];
 
-    motoristasHoje.forEach(m => {
-        if (m.masterDrive === 'Não' || m.destra === 'Não') return;
+    motoristasList.forEach(m => {
+        // 1. Cruzamento com a escala: A função 'getEscalaDiaComputada' deve existir no seu sistema
+        // Ela retorna 'T' para Trabalho ou 'F' para Folga para aquele motorista naquele dia.
+        const escalaHoje = window.getEscalaDiaComputada ? window.getEscalaDiaComputada(m, hojeStr) : 'T';
         
-        const escalaHoje = window.getEscalaDiaComputada(m, hojeStr);
-        const caminhaoHoje = escalaHoje ? escalaHoje.caminhao : 'F';
-        
-        if (caminhaoHoje === 'F') return;
+        // Se ele está de folga, pula. Só queremos quem está trabalhando hoje
+        if (escalaHoje === 'F') return;
 
-        const turnoStr = m.turno; 
-        if (!turnoStr || turnoStr === '-' || turnoStr === 'Misto') return;
+        // Se ele não tem turno definido, pula.
+        if (!m.turno || m.turno === '-' || m.turno === 'Misto') return;
 
-        const horaInicioStr = turnoStr.split('-')[0];
+        // 2. Extrai hora de início do turno (Ex: "06:00-18:00" -> "06:00")
+        const horaInicioStr = m.turno.split('-')[0];
         const horaInicioSplit = horaInicioStr.split(':');
         
-        let dataInicioTurno = new Date(agora);
+        // Cria o objeto Date do início do turno baseado na data de hoje
+        let dataInicioTurno = new Date();
         dataInicioTurno.setHours(parseInt(horaInicioSplit[0]), parseInt(horaInicioSplit[1]), 0, 0);
 
+        // Lógica inteligente para turno da noite:
+        // Se o turno começa às 18:00 e agora é 03:00 da manhã, o turno começou ontem.
         if (parseInt(horaInicioSplit[0]) >= 18 && agora.getHours() < 12) {
             dataInicioTurno.setDate(dataInicioTurno.getDate() - 1);
         }
 
-        if (agora < dataInicioTurno && (dataInicioTurno - agora) > 3600000) return;
+        // Se o turno ainda não começou, não mostra na tabela ativa
+        if (agora < dataInicioTurno) return;
 
         temGenteRodando = true;
 
-        const finalizouHoje = jornadasFinalizadas[hojeStr][m.id];
+        // 3. Calcula o tempo decorrido
+        const diffMs = agora - dataInicioTurno;
+        
+        // Converte milissegundos para horas e minutos formatados (Ex: "09h 45m")
+        const horasTotais = Math.floor(diffMs / (1000 * 60 * 60));
+        const minutosTotais = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        const tempoDecorridoStr = `${String(horasTotais).padStart(2, '0')}h ${String(minutosTotais).padStart(2, '0')}m`;
 
-        let tempoDecorridoStr = '';
+        // 4. Define o status visual e o tempo decorrido com as cores corretas
         let statusHtml = '';
-        let linhaStyle = '';
-        let btnFinalizar = '';
+        let corTempo = 'var(--ccol-blue-bright)'; // Azul padrão
+        let animacao = '';
 
-        if (finalizouHoje) {
-            linhaStyle = 'background-color: rgba(61, 220, 132, 0.05); opacity: 0.8;';
-            const dataFim = new Date(finalizouHoje.data_fim);
-            
-            const diffMsTotal = dataFim - dataInicioTurno;
-            const diffHorasTotal = Math.floor(diffMsTotal / 3600000);
-            const diffMinsTotal = Math.floor((diffMsTotal % 3600000) / 60000);
-            
-            let corDestaque = diffHorasTotal >= 12 ? '#ef4444' : 'var(--ccol-green-bright)';
-            let statusTexto = diffHorasTotal >= 12 ? 'ENCERRADO (ESTOUROU)' : `ENCERRADO ÀS ${dataFim.toLocaleTimeString('pt-BR').substring(0,5)}`;
-            let statusBorda = diffHorasTotal >= 12 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(61, 220, 132, 0.2)';
-
-            tempoDecorridoStr = `<span style="color: ${corDestaque}; font-weight: bold;">${String(diffHorasTotal).padStart(2, '0')}h ${String(diffMinsTotal).padStart(2, '0')}m (Fechado)</span>`;
-            statusHtml = `<span style="background: ${statusBorda}; border: 1px solid ${corDestaque}; color: ${corDestaque}; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">${statusTexto}</span>`;
-            btnFinalizar = `<button onclick="desfazerJornada(${m.id})" style="background: transparent; border: 1px solid var(--border-dim); color: var(--text-secondary); padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">↩️ Desfazer</button>`;
+        if (diffMs >= LIMITE_JORNADA_MS) {
+            // EXCEDEU 12 HORAS (Vermelho piscando)
+            corTempo = '#ef4444'; 
+            animacao = 'piscar 1s infinite';
+            statusHtml = `<span style="background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #ef4444; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">🚨 EXCEDEU 12 HORAS</span>`;
+        } else if (diffMs >= ALERTA_JORNADA_MS) {
+            // ALERTA 11 HORAS (Laranja)
+            corTempo = 'var(--ccol-rust-bright)';
+            statusHtml = `<span style="background: rgba(251, 146, 60, 0.2); border: 1px solid var(--ccol-rust-bright); color: var(--ccol-rust-bright); padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">⚠️ ALERTA: FIM PRÓXIMO</span>`;
         } else {
-            const diffMs = agora - dataInicioTurno;
-            const diffHoras = Math.floor(diffMs / 3600000);
-            const diffMins = Math.floor((diffMs % 3600000) / 60000);
-            const diffSecs = Math.floor((diffMs % 60000) / 1000);
-
-            if (diffMs < 0) {
-                 tempoDecorridoStr = '<span style="color: #888;">Vai iniciar...</span>';
-                 statusHtml = '<span style="color: #888;">Aguardando Início</span>';
-            } else {
-                tempoDecorridoStr = `${String(diffHoras).padStart(2, '0')}:${String(diffMins).padStart(2, '0')}:${String(diffSecs).padStart(2, '0')}`;
-                
-                if (diffHoras >= 12) {
-                    linhaStyle = 'background-color: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444;';
-                    tempoDecorridoStr = `<span style="color: #ef4444; font-weight: 800; font-size: 1.1rem; animation: piscar 1s infinite;">${tempoDecorridoStr} ⏳ ESTOUROU</span>`;
-                    statusHtml = `<span style="background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #ef4444; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">🚨 EXCEDEU 12 HORAS</span>`;
-                } else if (diffHoras >= 11) {
-                    linhaStyle = 'background-color: rgba(251, 146, 60, 0.1);';
-                    tempoDecorridoStr = `<span style="color: #fb923c; font-weight: bold;">${tempoDecorridoStr}</span>`;
-                    statusHtml = `<span style="background: rgba(251, 146, 60, 0.2); border: 1px solid #fb923c; color: #fb923c; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">⚠️ ALERTA: FIM PRÓXIMO</span>`;
-                } else {
-                    tempoDecorridoStr = `<span style="color: var(--ccol-blue-bright); font-weight: bold;">${tempoDecorridoStr}</span>`;
-                    statusHtml = `<span style="background: rgba(59, 130, 246, 0.1); border: 1px solid var(--ccol-blue-bright); color: var(--ccol-blue-bright); padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">EM ROTA</span>`;
-                }
-            }
-
-            // Passamos o ID, Nome e a Data de Início para a função do prompt
-            btnFinalizar = `<button onclick="finalizarJornadaComHora(${m.id}, '${m.nome}', '${dataInicioTurno.toISOString()}')" style="background: var(--ccol-blue-bright); border: none; color: #000; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold; box-shadow: 0 0 10px rgba(96,165,250,0.3);">🏁 Bater Ponto (Fim)</button>`;
+            // EM ROTA (Azul padrão)
+            statusHtml = `<span style="background: rgba(59, 130, 246, 0.1); border: 1px solid var(--ccol-blue-bright); color: var(--ccol-blue-bright); padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">EM ROTA</span>`;
         }
 
         html += `
-            <tr style="${linhaStyle} transition: all 0.3s;">
+            <tr style="transition: background-color 0.3s;">
                 <td style="text-align: left; padding-left: 20px;">
                     <strong style="font-size: 1.05rem;">${m.nome}</strong><br>
-                    <span style="font-size: 0.75rem; color: var(--text-secondary);">Conj. ${m.conjuntoId || '-'} | Placa: ${caminhaoHoje} | Eq: ${m.equipe}</span>
+                    <span style="font-size: 0.75rem; color: var(--text-secondary);">Conj. ${m.conjuntoId || '-'} | Eq: ${m.equipe}</span>
                 </td>
-                <td style="font-weight: bold; color: #cbd5e1;">${turnoStr}</td>
-                <td style="font-size: 1.1rem; letter-spacing: 1px;">${tempoDecorridoStr}</td>
+                <td style="font-weight: bold; color: #cbd5e1;">${m.turno}</td>
+                <td style="font-size: 1.1rem; letter-spacing: 1px; font-weight: 700; color: ${corTempo}; animation: ${animacao};">${tempoDecorridoStr}</td>
                 <td>${statusHtml}</td>
-                <td>${btnFinalizar}</td>
+                <td>
+                    <button class="btn-primary-green" onclick="abrirModalJornada('${m.id}', '${m.nome}', '${m.turno}')" style="font-size: 0.8rem; padding: 6px 12px; font-weight: bold;">🏁 Bater Ponto (Fim)</button>
+                </td>
             </tr>
         `;
     });
@@ -127,72 +118,68 @@ window.renderizarJornada = function(forcarReload = true) {
         html = '<tr><td colspan="5" style="text-align: center; padding: 30px; color: var(--text-secondary);">Nenhum motorista em rota neste momento de acordo com a escala de hoje.</td></tr>';
     }
 
-    if (forcarReload || !tbody.dataset.rendered) {
-        tbody.innerHTML = html;
-        tbody.dataset.rendered = "true";
-    } else {
-        tbody.innerHTML = html;
+    tbody.innerHTML = html;
+}
+
+// Configura o relógio digital no cabeçalho
+function iniciarRelogioJornada() {
+    const relogioEl = document.getElementById('relogioJornada');
+    if (relogioEl) {
+        setInterval(() => {
+            const agora = new Date();
+            relogioEl.innerText = agora.toLocaleTimeString('pt-BR');
+        }, 1000);
     }
 }
 
-// NOVA FUNÇÃO COM PROMPT PARA INSERIR A HORA EXATA
-window.finalizarJornadaComHora = function(motoristaId, nomeMotorista, inicioIsoStr) {
-    const inputHora = prompt(`Encerrando jornada de ${nomeMotorista}.\n\nDigite a HORA EXATA que ele encerrou o turno (Formato HH:MM):\nExemplo: 18:30 ou 06:15`, "");
-    
-    // Se o usuário clicar em Cancelar ou deixar em branco
-    if (!inputHora) return; 
+// --- LÓGICA DO MODAL ---
 
-    // Validação básica do formato de hora (00:00 até 23:59)
-    const regexHora = /^([01]\d|2[0-3]):([0-5]\d)$/;
-    if (!regexHora.test(inputHora)) {
-        alert("Formato inválido! Por favor, use exatamente o formato HH:MM (com os dois pontos).");
+function abrirModalJornada(motoristaId, nomeMotorista, turnoInfo) {
+    const modal = document.getElementById('modalFinalizarJornada');
+    
+    // Preenche os dados fixos
+    document.getElementById('jornadaMotId').value = motoristaId;
+    document.getElementById('jornadaMotNome').innerText = nomeMotorista;
+    document.getElementById('jornadaTurnoPrevisto').innerText = turnoInfo;
+
+    // Preenche os campos de input com a data e hora atual
+    const agora = new Date();
+    const dataAtualInput = agora.toISOString().split('T')[0]; // Formato YYYY-MM-DD
+    const horaAtualInput = agora.toTimeString().substring(0, 5); // Formato HH:MM
+
+    document.getElementById('jornadaDataFim').value = dataAtualInput;
+    document.getElementById('jornadaHoraFim').value = horaAtualInput;
+
+    // Exibe o modal
+    modal.classList.add('show');
+}
+
+function fecharModalJornada() {
+    document.getElementById('modalFinalizarJornada').classList.remove('show');
+}
+
+function confirmarFinalizarJornada() {
+    const motoristaId = document.getElementById('jornadaMotId').value;
+    const nomeMotorista = document.getElementById('jornadaMotNome').innerText;
+    const dataFim = document.getElementById('jornadaDataFim').value;
+    const horaFim = document.getElementById('jornadaHoraFim').value;
+
+    if (!dataFim || !horaFim) {
+        alert("Por favor, preencha a data e a hora de finalização corretamente.");
         return;
     }
 
-    const [horas, minutos] = inputHora.split(':');
-    const dataInicio = new Date(inicioIsoStr);
-    let dataFim = new Date(dataInicio);
+    // Cria o objeto Date completo da finalização
+    const dataFinalizacaoCompleta = new Date(`${dataFim}T${horaFim}`);
     
-    // Aplica a hora digitada na data de fim
-    dataFim.setHours(parseInt(horas), parseInt(minutos), 0, 0);
-
-    // Lógica inteligente: Se a hora de fim for menor que a hora de início, 
-    // significa que a jornada virou o dia (Ex: Começou 18h e terminou 06h do dia seguinte)
-    if (dataFim < dataInicio) {
-        dataFim.setDate(dataFim.getDate() + 1);
-    }
-
-    const hojeStr = new Date().toISOString().split('T')[0];
+    // Confirmação para simular o salvamento (já que o backend não foi pedido)
+    const confirmaSalvamento = confirm(`Confirmar finalização da jornada para ${nomeMotorista}?\nData/Hora Escolhida: ${dataFinalizacaoCompleta.toLocaleString('pt-BR')}`);
     
-    if (!jornadasFinalizadas[hojeStr]) jornadasFinalizadas[hojeStr] = {};
-    
-    jornadasFinalizadas[hojeStr][motoristaId] = {
-        data_fim: dataFim.toISOString(),
-        hora_digitada: inputHora
-    };
-    
-    localStorage.setItem('ccol_jornadas_finalizadas', JSON.stringify(jornadasFinalizadas));
-    
-    renderizarJornada(true);
-}
-
-window.desfazerJornada = function(motoristaId) {
-    const hojeStr = new Date().toISOString().split('T')[0];
-    if (jornadasFinalizadas[hojeStr] && jornadasFinalizadas[hojeStr][motoristaId]) {
-        delete jornadasFinalizadas[hojeStr][motoristaId];
-        localStorage.setItem('ccol_jornadas_finalizadas', JSON.stringify(jornadasFinalizadas));
-        renderizarJornada(true);
+    if (confirmaSalvamento) {
+        console.log(`Finalizando jornada do motorista ${motoristaId} em ${dataFinalizacaoCompleta}`);
+        // AQUI você adicionaria a lógica para salvar no Supabase.
+        // Como o pedido foi apenas o front-end, apenas fechamos o modal.
+        fecharModalJornada();
+        // Você poderia adicionar uma flag no motorista para ele não aparecer mais na tabela até o dia seguinte.
     }
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-    iniciarRelogioJornada();
-
-    document.addEventListener('click', (e) => {
-        if (e.target.closest('.nav-item') && e.target.closest('.nav-item').getAttribute('data-tab') === 'jornada') {
-            setTimeout(() => {
-                renderizarJornada(true);
-            }, 100);
-        }
-    });
-});

@@ -29,6 +29,7 @@ function initTabs() {
             const activeContent = document.getElementById(`tab-${tabId}`);
             if (activeContent) activeContent.classList.add('active');
             
+            // Renderizações chamadas ao clicar nas abas originais
             if (tabId === 'motoristas') renderizarMotoristas();
             else if (tabId === 'caminhoes') renderizarConjuntos();
             else if (tabId === 'escala') window.renderizarEscala();
@@ -38,9 +39,16 @@ function initTabs() {
             else if (tabId === 'os') {
                 if (typeof renderizarTabelaOS === 'function') renderizarTabelaOS();
             }
+            
             // --- GATILHO DA NOVA ABA DE JORNADA ---
-            else if (tabId === 'jornada') {
-                if (typeof renderizarJornada === 'function') renderizarJornada(true);
+            if (tabId === 'jornada') {
+                if (typeof initJornadaTab === 'function') {
+                    initJornadaTab(); // Inicia o relógio e a tabela da jornada
+                }
+            } else {
+                if (typeof deactivateJornadaTab === 'function') {
+                    deactivateJornadaTab(); // Pausa o relógio se sair da aba para salvar processamento
+                }
             }
         });
     });
@@ -82,7 +90,6 @@ window.atualizarStats = function() {
 window.initDashboard = async function() {
     
     // --- 1. RENDERIZA O MENU ANTES DE INICIAR AS ABAS ---
-    // Isso garante que o HTML do menu exista antes do Javascript tentar colocar os cliques nele.
     if (typeof window.renderizarMenu === 'function') {
         window.renderizarMenu();
     }
