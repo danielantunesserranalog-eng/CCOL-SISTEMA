@@ -1,5 +1,6 @@
 // ==================== MÓDULO: CONTROLE DE JORNADA (12 HORAS) ====================
 
+// Armazena as jornadas finalizadas no cache local
 let jornadasFinalizadas = JSON.parse(localStorage.getItem('ccol_jornadas_finalizadas') || '{}');
 let intervaloJornada = null;
 
@@ -71,8 +72,12 @@ window.renderizarJornada = function(forcarReload = true) {
             const diffHorasTotal = Math.floor(diffMsTotal / 3600000);
             const diffMinsTotal = Math.floor((diffMsTotal % 3600000) / 60000);
             
-            tempoDecorridoStr = `<span style="color: var(--ccol-green-bright); font-weight: bold;">${String(diffHorasTotal).padStart(2, '0')}h ${String(diffMinsTotal).padStart(2, '0')}m (Finalizado)</span>`;
-            statusHtml = `<span style="background: rgba(61, 220, 132, 0.2); border: 1px solid var(--ccol-green-bright); color: var(--ccol-green-bright); padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">ENCERRADO ÀS ${dataFim.toLocaleTimeString('pt-BR').substring(0,5)}</span>`;
+            let corDestaque = diffHorasTotal >= 12 ? '#ef4444' : 'var(--ccol-green-bright)';
+            let statusTexto = diffHorasTotal >= 12 ? 'ENCERRADO (ESTOUROU)' : `ENCERRADO ÀS ${dataFim.toLocaleTimeString('pt-BR').substring(0,5)}`;
+            let statusBorda = diffHorasTotal >= 12 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(61, 220, 132, 0.2)';
+
+            tempoDecorridoStr = `<span style="color: ${corDestaque}; font-weight: bold;">${String(diffHorasTotal).padStart(2, '0')}h ${String(diffMinsTotal).padStart(2, '0')}m (Fechado)</span>`;
+            statusHtml = `<span style="background: ${statusBorda}; border: 1px solid ${corDestaque}; color: ${corDestaque}; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">${statusTexto}</span>`;
             btnFinalizar = `<button onclick="desfazerJornada(${m.id})" style="background: transparent; border: 1px solid var(--border-dim); color: var(--text-secondary); padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">↩️ Desfazer</button>`;
         } else {
             const diffMs = agora - dataInicioTurno;
@@ -100,7 +105,8 @@ window.renderizarJornada = function(forcarReload = true) {
                 }
             }
 
-            btnFinalizar = `<button onclick="finalizarJornada(${m.id})" style="background: var(--ccol-blue-bright); border: none; color: #000; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold; box-shadow: 0 0 10px rgba(96,165,250,0.3);">🏁 Bater Ponto (Fim)</button>`;
+            // Passamos o ID, Nome e a Data de Início para a função do prompt
+            btnFinalizar = `<button onclick="finalizarJornadaComHora(${m.id}, '${m.nome}', '${dataInicioTurno.toISOString()}')" style="background: var(--ccol-blue-bright); border: none; color: #000; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold; box-shadow: 0 0 10px rgba(96,165,250,0.3);">🏁 Bater Ponto (Fim)</button>`;
         }
 
         html += `
@@ -129,17 +135,44 @@ window.renderizarJornada = function(forcarReload = true) {
     }
 }
 
-window.finalizarJornada = function(motoristaId) {
+// NOVA FUNÇÃO COM PROMPT PARA INSERIR A HORA EXATA
+window.finalizarJornadaComHora = function(motoristaId, nomeMotorista, inicioIsoStr) {
+    const inputHora = prompt(`Encerrando jornada de ${nomeMotorista}.\n\nDigite a HORA EXATA que ele encerrou o turno (Formato HH:MM):\nExemplo: 18:30 ou 06:15`, "");
+    
+    // Se o usuário clicar em Cancelar ou deixar em branco
+    if (!inputHora) return; 
+
+    // Validação básica do formato de hora (00:00 até 23:59)
+    const regexHora = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    if (!regexHora.test(inputHora)) {
+        alert("Formato inválido! Por favor, use exatamente o formato HH:MM (com os dois pontos).");
+        return;
+    }
+
+    const [horas, minutos] = inputHora.split(':');
+    const dataInicio = new Date(inicioIsoStr);
+    let dataFim = new Date(dataInicio);
+    
+    // Aplica a hora digitada na data de fim
+    dataFim.setHours(parseInt(horas), parseInt(minutos), 0, 0);
+
+    // Lógica inteligente: Se a hora de fim for menor que a hora de início, 
+    // significa que a jornada virou o dia (Ex: Começou 18h e terminou 06h do dia seguinte)
+    if (dataFim < dataInicio) {
+        dataFim.setDate(dataFim.getDate() + 1);
+    }
+
     const hojeStr = new Date().toISOString().split('T')[0];
-    const agora = new Date();
     
     if (!jornadasFinalizadas[hojeStr]) jornadasFinalizadas[hojeStr] = {};
     
     jornadasFinalizadas[hojeStr][motoristaId] = {
-        data_fim: agora.toISOString()
+        data_fim: dataFim.toISOString(),
+        hora_digitada: inputHora
     };
     
     localStorage.setItem('ccol_jornadas_finalizadas', JSON.stringify(jornadasFinalizadas));
+    
     renderizarJornada(true);
 }
 
