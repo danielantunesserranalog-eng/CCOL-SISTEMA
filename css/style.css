@@ -385,3 +385,10 @@ select.dark-select option, .form-group-dark select option, .select-turno option 
     .action-bar { flex-direction: column; }
     .form-grid-conjunto { grid-template-columns: 1fr; }
 }
+
+/* Animação para estourar o limite de 12 Horas na Jornada */
+@keyframes piscar {
+    0% { opacity: 1; text-shadow: 0 0 10px rgba(239, 68, 68, 0.8); }
+    50% { opacity: 0.5; text-shadow: 0 0 2px rgba(239, 68, 68, 0.3); }
+    100% { opacity: 1; text-shadow: 0 0 10px rgba(239, 68, 68, 0.8); }
+}

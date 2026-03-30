@@ -38,6 +38,10 @@ function initTabs() {
             else if (tabId === 'os') {
                 if (typeof renderizarTabelaOS === 'function') renderizarTabelaOS();
             }
+            // --- GATILHO DA NOVA ABA DE JORNADA ---
+            else if (tabId === 'jornada') {
+                if (typeof renderizarJornada === 'function') renderizarJornada(true);
+            }
         });
     });
 
@@ -76,7 +80,17 @@ window.atualizarStats = function() {
 }
 
 window.initDashboard = async function() {
+    
+    // --- 1. RENDERIZA O MENU ANTES DE INICIAR AS ABAS ---
+    // Isso garante que o HTML do menu exista antes do Javascript tentar colocar os cliques nele.
+    if (typeof window.renderizarMenu === 'function') {
+        window.renderizarMenu();
+    }
+
+    // --- 2. INICIA AS ABAS E CLIQUES DO MENU ---
     initTabs();
+    
+    // --- 3. CARREGA OS DADOS DO BANCO ---
     await carregarDadosIniciais();
     
     if(typeof carregarDadosTreinamento === 'function') {
@@ -89,12 +103,14 @@ window.initDashboard = async function() {
         dataInicioInput.value = hojeStr;
     }
 
+    // --- 4. RENDERIZA AS TELAS COM OS DADOS CARREGADOS ---
     window.renderizarEscala();
     renderizarMotoristas();
     renderizarConjuntos();
     renderizarAlocacao();
     atualizarStats();
     
+    // --- 5. ATRIBUI CLIQUES AOS BOTÕES GERAIS ---
     const btnAddMotorista = document.getElementById('btnAddMotorista');
     if (btnAddMotorista) btnAddMotorista.addEventListener('click', adicionarMotorista);
     
