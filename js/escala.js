@@ -863,3 +863,81 @@ window.imprimirRelatorioEscalaSemanal = function() {
     janelaImp.document.write(html);
     janelaImp.document.close();
 }
+
+// ==================== EXPORTAÇÃO EXCEL (ESCALA MENSAL) ====================
+window.exportarEscalaMensalExcel = function() {
+    // 1. Definir o mês base a partir do input de data (ou usar o mês atual)
+    const inputData = document.getElementById('dataInicioEscala');
+    let dataBase = new Date();
+    
+    if (inputData && inputData.value) {
+        // Pega a data selecionada no input corrigindo o fuso horário (T00:00:00)
+        dataBase = new Date(inputData.value + 'T00:00:00');
+    }
+
+    const ano = dataBase.getFullYear();
+    const mes = dataBase.getMonth(); // 0 a 11
+    
+    // Descobre quantos dias tem no mês selecionado
+    const diasNoMes = new Date(ano, mes + 1, 0).getDate(); 
+
+    // 2. Construir o Cabeçalho do CSV (Excel)
+    // \uFEFF é um BOM para forçar o Excel a ler acentos/UTF-8 corretamente
+    let csvContent = "\uFEFF"; 
+    csvContent += "Motorista;Conjunto;Equipe;Horário (Turno)";
+    
+    // Adiciona as colunas dos dias do mês (Ex: 01/10, 02/10...)
+    for (let dia = 1; dia <= diasNoMes; dia++) {
+        csvContent += `;${dia.toString().padStart(2, '0')}/${(mes + 1).toString().padStart(2, '0')}`;
+    }
+    csvContent += "\n";
+
+    // 3. Ordenar os motoristas (Por Conjunto e depois por Nome)
+    let motoristasOrdenados = [...motoristas].sort((a, b) => {
+        const conjA = a.conjuntoId || 999999;
+        const conjB = b.conjuntoId || 999999;
+        if (conjA !== conjB) return conjA - conjB;
+        return a.nome.localeCompare(b.nome);
+    });
+
+    // 4. Preencher os dados linha por linha
+    motoristasOrdenados.forEach(m => {
+        // Informações básicas do motorista
+        let linha = `${m.nome};${m.conjuntoId ? 'Conjunto ' + m.conjuntoId : 'Sem Frota'};${m.equipe || '-'};${m.turno || '-'}`;
+
+        // Varre cada dia do mês para esse motorista
+        for (let dia = 1; dia <= diasNoMes; dia++) {
+            // Formata a data atual do loop no padrão YYYY-MM-DD
+            const dataAtualStr = `${ano}-${(mes + 1).toString().padStart(2, '0')}-${dia.toString().padStart(2, '0')}`;
+            
+            // Usa o seu próprio motor de inteligência já pronto no sistema
+            const escalaDia = window.getEscalaDiaComputada(m, dataAtualStr);
+            
+            let statusCelula = escalaDia.caminhao;
+
+            if (statusCelula === 'F') {
+                statusCelula = 'FOLGA';
+            }
+            // Anexa na linha (colunas separadas por ponto-e-vírgula)
+            linha += `;${statusCelula}`;
+        }
+        
+        csvContent += linha + "\n";
+    });
+
+    // 5. Gerar e baixar o arquivo Excel (.csv)
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    
+    // Nome do arquivo (Ex: Escala_Mensal_10_2025.csv)
+    const nomeArquivo = `Escala_Mensal_${(mes + 1).toString().padStart(2, '0')}_${ano}.csv`;
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", nomeArquivo);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
