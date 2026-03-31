@@ -618,7 +618,6 @@ async function salvarConclusaoOS() {
     }
 }
 
-// ---- ATUALIZADO: ADICIONAR SERVIÇO EXTRA + PREVISÃO ----
 function abrirModalServicoExtra(id) {
     osSelecionadaParaServicoExtra = id;
     const os = ordensServico.find(o => o.id === id);
@@ -686,7 +685,6 @@ async function salvarServicoExtra() {
         console.error(error);
     }
 }
-// ------------------------------------------------
 
 async function deletarOS(id) {
     if (confirm("Deseja realmente excluir esta O.S.?")) {
@@ -948,7 +946,18 @@ function renderizarCardsTV() {
             iconGiro = `<div class="spinner-warning" title="Aguardando Aceite"></div>`;
             
         } else if (os.status === 'Em Manutenção' && os.previsao) {
-            const dataPrev = new Date(os.previsao);
+            
+            // --- CORREÇÃO DO FUSO HORÁRIO APLICADA AQUI NA PREVISÃO ---
+            let stringPrevisao = os.previsao;
+            if (stringPrevisao) {
+                // Remove o UTC do banco para igualar a data ao nosso horário local Brasil (-03)
+                stringPrevisao = stringPrevisao.replace('Z', '').replace('+00:00', '');
+            }
+            if (!stringPrevisao.includes('T')) {
+                stringPrevisao += 'T00:00:00';
+            }
+            
+            const dataPrev = new Date(stringPrevisao);
             const diffPrev = dataPrev - agora;
             
             if (diffPrev < 0) {
@@ -997,7 +1006,6 @@ function renderizarCardsTV() {
             }
         }
 
-        // Lógica visual para destacar se a OS sofreu adição de Serviço Extra
         const temServicoExtra = os.problema && os.problema.includes('[SERVIÇO EXTRA]');
         const tagExtraTV = temServicoExtra ? `<span style="background: #eab308; color: #000; font-size: 0.7rem; font-weight: 900; padding: 3px 6px; border-radius: 4px; margin-left: 10px; vertical-align: middle; text-shadow: none;">⚠️ ADD SERVIÇO EXTRA</span>` : '';
 
