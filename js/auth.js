@@ -2,6 +2,7 @@
 
 let currentUser = null;
 let listaUsuarios = [];
+window.permissoesGlobais = null; // Variável global para segurar as permissões puxadas do banco
 
 async function hashPassword(password) {
     const msgBuffer = new TextEncoder().encode(password);
@@ -66,13 +67,17 @@ window.fazerLogout = function() {
     }
 }
 
-function iniciarSistemaAutorizado() {
+async function iniciarSistemaAutorizado() {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('change-password-screen').style.display = 'none';
     document.getElementById('appLayout').style.display = 'flex';
     
     document.getElementById('loggedUserName').innerText = currentUser.username;
     document.getElementById('loggedUserRole').innerText = currentUser.role;
+
+    // Busca as permissões do banco no momento que o usuário loga
+    const permissoesDoBanco = await db.getPermissoesDB();
+    window.permissoesGlobais = { ...permissoesPadrao, ...permissoesDoBanco };
 
     if (typeof initDashboard === 'function') initDashboard();
 }
@@ -85,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ---------------- GESTÃO DE USUÁRIOS E PERMISSÕES ----------------
 
-// Permissões padrão caso seja o primeiro acesso
+// Permissões padrão caso o banco esteja vazio
 const permissoesPadrao = {
     "Admin": ["escala", "alocacao", "motoristas", "caminhoes", "os", "troca", "jornada", "treinamento"],
     "Controlador de Trefego": ["escala", "alocacao", "troca", "jornada"],
@@ -95,8 +100,8 @@ const permissoesPadrao = {
 };
 
 window.getPermissoes = function() {
-    const salvas = localStorage.getItem('ccol_permissoes_menus');
-    return salvas ? JSON.parse(salvas) : permissoesPadrao;
+    // Agora lê da variável global puxada do banco
+    return window.permissoesGlobais || permissoesPadrao;
 };
 
 window.carregarCheckboxesPermissoes = function() {
@@ -111,16 +116,19 @@ window.carregarCheckboxesPermissoes = function() {
     });
 };
 
-window.salvarPermissoesPerfil = function() {
+window.salvarPermissoesPerfil = async function() {
     const perfil = document.getElementById('selectPerfilPermissao').value;
     const checkboxesMarcados = document.querySelectorAll('.chk-permissao:checked');
     const novasPermissoes = Array.from(checkboxesMarcados).map(chk => chk.value);
     
-    const permissoesTotais = window.getPermissoes();
-    permissoesTotais[perfil] = novasPermissoes;
+    // Salva no Banco de Dados (Supabase)
+    await db.updatePermissoesDB(perfil, novasPermissoes);
     
-    localStorage.setItem('ccol_permissoes_menus', JSON.stringify(permissoesTotais));
-    alert(`✅ Permissões para o perfil "${perfil}" atualizadas com sucesso!`);
+    // Atualiza a memória local para não precisar deslogar quem está salvando
+    if(!window.permissoesGlobais) window.permissoesGlobais = { ...permissoesPadrao };
+    window.permissoesGlobais[perfil] = novasPermissoes;
+    
+    alert(`✅ Permissões para o perfil "${perfil}" salvas com sucesso no Banco de Dados!\nTodos os usuários deste perfil terão os acessos atualizados.`);
     
     if (typeof window.renderizarMenu === 'function') window.renderizarMenu();
 };

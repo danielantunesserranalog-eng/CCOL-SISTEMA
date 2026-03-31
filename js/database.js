@@ -39,7 +39,6 @@ const db = {
 
     // --- CONJUNTOS ---
     async getConjuntos() {
-        // CORREÇÃO AQUI: Adicionado .order('id', { ascending: true })
         const { data } = await supabaseClient.from('conjuntos').select('*').order('id', { ascending: true });
         return data || [];
     },
@@ -99,7 +98,7 @@ const db = {
         const { error } = await supabaseClient.from('treinamentos').upsert([treinamento]);
         if (error) {
             console.error("ERRO SUPABASE TREINAMENTOS:", error);
-            alert("⚠️ Erro ao salvar Treinamento no Banco! Verifique o console (F12). Motivo: " + error.message);
+            alert("⚠️ Erro ao salvar Treinamento no Banco! Verifique o console. Motivo: " + error.message);
         }
     },
     async deleteTreinamento(id) {
@@ -109,5 +108,23 @@ const db = {
     async limparApenasEscalas() {
         const { error } = await supabaseClient.from('escalas').delete().neq('id', '0');
         if (error) console.error("Erro ao limpar escalas:", error);
+    },
+
+    // --- PERMISSÕES DE ACESSO (NOVO) ---
+    async getPermissoesDB() {
+        const { data, error } = await supabaseClient.from('permissoes_perfis').select('*');
+        if (error || !data) return {};
+        const permissoesObj = {};
+        data.forEach(item => {
+            permissoesObj[item.perfil] = item.menus;
+        });
+        return permissoesObj;
+    },
+    async updatePermissoesDB(perfil, menus) {
+        const { error } = await supabaseClient.from('permissoes_perfis').upsert([{ perfil: perfil, menus: menus }]);
+        if (error) {
+            console.error("Erro ao salvar permissões:", error);
+            alert("Erro ao salvar permissões no banco. Motivo: " + error.message);
+        }
     }
 };
