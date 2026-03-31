@@ -5,6 +5,7 @@ let frotasManutencao = [];
 let tvInterval = null;
 let osSelecionadaParaAceite = null; 
 let osSelecionadaParaConclusao = null; 
+let osSelecionadaParaServicoExtra = null; // Variável nova para o Modal Extra
 
 async function carregarDadosOS() {
     try {
@@ -363,6 +364,8 @@ function renderizarTabelaOS() {
             botoesAcao += `<button onclick="abrirModalAceiteOS(${os.id})" style="background: var(--bg-panel); border: 1px solid #f59e0b; color: #f59e0b; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">🛠️ Aceitar O.S.</button>`;
         } else if (os.status === 'Em Manutenção') {
             botoesAcao += `<button onclick="abrirModalConclusaoOS(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-green-bright); color: var(--ccol-green-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">✅ Concluir</button>`;
+            // Botão Novo: Adicionar Serviço Extra
+            botoesAcao += `<button onclick="abrirModalServicoExtra(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-blue-bright); color: var(--ccol-blue-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">➕ Add Serviço</button>`;
         }
 
         botoesAcao += `<button onclick="deletarOS(${os.id})" style="background: transparent; border: none; color: #ef4444; font-size: 1.2rem; cursor: pointer; margin-left: 5px;" title="Excluir">🗑️</button>`;
@@ -424,9 +427,14 @@ function renderizarTabelaHistoricoOS() {
         let botoesAcao = `<button onclick="imprimirOS(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-blue-bright); color: var(--ccol-blue-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer;">🖨️ Visualizar/Imprimir</button>`;
         
         // Se ela não estiver concluída no histórico, ainda permite dar sequência, senão pode apenas excluir
-        if (os.status === 'Agendada') botoesAcao += `<button onclick="darEntradaPatio(${os.id})" style="background: var(--bg-panel); border: 1px solid #8b5cf6; color: #8b5cf6; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">🚚 Dar Entrada</button>`;
-        else if (os.status === 'Aguardando Oficina') botoesAcao += `<button onclick="abrirModalAceiteOS(${os.id})" style="background: var(--bg-panel); border: 1px solid #f59e0b; color: #f59e0b; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">🛠️ Aceitar</button>`;
-        else if (os.status === 'Em Manutenção') botoesAcao += `<button onclick="abrirModalConclusaoOS(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-green-bright); color: var(--ccol-green-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">✅ Concluir</button>`;
+        if (os.status === 'Agendada') {
+            botoesAcao += `<button onclick="darEntradaPatio(${os.id})" style="background: var(--bg-panel); border: 1px solid #8b5cf6; color: #8b5cf6; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">🚚 Dar Entrada</button>`;
+        } else if (os.status === 'Aguardando Oficina') {
+            botoesAcao += `<button onclick="abrirModalAceiteOS(${os.id})" style="background: var(--bg-panel); border: 1px solid #f59e0b; color: #f59e0b; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">🛠️ Aceitar</button>`;
+        } else if (os.status === 'Em Manutenção') {
+            botoesAcao += `<button onclick="abrirModalConclusaoOS(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-green-bright); color: var(--ccol-green-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">✅ Concluir</button>`;
+            botoesAcao += `<button onclick="abrirModalServicoExtra(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-blue-bright); color: var(--ccol-blue-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">➕ Add Serviço</button>`;
+        }
 
         botoesAcao += `<button onclick="deletarOS(${os.id})" style="background: transparent; border: none; color: #ef4444; font-size: 1.2rem; cursor: pointer; margin-left: 5px;" title="Excluir">🗑️</button>`;
 
@@ -510,7 +518,11 @@ async function salvarNovaOS() {
 
 async function darEntradaPatio(id) {
     if (confirm("O caminhão chegou? Deseja dar entrada no pátio agora?\nO relógio da TV começará a contar exatamente a partir de agora.")) {
-        const momentoExatoDaEntrada = new Date().toISOString(); 
+        
+        // --- CORREÇÃO DO FUSO HORÁRIO ---
+        // Salva a hora exata local removendo a distorção para não dar diferença de 3h na TV
+        const agora = new Date();
+        const momentoExatoDaEntrada = new Date(agora.getTime() - (agora.getTimezoneOffset() * 60000)).toISOString().slice(0, 19); 
         
         const { error } = await supabaseClient
             .from('ordens_servico')
@@ -616,6 +628,55 @@ async function salvarConclusaoOS() {
         console.error(error);
     }
 }
+
+// ---- NOVAS FUNÇÕES: ADICIONAR SERVIÇO EXTRA ----
+function abrirModalServicoExtra(id) {
+    osSelecionadaParaServicoExtra = id;
+    document.getElementById('extraServicoDescricao').value = '';
+    document.getElementById('modalServicoExtra').classList.add('show');
+}
+
+function fecharModalServicoExtra() {
+    osSelecionadaParaServicoExtra = null;
+    document.getElementById('modalServicoExtra').classList.remove('show');
+}
+
+async function salvarServicoExtra() {
+    if (!osSelecionadaParaServicoExtra) return;
+    
+    const descricao = document.getElementById('extraServicoDescricao').value.trim();
+    if (!descricao) {
+        alert("Por favor, descreva o serviço extra identificado.");
+        return;
+    }
+
+    const os = ordensServico.find(o => o.id === osSelecionadaParaServicoExtra);
+    if (!os) return;
+
+    // Anexa a nova informação ao campo de problema sem apagar a original
+    const problemaAtual = os.problema ? os.problema : '';
+    const problemaAtualizado = problemaAtual + " | [SERVIÇO EXTRA]: " + descricao;
+
+    const { error } = await supabaseClient
+        .from('ordens_servico')
+        .update({ problema: problemaAtualizado })
+        .eq('id', osSelecionadaParaServicoExtra);
+
+    if (!error) {
+        fecharModalServicoExtra();
+        await carregarDadosOS();
+        renderizarTabelaOS();
+        renderizarTabelaHistoricoOS();
+        if (document.getElementById('telaPainelTV').style.display === 'block') {
+            renderizarCardsTV();
+        }
+        alert("Serviço extra adicionado com sucesso! O tempo adicional agora está justificado.");
+    } else {
+        alert("Erro ao adicionar o serviço extra.");
+        console.error(error);
+    }
+}
+// ------------------------------------------------
 
 async function deletarOS(id) {
     if (confirm("Deseja realmente excluir esta O.S.?")) {
@@ -888,6 +949,14 @@ function renderizarCardsTV() {
     
     osAtivas.forEach(os => {
         let stringEntrada = os.data_abertura;
+        
+        // --- CORREÇÃO DO FUSO HORÁRIO (MODO TV) ---
+        // Se a data vier do Supabase com o fuso ('Z' ou '+00:00'), nós removemos
+        // para que o navegador leia a hora puramente do jeito que foi salva (como local time)
+        if (stringEntrada) {
+            stringEntrada = stringEntrada.replace('Z', '').replace('+00:00', '');
+        }
+        
         if (!stringEntrada.includes('T')) {
             stringEntrada += 'T00:00:00';
         }

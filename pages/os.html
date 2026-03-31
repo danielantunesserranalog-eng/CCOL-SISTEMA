@@ -306,3 +306,23 @@
         </div>
     </div>
 </div>
+
+<div id="modalServicoExtra" class="modal-overlay">
+    <div class="custom-modal">
+        <div class="modal-header">
+            <h3>➕ Adicionar Serviço Extra</h3>
+            <button class="close-modal" onclick="fecharModalServicoExtra()">×</button>
+        </div>
+        <div class="modal-body">
+            <p style="color: var(--text-secondary); font-size: 0.85rem;">O mecânico identificou um novo problema? Descreva o serviço adicional para justificar o tempo extra.</p>
+            <div class="form-group-dark">
+                <label>Descrição do Novo Serviço / Problema</label>
+                <input type="text" id="extraServicoDescricao" placeholder="Ex: Necessário também a troca da lona de freio...">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary-dark" onclick="fecharModalServicoExtra()">Cancelar</button>
+            <button class="btn-primary-blue" onclick="salvarServicoExtra()">Adicionar à O.S.</button>
+        </div>
+    </div>
+</div>
