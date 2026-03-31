@@ -33,7 +33,12 @@ window.renderizarMenu = function() {
 
     if (meusMenus.includes('os')) navHtml += `<button class="nav-item" onclick="navegarPara('os', this)">🛠️ Ordem de Serviço</button>`;
     
-    // NOVO MENU: ALMOXARIFADO (Mostramos se ele tiver acesso a OS ou se for Admin)
+    // NOVO MENU: STATUS FROTA (Aparece se tiver acesso a OS ou for Admin)
+    if (meusMenus.includes('os') || isAdmin) {
+        navHtml += `<button class="nav-item" onclick="navegarPara('status_frota', this)" style="color: var(--ccol-green-bright); font-weight: bold;">📊 Status Frota</button>`;
+    }
+    
+    // MENU: ALMOXARIFADO (Mostramos se ele tiver acesso a OS ou se for Admin)
     if (meusMenus.includes('os') || isAdmin || meusMenus.includes('almoxarifado')) {
         navHtml += `<button class="nav-item" onclick="navegarPara('almoxarifado', this)">📦 Almoxarifado</button>`;
     }
@@ -100,6 +105,9 @@ window.navegarPara = async function(pagina, elementoClicado) {
         if (pagina === 'alocacao' && typeof window.renderizarAlocacao === 'function') window.renderizarAlocacao();
         if (pagina === 'motoristas' && typeof window.renderizarMotoristas === 'function') window.renderizarMotoristas();
         if (pagina === 'caminhoes' && typeof window.renderizarConjuntos === 'function') window.renderizarConjuntos();
+        
+        // ADICIONE ESTA LINHA PARA O STATUS DA FROTA:
+        if (pagina === 'status_frota' && typeof window.renderizarStatusFrota === 'function') window.renderizarStatusFrota();
         
         // --- LINHA ALTERADA AQUI ---
         if (pagina === 'os' && typeof window.alternarTelaOS === 'function') window.alternarTelaOS('lista');

@@ -1,0 +1,42 @@
+<div class="action-bar" style="flex-wrap: wrap; gap: 15px;">
+    <h3 style="color: var(--text-primary); margin: 0; align-self: center;">📊 Dashboard: Status Frotas Operantes</h3>
+    <div class="button-group" style="margin-left: auto;">
+        <button class="btn-primary-green" onclick="imprimirStatusFrotaWhatsapp()" style="font-weight: 800; font-size: 1rem;">📱 Gerar Visão WhatsApp (Planilha)</button>
+        <button class="btn-primary-blue" onclick="renderizarStatusFrota()">🔄 Atualizar Status</button>
+    </div>
+</div>
+
+<div class="quick-stats-header" style="justify-content: space-between; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 15px;">
+    <div class="q-stat" style="flex: 1; text-align: center; background: rgba(0,0,0,0.2); padding: 20px;">
+        <div style="color: var(--text-secondary); font-size: 1rem; text-transform: uppercase;">Total da Frota</div>
+        <div id="kpiTotalStatus" style="font-size: 2.5rem; color: #fff; font-weight: 900;">0</div>
+    </div>
+    <div class="q-stat" style="flex: 1; text-align: center; background: rgba(22, 163, 74, 0.1); border: 1px solid #16a34a; padding: 20px;">
+        <div style="color: #16a34a; font-size: 1rem; text-transform: uppercase; font-weight: bold;">✅ Em Operação</div>
+        <div id="kpiOperandoStatus" style="font-size: 2.5rem; color: #16a34a; font-weight: 900;">0</div>
+    </div>
+    <div class="q-stat" style="flex: 1; text-align: center; background: rgba(220, 38, 38, 0.1); border: 1px solid #dc2626; padding: 20px;">
+        <div style="color: #dc2626; font-size: 1rem; text-transform: uppercase; font-weight: bold;">🚨 Parados / Manutenção</div>
+        <div id="kpiParadoStatus" style="font-size: 2.5rem; color: #dc2626; font-weight: 900;">0</div>
+    </div>
+</div>
+
+<div class="content-panel">
+    <div class="table-modern-wrapper">
+        <table class="data-table-modern">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">QT</th>
+                    <th style="width: 80px;">GO</th>
+                    <th>PLACA</th>
+                    <th>DESCRIÇÃO / MOTIVO</th>
+                    <th>DATA HORA QUE PAROU</th>
+                    <th>PREVISÃO RETORNO</th>
+                    <th>TEMPO PARADO</th>
+                    <th>STATUS MANUTENÇÃO</th>
+                </tr>
+            </thead>
+            <tbody id="tabelaStatusFrota"></tbody>
+        </table>
+    </div>
+</div>
