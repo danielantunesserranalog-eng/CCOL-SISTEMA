@@ -1,0 +1,96 @@
+<div class="action-bar" style="flex-wrap: wrap; gap: 15px;">
+    <h3 style="color: var(--text-primary); margin: 0; align-self: center;">🎓 Cronograma de Treinamento: Master Drive</h3>
+    <div class="filter-group" style="display: flex; gap: 10px; align-items: center; margin-left: auto; flex-wrap: wrap;">
+        <label for="treinamentoDataInicio" style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">Data Início:</label>
+        <input type="date" id="treinamentoDataInicio" class="dark-select">
+        
+        <label for="treinamentoInstrutor" style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600; margin-left: 10px;">Instrutor:</label>
+        <select id="treinamentoInstrutor" class="dark-select">
+            <option value="">Selecione...</option>
+        </select>
+
+        <label for="treinamentoTurno" style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600; margin-left: 10px;">Turno:</label>
+        <select id="treinamentoTurno" class="dark-select">
+            <option value="Todos">Ambos (Dia/Noite)</option>
+            <option value="Dia">Apenas Dia (Equipes A, B, C)</option>
+            <option value="Noite">Apenas Noite (Equipes D, E, F)</option>
+        </select>
+    </div>
+    <div class="button-group">
+        <button class="btn-primary-green" onclick="gerarTreinamentoAuto()">⚡ Gerar Cronograma</button>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 2.5fr; gap: 20px;">
+    <div class="content-panel">
+        <div class="panel-header">
+            <h3>👨‍🏫 Instrutores</h3>
+        </div>
+        <div style="padding: 15px;">
+            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 10px;">Adicione os instrutores.</p>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <input type="text" id="novoInstrutorNome" placeholder="Nome do Instrutor" class="dark-select" style="flex:1;">
+                <button class="btn-primary-blue" onclick="adicionarInstrutor()">➕ Add</button>
+            </div>
+            <ul id="listaInstrutores" style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px;"></ul>
+        </div>
+    </div>
+    <div class="content-panel">
+        <div class="panel-header">
+            <h3 style="color: var(--ccol-blue-bright);">📅 Treinamentos Agendados</h3>
+        </div>
+        <div class="table-modern-wrapper">
+            <table class="data-table-modern">
+                <thead>
+                    <tr>
+                        <th>Data Prevista</th>
+                        <th>Instrutor</th>
+                        <th>Motorista</th>
+                        <th>Viagens Necessárias</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="tabelaTreinamentos"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="content-panel" style="margin-top: 20px;">
+    <div class="panel-header">
+        <h3 style="color: var(--ccol-rust-bright);">⚠️ Aguardando Agendamento (Fila de Espera)</h3>
+    </div>
+    <div class="table-modern-wrapper">
+        <table class="data-table-modern">
+            <thead>
+                <tr>
+                    <th>Nome do Motorista</th>
+                    <th>Classificação</th>
+                    <th>Viagens Necessárias</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="tabelaPendentes"></tbody>
+        </table>
+    </div>
+</div>
+
+<div class="content-panel" style="margin-top: 20px;">
+    <div class="panel-header">
+        <h3 style="color: var(--ccol-green-bright);">✅ Treinamentos Concluídos</h3>
+    </div>
+    <div class="table-modern-wrapper">
+        <table class="data-table-modern">
+            <thead>
+                <tr>
+                    <th>Data de Conclusão</th>
+                    <th>Motorista</th>
+                    <th>Classificação</th>
+                    <th>Instrutor</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="tabelaConcluidos"></tbody>
+        </table>
+    </div>
+</div>

@@ -1,30 +1,120 @@
 // ==================== COMPONENTE: MENU DE NAVEGAÇÃO ====================
 
+const pageCache = {}; 
+
 window.renderizarMenu = function() {
     const container = document.getElementById('menu-container');
     if (!container) return;
 
-    container.innerHTML = `
-        <nav class="main-nav">
-            <button class="nav-item active" data-tab="escala">📅 Escala Semanal</button>
-            <button class="nav-item" data-tab="alocacao">🔄 Alocação Geral</button>
-            
-            <div class="nav-dropdown">
-                <button class="nav-item dropdown-toggle">📋 Cadastros ▾</button>
-                <div class="dropdown-menu">
-                    <button class="dropdown-item" data-tab="motoristas">👨‍✈️ Motoristas</button>
-                    <button class="dropdown-item" data-tab="caminhoes">🚛 Conjuntos & Caminhões</button>
-                </div>
-            </div>
+    // Pega as permissões dinâmicas criadas pelo Admin
+    const permissoesAtuais = (typeof window.getPermissoes === 'function') ? window.getPermissoes() : {};
+    const userRole = (currentUser && currentUser.role) ? currentUser.role : 'Admin';
+    
+    // Lista de menus que ESTE usuário pode ver
+    let meusMenus = permissoesAtuais[userRole] || [];
 
-            <button class="nav-item" data-tab="os">🛠️ Ordem de Serviço</button>
-            <button id="navConfigBtn" class="nav-item" data-tab="config">⚙️ Configurações</button>
-            
-            <button class="nav-item" data-tab="troca">⏱️ Painel de Troca</button>
-            
-            <button class="nav-item" data-tab="jornada">⏳ Controle de Jornada</button>
-            
-            <button class="nav-item" data-tab="treinamento">🎓 Treinamento</button>
-        </nav>
-    `;
+    // O botão Configurações é EXCLUSIVO e FIXO do Administrador
+    const isAdmin = userRole === 'Admin';
+
+    let navHtml = '<nav class="main-nav">';
+
+    if (meusMenus.includes('escala')) navHtml += `<button class="nav-item" onclick="navegarPara('escala', this)">📅 Escala Semanal</button>`;
+    if (meusMenus.includes('alocacao')) navHtml += `<button class="nav-item" onclick="navegarPara('alocacao', this)">🔄 Alocação Geral</button>`;
+    
+    // Dropdown Cadastros
+    if (meusMenus.includes('motoristas') || meusMenus.includes('caminhoes')) {
+        navHtml += `<div class="nav-dropdown">
+            <button class="nav-item dropdown-toggle" onclick="toggleDropdown(event)">📋 Cadastros ▾</button>
+            <div class="dropdown-menu">`;
+        if (meusMenus.includes('motoristas')) navHtml += `<button class="dropdown-item" onclick="navegarPara('motoristas', this)">👨‍✈️ Motoristas</button>`;
+        if (meusMenus.includes('caminhoes')) navHtml += `<button class="dropdown-item" onclick="navegarPara('caminhoes', this)">🚛 Conjuntos & Caminhões</button>`;
+        navHtml += `</div></div>`;
+    }
+
+    if (meusMenus.includes('os')) navHtml += `<button class="nav-item" onclick="navegarPara('os', this)">🛠️ Ordem de Serviço</button>`;
+    if (meusMenus.includes('troca')) navHtml += `<button class="nav-item" onclick="navegarPara('troca', this)">⏱️ Painel de Troca</button>`;
+    if (meusMenus.includes('jornada')) navHtml += `<button class="nav-item" onclick="navegarPara('jornada', this)">⏳ Controle de Jornada</button>`;
+    if (meusMenus.includes('treinamento')) navHtml += `<button class="nav-item" onclick="navegarPara('treinamento', this)">🎓 Treinamento</button>`;
+    
+    // Configurações: Apenas o Admin vê (Questão de segurança máxima)
+    if (isAdmin) navHtml += `<button id="navConfigBtn" class="nav-item" onclick="navegarPara('config', this)">⚙️ Configurações</button>`;
+
+    navHtml += '</nav>';
+    container.innerHTML = navHtml;
+
+    // Clica automaticamente no primeiro botão disponível ao carregar o menu
+    setTimeout(() => {
+        const firstBtn = container.querySelector('.nav-item:not(.dropdown-toggle)');
+        if (firstBtn) {
+            firstBtn.click();
+        } else {
+            const dropItem = container.querySelector('.dropdown-item');
+            if (dropItem) dropItem.click();
+        }
+    }, 100);
+};
+
+window.toggleDropdown = function(event) {
+    const menu = event.target.nextElementSibling;
+    menu.classList.toggle('show');
+}
+
+window.navegarPara = async function(pagina, elementoClicado) {
+    // Dupla verificação de segurança no clique
+    const userRole = (currentUser && currentUser.role) ? currentUser.role : 'Admin';
+    if (pagina === 'config' && userRole !== 'Admin') {
+        alert('⛔ Acesso Negado.');
+        return; 
+    }
+
+    if (elementoClicado) {
+        document.querySelectorAll('.nav-item, .dropdown-item').forEach(el => el.classList.remove('active'));
+        elementoClicado.classList.add('active');
+        
+        if(elementoClicado.classList.contains('dropdown-item')) {
+            elementoClicado.closest('.nav-dropdown').querySelector('.dropdown-toggle').classList.add('active');
+            document.querySelector('.dropdown-menu').classList.remove('show');
+        }
+    }
+
+    const mainContent = document.getElementById('conteudo-principal');
+
+    try {
+        if (!pageCache[pagina]) {
+            mainContent.innerHTML = '<div style="padding: 20px; text-align: center; color: #fff;">A carregar módulo...</div>';
+            const response = await fetch(`pages/${pagina}.html`);
+            if (!response.ok) throw new Error('Página não encontrada');
+            pageCache[pagina] = await response.text();
+        }
+        
+        mainContent.innerHTML = pageCache[pagina];
+
+        if (pagina === 'escala' && typeof window.renderizarEscala === 'function') window.renderizarEscala();
+        if (pagina === 'alocacao' && typeof window.renderizarAlocacao === 'function') window.renderizarAlocacao();
+        if (pagina === 'motoristas' && typeof window.renderizarMotoristas === 'function') window.renderizarMotoristas();
+        if (pagina === 'caminhoes' && typeof window.renderizarConjuntos === 'function') window.renderizarConjuntos();
+        if (pagina === 'os' && typeof window.renderizarTabelaOS === 'function') window.renderizarTabelaOS();
+        if (pagina === 'troca' && typeof window.renderizarTrocaTurno === 'function') window.renderizarTrocaTurno();
+        if (pagina === 'treinamento' && typeof window.renderizarCronogramaTreinamento === 'function') window.renderizarCronogramaTreinamento();
+        
+        if (pagina === 'jornada') {
+            if (typeof window.initJornadaTab === 'function') window.initJornadaTab();
+        } else {
+            if (typeof window.deactivateJornadaTab === 'function') window.deactivateJornadaTab();
+        }
+
+        if (pagina === 'config') {
+            if (typeof window.renderizarUsuarios === 'function') window.renderizarUsuarios();
+            if (typeof window.renderizarLogs === 'function') window.renderizarLogs();
+            if (typeof window.carregarCheckboxesPermissoes === 'function') window.carregarCheckboxesPermissoes();
+        }
+
+    } catch (error) {
+        console.error('Erro ao carregar página:', error);
+        mainContent.innerHTML = `
+            <div style="padding: 20px; text-align: center; color: #ef4444;">
+                <h3>❌ Erro de Navegação</h3>
+                <p>O módulo <b>${pagina}.html</b> não foi encontrado na pasta "pages".</p>
+            </div>`;
+    }
 };

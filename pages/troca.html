@@ -1,0 +1,66 @@
+<div class="action-bar" style="flex-wrap: wrap; gap: 15px;">
+    <h3 style="color: var(--text-primary); margin: 0; align-self: center;">⏱️ Painel em Tempo Real: Troca de Turno</h3>
+    <div class="button-group" style="margin-left: auto;">
+        <button id="btnImprimirRelatorioHoje" class="btn-primary-green" onclick="abrirModalImpressao()">🖨️ Imprimir Escala de Hoje</button>
+        <button id="btnAtualizarTroca" class="btn-primary-blue" onclick="renderizarTrocaTurno()">🔄 Atualizar Painel</button>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+    <div class="content-panel">
+        <div class="panel-header">
+            <h3 style="color: var(--ccol-rust-bright);">⚠️ Próximos de Trocar (Ativos)</h3>
+        </div>
+        <div class="table-modern-wrapper">
+            <table class="data-table-modern">
+                <thead>
+                    <tr>
+                        <th>Motorista</th>
+                        <th>Conjunto</th>
+                        <th>Fim do Turno</th>
+                        <th>Cidade</th>
+                    </tr>
+                </thead>
+                <tbody id="listaProximosTroca"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="content-panel">
+        <div class="panel-header">
+            <h3 style="color: var(--ccol-blue-bright);">🚨 Plantão (Sem Caminhão)</h3>
+        </div>
+        <div class="table-modern-wrapper">
+            <table class="data-table-modern">
+                <thead>
+                    <tr>
+                        <th>Motorista</th>
+                        <th>Equipe</th>
+                        <th>Turno</th>
+                        <th>Cidade</th>
+                    </tr>
+                </thead>
+                <tbody id="listaPlantaoSemCaminhao"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="content-panel">
+        <div class="panel-header">
+            <h3 style="color: var(--text-secondary);">🛋️ Em Folga (Não Incomodar)</h3>
+        </div>
+        <div class="table-modern-wrapper">
+            <table class="data-table-modern">
+                <thead>
+                    <tr>
+                        <th>Motorista</th>
+                        <th>Equipe</th>
+                        <th>Status</th>
+                        <th>Cidade</th>
+                    </tr>
+                </thead>
+                <tbody id="listaFolga"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
