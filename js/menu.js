@@ -100,7 +100,10 @@ window.navegarPara = async function(pagina, elementoClicado) {
         if (pagina === 'alocacao' && typeof window.renderizarAlocacao === 'function') window.renderizarAlocacao();
         if (pagina === 'motoristas' && typeof window.renderizarMotoristas === 'function') window.renderizarMotoristas();
         if (pagina === 'caminhoes' && typeof window.renderizarConjuntos === 'function') window.renderizarConjuntos();
-        if (pagina === 'os' && typeof window.renderizarTabelaOS === 'function') window.renderizarTabelaOS();
+        
+        // --- LINHA ALTERADA AQUI ---
+        if (pagina === 'os' && typeof window.alternarTelaOS === 'function') window.alternarTelaOS('lista');
+        
         if (pagina === 'troca' && typeof window.renderizarTrocaTurno === 'function') window.renderizarTrocaTurno();
         if (pagina === 'treinamento' && typeof window.renderizarCronogramaTreinamento === 'function') window.renderizarCronogramaTreinamento();
         
