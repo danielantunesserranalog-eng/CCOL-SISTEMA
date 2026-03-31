@@ -1,6 +1,6 @@
 // ==================== MÓDULO: MOTORISTAS ====================
 
-function popularSelectsConjuntoMotorista() {
+window.popularSelectsConjuntoMotorista = function() {
     const selectAdd = document.getElementById('motoristaConjunto');
     const selectEdit = document.getElementById('editMotoristaConjunto');
     
@@ -25,12 +25,20 @@ function popularSelectsConjuntoMotorista() {
     }
 }
 
-function renderizarMotoristas() {
+window.renderizarMotoristas = function() {
     const tbody = document.getElementById('motoristasList');
-    const termoBusca = document.getElementById('searchMotorista')?.value.toLowerCase() || '';
+    const searchInput = document.getElementById('searchMotorista');
+    const termoBusca = searchInput?.value.toLowerCase() || '';
     
     if (!tbody) return;
-    popularSelectsConjuntoMotorista();
+
+    // --- CORREÇÃO AQUI: Ativa a busca dinamicamente assim que a tela abre ---
+    if (searchInput && !searchInput.dataset.buscaAtiva) {
+        searchInput.addEventListener('input', window.renderizarMotoristas);
+        searchInput.dataset.buscaAtiva = "true"; // Marca para não adicionar o evento duas vezes
+    }
+
+    window.popularSelectsConjuntoMotorista();
 
     let html = '';
     
@@ -67,11 +75,9 @@ function renderizarMotoristas() {
         `;
     });
     tbody.innerHTML = html;
-}
+};
 
-document.getElementById('searchMotorista')?.addEventListener('input', renderizarMotoristas);
-
-// SOLUÇÃO DO ERRO 'adicionarMotorista is not defined': A função agora é global
+// As funções abaixo agora estão com o 'window.' para garantir escopo global
 window.adicionarMotorista = async function() {
     const nome = document.getElementById('motoristaNome').value.trim();
     if (!nome) { alert('⚠️ Digite o nome completo do motorista!'); return; }
@@ -90,7 +96,7 @@ window.adicionarMotorista = async function() {
 
     motoristas.push(novoMotorista);
     await db.addMotorista(novoMotorista);
-    salvarBackupLocal();
+    if(typeof salvarBackupLocal === 'function') salvarBackupLocal();
 
     document.getElementById('motoristaNome').value = '';
     document.getElementById('motoristaDataAncora').value = '';
@@ -98,7 +104,7 @@ window.adicionarMotorista = async function() {
     document.getElementById('motoristaEquipe').value = '-';
     document.getElementById('motoristaTurno').value = '-';
     
-    renderizarMotoristas();
+    window.renderizarMotoristas();
     if(typeof renderizarAlocacao === 'function') renderizarAlocacao();
     if(typeof renderizarEscala === 'function') renderizarEscala();
     
@@ -109,7 +115,7 @@ window.abrirModalEdicao = function(id) {
     const m = motoristas.find(mot => mot.id === id);
     if (!m) return;
 
-    popularSelectsConjuntoMotorista(); 
+    window.popularSelectsConjuntoMotorista(); 
 
     document.getElementById('editMotoristaId').value = m.id;
     document.getElementById('editMotoristaNome').value = m.nome;
@@ -150,10 +156,10 @@ window.salvarEdicaoMotorista = async function() {
         conjuntoId: m.conjuntoId, equipe: m.equipe, turno: m.turno, data_ancora: m.data_ancora
     });
     
-    salvarBackupLocal();
-    fecharModalEdicao();
+    if(typeof salvarBackupLocal === 'function') salvarBackupLocal();
+    window.fecharModalEdicao();
     
-    renderizarMotoristas();
+    window.renderizarMotoristas();
     if(typeof renderizarAlocacao === 'function') renderizarAlocacao();
     if(typeof renderizarEscala === 'function') renderizarEscala();
     if(typeof renderizarTrocaTurno === 'function') renderizarTrocaTurno();
@@ -174,9 +180,9 @@ window.excluirMotorista = async function(id) {
     if (typeof escalas !== 'undefined' && escalas[id]) delete escalas[id];
     
     await db.deleteMotorista(id);
-    salvarBackupLocal();
+    if(typeof salvarBackupLocal === 'function') salvarBackupLocal();
     
-    renderizarMotoristas();
+    window.renderizarMotoristas();
     if(typeof renderizarAlocacao === 'function') renderizarAlocacao();
     if(typeof renderizarEscala === 'function') renderizarEscala();
 };
