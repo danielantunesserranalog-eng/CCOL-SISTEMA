@@ -21,7 +21,7 @@
             <thead>
                 <tr>
                     <th>Nº O.S.</th>
-                    <th>Data Abertura</th>
+                    <th>Data/Hora</th>
                     <th>Placa (Cavalo)</th>
                     <th>Motorista</th>
                     <th>Tipo</th>
@@ -49,9 +49,18 @@
                 <option value="">Selecione o motorista...</option>
             </select>
         </div>
+        
         <div class="form-group-dark">
-            <label>Data da Abertura</label>
-            <input type="date" id="osDataAbertura" class="dark-select">
+            <label>Modo de Entrada no Pátio</label>
+            <select id="osModoEntrada" class="dark-select" onchange="mudarModoEntrada()">
+                <option value="imediata">🔴 Entrada Imediata (Aparece na TV agora)</option>
+                <option value="agendada">📅 Agendar para o Futuro (Não vai para a TV)</option>
+            </select>
+        </div>
+        
+        <div class="form-group-dark">
+            <label id="labelDataAbertura">Data e Hora da Abertura</label>
+            <input type="datetime-local" id="osDataAbertura" class="dark-select">
         </div>
         <div class="form-group-dark">
             <label>Hodômetro (Km Atual)</label>
@@ -111,7 +120,7 @@
             <input type="text" id="osObservacoes" placeholder="Ex: Lâmpada de freio queimada, rolamento roncando...">
         </div>
         <div class="form-actions" style="grid-column: 1 / -1; margin-top: 15px;">
-            <button class="btn-primary-green btn-full" onclick="salvarNovaOS()">💾 Salvar e Enviar para Oficina</button>
+            <button class="btn-primary-green btn-full" onclick="salvarNovaOS()">💾 Salvar e Enviar Ordem de Serviço</button>
         </div>
     </div>
 </div>
@@ -230,6 +239,26 @@
         <div class="modal-footer">
             <button class="btn-secondary-dark" onclick="fecharModalAceiteOS()">Cancelar</button>
             <button class="btn-primary-blue" onclick="salvarAceiteOS()">Confirmar Aceite</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalConclusaoOS" class="modal-overlay">
+    <div class="custom-modal">
+        <div class="modal-header">
+            <h3>✅ Concluir Ordem de Serviço</h3>
+            <button class="close-modal" onclick="fecharModalConclusaoOS()">×</button>
+        </div>
+        <div class="modal-body">
+            <p style="color: var(--text-secondary); font-size: 0.85rem;">A ordem será encerrada com o horário cravado abaixo:</p>
+            <div class="form-group-dark">
+                <label>Horário Atual de Conclusão</label>
+                <input type="datetime-local" id="horaConclusaoOS" class="dark-select" readonly disabled style="background-color: rgba(255,255,255,0.05); color: #fff;">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary-dark" onclick="fecharModalConclusaoOS()">Cancelar</button>
+            <button class="btn-primary-green" onclick="salvarConclusaoOS()">Confirmar Conclusão</button>
         </div>
     </div>
 </div>

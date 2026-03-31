@@ -3,7 +3,8 @@
 let ordensServico = [];
 let frotasManutencao = [];
 let tvInterval = null;
-let osSelecionadaParaAceite = null; // Variavel global para o modal de aceite
+let osSelecionadaParaAceite = null; 
+let osSelecionadaParaConclusao = null; 
 
 async function carregarDadosOS() {
     try {
@@ -54,7 +55,11 @@ async function alternarTelaOS(tela) {
         telaNova.style.display = 'block';
         carregarMotoristasSelectOS();
         carregarSelectCavalosOS();
-        document.getElementById('osDataAbertura').value = new Date().toISOString().split('T')[0];
+        
+        // Reseta o formulário para Entrada Imediata por padrão
+        document.getElementById('osModoEntrada').value = 'imediata';
+        mudarModoEntrada();
+        
         togglePneuFields(); 
     } else if (tela === 'frota') {
         telaFrota.style.display = 'block';
@@ -67,6 +72,30 @@ async function alternarTelaOS(tela) {
     }
 }
 
+function mudarModoEntrada() {
+    const modo = document.getElementById('osModoEntrada').value;
+    const label = document.getElementById('labelDataAbertura');
+    
+    if (modo === 'agendada') {
+        label.innerHTML = '📅 Data e Hora Prevista do Agendamento';
+    } else {
+        label.innerHTML = 'Data e Hora da Entrada no Pátio';
+        // Crava a hora atual de imediato
+        const agora = new Date();
+        const dataAberturaLocal = new Date(agora.getTime() - (agora.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+        document.getElementById('osDataAbertura').value = dataAberturaLocal;
+    }
+}
+
+function formatarDataHoraBrasil(dataString) {
+    if (!dataString) return '-';
+    if (dataString.includes('T')) {
+        const [data, hora] = dataString.split('T');
+        return data.split('-').reverse().join('/') + ' às ' + hora.substring(0, 5);
+    }
+    return dataString.split('-').reverse().join('/');
+}
+
 // ==================== PARTE 1: RELATÓRIO GERENCIAL ====================
 
 function renderizarRelatorioGerencialOS() {
@@ -76,7 +105,6 @@ function renderizarRelatorioGerencialOS() {
     }
 
     const total = ordensServico.length;
-    // Ajustado para contar as "Aguardando Oficina" e "Em Manutenção"
     const abertas = ordensServico.filter(o => o.status === 'Aguardando Oficina' || o.status === 'Em Manutenção').length;
     const concluidas = ordensServico.filter(o => o.status === 'Concluída').length;
     const taxa = ((concluidas / total) * 100).toFixed(1);
@@ -278,7 +306,9 @@ function renderizarTabelaOS() {
 
     tbody.innerHTML = filtradas.map(os => {
         let statusBadge = '';
-        if (os.status === 'Aguardando Oficina') {
+        if (os.status === 'Agendada') {
+            statusBadge = `<span style="background: rgba(139, 92, 246, 0.2); color: #8b5cf6; padding: 4px 8px; border-radius: 4px;">📅 Agendada</span>`;
+        } else if (os.status === 'Aguardando Oficina') {
             statusBadge = `<span style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; padding: 4px 8px; border-radius: 4px;">Aguardando Oficina</span>`;
         } else if (os.status === 'Em Manutenção') {
             statusBadge = `<span style="background: rgba(96, 165, 250, 0.2); color: var(--ccol-blue-bright); padding: 4px 8px; border-radius: 4px;">Em Manutenção</span>`;
@@ -288,10 +318,12 @@ function renderizarTabelaOS() {
 
         let botoesAcao = `<button onclick="imprimirOS(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-blue-bright); color: var(--ccol-blue-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer;">🖨️ Imprimir</button>`;
         
-        if (os.status === 'Aguardando Oficina') {
+        if (os.status === 'Agendada') {
+            botoesAcao += `<button onclick="darEntradaPatio(${os.id})" style="background: var(--bg-panel); border: 1px solid #8b5cf6; color: #8b5cf6; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">🚚 Dar Entrada no Pátio</button>`;
+        } else if (os.status === 'Aguardando Oficina') {
             botoesAcao += `<button onclick="abrirModalAceiteOS(${os.id})" style="background: var(--bg-panel); border: 1px solid #f59e0b; color: #f59e0b; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">🛠️ Aceitar O.S.</button>`;
         } else if (os.status === 'Em Manutenção') {
-            botoesAcao += `<button onclick="concluirOS(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-green-bright); color: var(--ccol-green-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">✅ Concluir</button>`;
+            botoesAcao += `<button onclick="abrirModalConclusaoOS(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-green-bright); color: var(--ccol-green-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">✅ Concluir</button>`;
         }
 
         botoesAcao += `<button onclick="deletarOS(${os.id})" style="background: transparent; border: none; color: #ef4444; font-size: 1.2rem; cursor: pointer; margin-left: 5px;" title="Excluir">🗑️</button>`;
@@ -299,7 +331,7 @@ function renderizarTabelaOS() {
         return `
             <tr>
                 <td><strong>#${os.id}</strong></td>
-                <td>${os.data_abertura.split('-').reverse().join('/')}</td>
+                <td>${formatarDataHoraBrasil(os.data_abertura)}</td>
                 <td style="color: var(--ccol-blue-bright); font-weight: bold;">${os.placa}</td>
                 <td>${os.motorista}</td>
                 <td>${os.tipo}</td>
@@ -319,6 +351,7 @@ async function salvarNovaOS() {
     const tipo = document.getElementById('osTipo').value;
     const problema = document.getElementById('osProblema').value;
     const observacoes = document.getElementById('osObservacoes').value;
+    const modoEntrada = document.getElementById('osModoEntrada').value; 
 
     if (!placa || !motorista) {
         alert("Conjunto/Cavalo e Motorista são obrigatórios!");
@@ -337,11 +370,12 @@ async function salvarNovaOS() {
         });
     }
 
-    // A O.S. agora nasce como Aguardando Oficina e SEM previsão
+    const status_inicial = (modoEntrada === 'agendada') ? 'Agendada' : 'Aguardando Oficina';
+
     const novaOS = {
         placa, go, motorista, data_abertura, hodometro, prioridade, tipo, problema, observacoes, detalhes_pneu,
         previsao: null, 
-        status: 'Aguardando Oficina'
+        status: status_inicial
     };
 
     const { error } = await supabaseClient.from('ordens_servico').insert([novaOS]);
@@ -361,11 +395,37 @@ async function salvarNovaOS() {
     document.getElementById('osPneuServico').value = '';
     document.getElementById('osPneuMotivo').value = '';
 
-    alert("O.S. Aberta! Agora a Oficina precisa aceitar o chamado.");
+    if (modoEntrada === 'agendada') {
+        alert("O.S. Agendada com sucesso! Ela ficará oculta da TV até você clicar em 'Dar Entrada'.");
+    } else {
+        alert("O.S. Aberta no Pátio! Agora a Oficina precisa aceitar o chamado.");
+    }
     alternarTelaOS('lista');
 }
 
-// Lógica do Modal de Aceite
+async function darEntradaPatio(id) {
+    if (confirm("O caminhão chegou? Deseja dar entrada no pátio agora?\nO relógio da TV começará a contar exatamente a partir de agora.")) {
+        const momentoExatoDaEntrada = new Date().toISOString(); 
+        
+        const { error } = await supabaseClient
+            .from('ordens_servico')
+            .update({ 
+                status: 'Aguardando Oficina',
+                data_abertura: momentoExatoDaEntrada 
+            })
+            .eq('id', id);
+
+        if (!error) {
+            await carregarDadosOS();
+            renderizarTabelaOS();
+            alert("Entrada registrada! O cronômetro da O.S. já iniciou na TV.");
+        } else {
+            alert("Erro ao dar entrada na O.S.");
+            console.error(error);
+        }
+    }
+}
+
 function abrirModalAceiteOS(id) {
     osSelecionadaParaAceite = id;
     document.getElementById('aceiteMecanico').value = '';
@@ -399,7 +459,7 @@ async function salvarAceiteOS() {
         .eq('id', osSelecionadaParaAceite);
 
     if (!error) {
-        alert("O.S. Aceita com sucesso! O relógio na TV foi ativado.");
+        alert("O.S. Aceita com sucesso! O relógio na TV foi atualizado.");
         fecharModalAceiteOS();
         await carregarDadosOS();
         renderizarTabelaOS();
@@ -409,19 +469,43 @@ async function salvarAceiteOS() {
     }
 }
 
-async function concluirOS(id) {
-    if (confirm("Marcar O.S. como concluída?")) {
-        const { error } = await supabaseClient
-            .from('ordens_servico')
-            .update({ status: 'Concluída' })
-            .eq('id', id);
+function abrirModalConclusaoOS(id) {
+    osSelecionadaParaConclusao = id;
+    const inputHora = document.getElementById('horaConclusaoOS');
+    
+    const agora = new Date();
+    const dataConclusaoLocal = new Date(agora.getTime() - (agora.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+    inputHora.value = dataConclusaoLocal;
+    
+    document.getElementById('modalConclusaoOS').classList.add('show');
+}
 
-        if (!error) {
-            await carregarDadosOS();
-            renderizarTabelaOS();
-        } else {
-            alert("Erro ao concluir a O.S.");
-        }
+function fecharModalConclusaoOS() {
+    osSelecionadaParaConclusao = null;
+    document.getElementById('modalConclusaoOS').classList.remove('show');
+}
+
+async function salvarConclusaoOS() {
+    if (!osSelecionadaParaConclusao) return;
+
+    const momentoExatoDaConclusao = new Date().toISOString(); 
+    
+    const { error } = await supabaseClient
+        .from('ordens_servico')
+        .update({ 
+            status: 'Concluída',
+            data_conclusao: momentoExatoDaConclusao 
+        })
+        .eq('id', osSelecionadaParaConclusao);
+
+    if (!error) {
+        fecharModalConclusaoOS();
+        await carregarDadosOS();
+        renderizarTabelaOS();
+        alert("O.S. marcada como concluída com sucesso!");
+    } else {
+        alert("Erro ao concluir a O.S.");
+        console.error(error);
     }
 }
 
@@ -441,12 +525,18 @@ async function deletarOS(id) {
     }
 }
 
+// -------------------------------------------------------------
+// FUNÇÃO DE IMPRESSÃO ATUALIZADA (COM O Nº DA O.S. NO CABEÇALHO)
+// -------------------------------------------------------------
 function imprimirOS(id) {
     const os = ordensServico.find(o => o.id === id);
     if (!os) return;
 
     const frota = frotasManutencao.find(f => f.cavalo === os.placa) || { carreta1: '', carreta2: '', carreta3: '' };
-    const dataFormatada = os.data_abertura.split('-').reverse().join('/');
+    const dataFormatada = formatarDataHoraBrasil(os.data_abertura);
+    
+    // Formata o ID para ter 4 dígitos (ex: de 5 vira 0005)
+    const numeroOSFormatado = String(os.id).padStart(4, '0');
     
     let painelBorracharia = '';
     if (os.tipo === 'Borracharia (PNEU)' && os.detalhes_pneu) {
@@ -488,7 +578,35 @@ function imprimirOS(id) {
             <title>O.S. #${os.id} - ${os.placa}</title>
             <style>
                 body { font-family: Arial, sans-serif; font-size: 12px; margin: 20px; color: #000; }
-                .header { text-align: center; border: 2px solid #000; padding: 10px; font-weight: bold; font-size: 16px; margin-bottom: 10px; background-color: #f0f0f0; }
+                
+                /* NOVO ESTILO PARA O CABEÇALHO DA O.S. */
+                .header-container { 
+                    display: flex; 
+                    justify-content: space-between; 
+                    align-items: center; 
+                    border: 2px solid #000; 
+                    padding: 10px; 
+                    margin-bottom: 10px; 
+                    background-color: #f0f0f0; 
+                }
+                .header-title { 
+                    text-align: center; 
+                    font-weight: bold; 
+                    font-size: 16px; 
+                    flex-grow: 1; 
+                }
+                .header-os-num { 
+                    font-size: 18px; 
+                    font-weight: bold; 
+                    color: #dc2626; /* Vermelho escuro para destaque */
+                    border: 2px solid #dc2626; 
+                    padding: 5px 10px; 
+                    background: #fff; 
+                    border-radius: 4px;
+                    min-width: 80px;
+                    text-align: center;
+                }
+
                 .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
                 .info-box { border: 1px solid #000; padding: 8px; }
                 .full-box { border: 1px solid #000; padding: 8px; margin-bottom: 15px; }
@@ -497,20 +615,31 @@ function imprimirOS(id) {
                 th { background-color: #f0f0f0; }
                 .signatures { display: flex; justify-content: space-between; margin-top: 40px; }
                 .sig-line { border-top: 1px solid #000; width: 45%; text-align: center; padding-top: 5px; }
+                
                 @media print {
                     body { margin: 0; padding: 10px; }
-                    .header, th, .full-box { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    /* Garante que o fundo cinza e a borda vermelha apareçam na impressão */
+                    .header-container, th, .full-box, .header-os-num { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                     .no-print { display: none; }
                 }
             </style>
         </head>
         <body>
-            <div class="header">ORDEM DE SERVIÇO - MANUTENÇÃO E FROTAS<br><span style="font-size: 12px;">Serrana Florestal - CCOL</span></div>
+            
+            <div class="header-container">
+                <div style="width: 100px;"></div> <div class="header-title">
+                    ORDEM DE SERVIÇO - MANUTENÇÃO E FROTAS<br>
+                    <span style="font-size: 12px;">Serrana Florestal - CCOL</span>
+                </div>
+                <div>
+                    <div class="header-os-num">Nº ${numeroOSFormatado}</div>
+                </div>
+            </div>
             
             <div class="info-grid">
                 <div class="info-box"><strong>Cavalo:</strong> ${os.placa}</div>
                 <div class="info-box"><strong>GO:</strong> ${os.go || '-'}</div>
-                <div class="info-box"><strong>Data Abertura:</strong> ${dataFormatada}</div>
+                <div class="info-box"><strong>Data:</strong> ${dataFormatada}</div>
                 <div class="info-box"><strong>Motorista:</strong> ${os.motorista}</div>
                 <div class="info-box"><strong>Mecânico:</strong> ${os.mecanico_responsavel || 'A Definir'}</div>
                 <div class="info-box"><strong>Prioridade:</strong> ${os.prioridade}</div>
@@ -642,11 +771,14 @@ function renderizarCardsTV() {
     let html = '';
     
     osAtivas.forEach(os => {
-        // Data de entrada real no pátio (usando created_at do banco)
-        const dataEntrada = os.created_at ? new Date(os.created_at) : new Date(os.data_abertura + 'T00:00:00');
+        let stringEntrada = os.data_abertura;
+        if (!stringEntrada.includes('T')) {
+            stringEntrada += 'T00:00:00';
+        }
+        
+        const dataEntrada = new Date(stringEntrada);
         const diffEntrada = agora - dataEntrada;
         
-        // Cálculos do tempo parado no pátio
         const horasPatio = Math.floor(diffEntrada / (1000 * 60 * 60));
         const minPatio = Math.floor((diffEntrada % (1000 * 60 * 60)) / (1000 * 60));
         const segPatio = Math.floor((diffEntrada % (1000 * 60)) / 1000);
@@ -657,7 +789,6 @@ function renderizarCardsTV() {
         let iconGiro = '';
 
         if (os.status === 'Aguardando Oficina') {
-            // Caminhão no pátio, mas ninguém da oficina aceitou ainda
             cardClass += ' tv-card-atencao';
             statusBox = `
                 <div style="background: rgba(245, 158, 11, 0.1); border: 1px dashed #f59e0b; border-radius: 8px; padding: 10px; text-align: center; display: flex; flex-direction: column; justify-content: center; height: 100%;">
@@ -668,12 +799,10 @@ function renderizarCardsTV() {
             iconGiro = `<div class="spinner-warning" title="Aguardando Aceite"></div>`;
             
         } else if (os.status === 'Em Manutenção' && os.previsao) {
-            // Oficina aceitou e tem previsão rodando
             const dataPrev = new Date(os.previsao);
             const diffPrev = dataPrev - agora;
             
             if (diffPrev < 0) {
-                // ATRASADO
                 cardClass += ' tv-card-atrasado';
                 const absDiff = Math.abs(diffPrev);
                 const hAtraso = Math.floor(absDiff / (1000 * 60 * 60));
@@ -690,7 +819,6 @@ function renderizarCardsTV() {
                 `;
                 iconGiro = `<div class="spinner-red" title="Atrasado"></div>`;
             } else {
-                // NO PRAZO
                 const hRestante = Math.floor(diffPrev / (1000 * 60 * 60));
                 const mRestante = Math.floor((diffPrev % (1000 * 60 * 60)) / (1000 * 60));
                 const sRestante = Math.floor((diffPrev % (1000 * 60)) / 1000);
