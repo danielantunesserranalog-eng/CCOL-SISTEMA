@@ -5,7 +5,7 @@ let frotasManutencao = [];
 let tvInterval = null;
 let osSelecionadaParaAceite = null; 
 let osSelecionadaParaConclusao = null; 
-let osSelecionadaParaServicoExtra = null; // Variável nova para o Modal Extra
+let osSelecionadaParaServicoExtra = null; 
 
 async function carregarDadosOS() {
     try {
@@ -88,7 +88,6 @@ function mudarModoEntrada() {
         label.innerHTML = '📅 Data e Hora Prevista do Agendamento';
     } else {
         label.innerHTML = 'Data e Hora da Entrada no Pátio';
-        // Crava a hora atual de imediato
         const agora = new Date();
         const dataAberturaLocal = new Date(agora.getTime() - (agora.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
         document.getElementById('osDataAbertura').value = dataAberturaLocal;
@@ -126,7 +125,6 @@ function renderizarRelatorioGerencialOS() {
     document.getElementById('kpiConcluidasOS').innerText = concluidas.length;
     document.getElementById('kpiTaxaOS').innerText = taxa + '%';
 
-    // === CÁLCULO DE TEMPO MÉDIO ===
     let tempoTotalMs = 0;
     let qtdValidas = 0;
 
@@ -152,7 +150,6 @@ function renderizarRelatorioGerencialOS() {
     
     const elTempoMedio = document.getElementById('kpiTempoMedioOS');
     if (elTempoMedio) elTempoMedio.innerText = textoTempoMedio;
-    // ===================================
 
     const porCavalo = {};
     ordensServico.forEach(o => { porCavalo[o.placa] = (porCavalo[o.placa] || 0) + 1; });
@@ -329,13 +326,11 @@ function togglePneuFields() {
     }
 }
 
-// ---- TABELA DE ACOMPANHAMENTO (APENAS ABERTAS) ----
 function renderizarTabelaOS() {
     const tbody = document.getElementById('tabelaAcompanhamentoOS');
     const termo = document.getElementById('searchOS').value.toLowerCase();
     if (!tbody) return;
 
-    // Filtra para mostrar apenas as que NÃO ESTÃO concluídas e bate com a busca
     const filtradas = ordensServico.filter(os => 
         os.status !== 'Concluída' &&
         (os.placa.toLowerCase().includes(termo) || os.motorista.toLowerCase().includes(termo))
@@ -364,7 +359,6 @@ function renderizarTabelaOS() {
             botoesAcao += `<button onclick="abrirModalAceiteOS(${os.id})" style="background: var(--bg-panel); border: 1px solid #f59e0b; color: #f59e0b; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">🛠️ Aceitar O.S.</button>`;
         } else if (os.status === 'Em Manutenção') {
             botoesAcao += `<button onclick="abrirModalConclusaoOS(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-green-bright); color: var(--ccol-green-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">✅ Concluir</button>`;
-            // Botão Novo: Adicionar Serviço Extra
             botoesAcao += `<button onclick="abrirModalServicoExtra(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-blue-bright); color: var(--ccol-blue-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">➕ Add Serviço</button>`;
         }
 
@@ -387,7 +381,6 @@ function renderizarTabelaOS() {
     }).join('');
 }
 
-// ---- NOVA TABELA DE HISTÓRICO (COM FILTROS COMPLETOS) ----
 function renderizarTabelaHistoricoOS() {
     const tbody = document.getElementById('tabelaHistoricoOS');
     if (!tbody) return;
@@ -395,7 +388,7 @@ function renderizarTabelaHistoricoOS() {
     const numTerm = document.getElementById('filtroHistOSNum').value.toLowerCase().trim();
     const placaTerm = document.getElementById('filtroHistPlaca').value.toLowerCase().trim();
     const motTerm = document.getElementById('filtroHistMotorista').value.toLowerCase().trim();
-    const dataTerm = document.getElementById('filtroHistData').value; // Formato YYYY-MM-DD
+    const dataTerm = document.getElementById('filtroHistData').value; 
 
     const filtradas = ordensServico.filter(os => {
         const matchNum = numTerm === '' || String(os.id).includes(numTerm);
@@ -404,7 +397,6 @@ function renderizarTabelaHistoricoOS() {
         
         let matchData = true;
         if (dataTerm) {
-            // A data do banco vem como '2026-03-31T09:00...' pegamos só a parte da data
             const osData = os.data_abertura.split('T')[0];
             matchData = osData === dataTerm;
         }
@@ -426,7 +418,6 @@ function renderizarTabelaHistoricoOS() {
 
         let botoesAcao = `<button onclick="imprimirOS(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-blue-bright); color: var(--ccol-blue-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer;">🖨️ Visualizar/Imprimir</button>`;
         
-        // Se ela não estiver concluída no histórico, ainda permite dar sequência, senão pode apenas excluir
         if (os.status === 'Agendada') {
             botoesAcao += `<button onclick="darEntradaPatio(${os.id})" style="background: var(--bg-panel); border: 1px solid #8b5cf6; color: #8b5cf6; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">🚚 Dar Entrada</button>`;
         } else if (os.status === 'Aguardando Oficina') {
@@ -519,8 +510,6 @@ async function salvarNovaOS() {
 async function darEntradaPatio(id) {
     if (confirm("O caminhão chegou? Deseja dar entrada no pátio agora?\nO relógio da TV começará a contar exatamente a partir de agora.")) {
         
-        // --- CORREÇÃO DO FUSO HORÁRIO ---
-        // Salva a hora exata local removendo a distorção para não dar diferença de 3h na TV
         const agora = new Date();
         const momentoExatoDaEntrada = new Date(agora.getTime() - (agora.getTimezoneOffset() * 60000)).toISOString().slice(0, 19); 
         
@@ -535,7 +524,7 @@ async function darEntradaPatio(id) {
         if (!error) {
             await carregarDadosOS();
             renderizarTabelaOS();
-            renderizarTabelaHistoricoOS(); // Atualiza histórico se estiver nele
+            renderizarTabelaHistoricoOS(); 
             alert("Entrada registrada! O cronômetro da O.S. já iniciou na TV.");
         } else {
             alert("Erro ao dar entrada na O.S.");
@@ -629,10 +618,21 @@ async function salvarConclusaoOS() {
     }
 }
 
-// ---- NOVAS FUNÇÕES: ADICIONAR SERVIÇO EXTRA ----
+// ---- ATUALIZADO: ADICIONAR SERVIÇO EXTRA + PREVISÃO ----
 function abrirModalServicoExtra(id) {
     osSelecionadaParaServicoExtra = id;
+    const os = ordensServico.find(o => o.id === id);
+    
     document.getElementById('extraServicoDescricao').value = '';
+    
+    if (os && os.previsao) {
+        // Formata a previsão antiga para o input datetime-local do navegador
+        const dataLocal = new Date(new Date(os.previsao).getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+        document.getElementById('extraServicoPrevisao').value = dataLocal;
+    } else {
+        document.getElementById('extraServicoPrevisao').value = '';
+    }
+    
     document.getElementById('modalServicoExtra').classList.add('show');
 }
 
@@ -645,8 +645,14 @@ async function salvarServicoExtra() {
     if (!osSelecionadaParaServicoExtra) return;
     
     const descricao = document.getElementById('extraServicoDescricao').value.trim();
+    const novaPrevisao = document.getElementById('extraServicoPrevisao').value;
+    
     if (!descricao) {
         alert("Por favor, descreva o serviço extra identificado.");
+        return;
+    }
+    if (!novaPrevisao) {
+        alert("Por favor, informe a nova previsão de entrega ajustada.");
         return;
     }
 
@@ -657,9 +663,13 @@ async function salvarServicoExtra() {
     const problemaAtual = os.problema ? os.problema : '';
     const problemaAtualizado = problemaAtual + " | [SERVIÇO EXTRA]: " + descricao;
 
+    // Atualiza a tabela jogando a nova previsão e a string [SERVIÇO EXTRA] no banco
     const { error } = await supabaseClient
         .from('ordens_servico')
-        .update({ problema: problemaAtualizado })
+        .update({ 
+            problema: problemaAtualizado,
+            previsao: novaPrevisao
+        })
         .eq('id', osSelecionadaParaServicoExtra);
 
     if (!error) {
@@ -670,7 +680,7 @@ async function salvarServicoExtra() {
         if (document.getElementById('telaPainelTV').style.display === 'block') {
             renderizarCardsTV();
         }
-        alert("Serviço extra adicionado com sucesso! O tempo adicional agora está justificado.");
+        alert("Serviço extra adicionado e novo prazo ajustado com sucesso!");
     } else {
         alert("Erro ao adicionar o serviço extra.");
         console.error(error);
@@ -695,22 +705,14 @@ async function deletarOS(id) {
     }
 }
 
-// -------------------------------------------------------------
-// FUNÇÃO DE IMPRESSÃO ATUALIZADA (COM O Nº DA O.S. NO CABEÇALHO E HORA DE CONCLUSÃO)
-// -------------------------------------------------------------
 function imprimirOS(id) {
     const os = ordensServico.find(o => o.id === id);
     if (!os) return;
 
     const frota = frotasManutencao.find(f => f.cavalo === os.placa) || { carreta1: '', carreta2: '', carreta3: '' };
     
-    // Formata a data de abertura
     const dataAberturaFormatada = formatarDataHoraBrasil(os.data_abertura);
-    
-    // Formata a data de conclusão (se existir)
     const dataConclusaoFormatada = os.data_conclusao ? formatarDataHoraBrasil(os.data_conclusao) : 'Em andamento';
-    
-    // Formata o ID para ter 4 dígitos (ex: de 5 vira 0005)
     const numeroOSFormatado = String(os.id).padStart(4, '0');
     
     let painelBorracharia = '';
@@ -753,36 +755,9 @@ function imprimirOS(id) {
             <title>O.S. #${os.id} - ${os.placa}</title>
             <style>
                 body { font-family: Arial, sans-serif; font-size: 12px; margin: 20px; color: #000; }
-                
-                /* ESTILO PARA O CABEÇALHO DA O.S. */
-                .header-container { 
-                    display: flex; 
-                    justify-content: space-between; 
-                    align-items: center; 
-                    border: 2px solid #000; 
-                    padding: 10px; 
-                    margin-bottom: 10px; 
-                    background-color: #f0f0f0; 
-                }
-                .header-title { 
-                    text-align: center; 
-                    font-weight: bold; 
-                    font-size: 16px; 
-                    flex-grow: 1; 
-                }
-                .header-os-num { 
-                    font-size: 18px; 
-                    font-weight: bold; 
-                    color: #dc2626; 
-                    border: 2px solid #dc2626; 
-                    padding: 5px 10px; 
-                    background: #fff; 
-                    border-radius: 4px;
-                    min-width: 80px;
-                    text-align: center;
-                }
-
-                /* GRID ATUALIZADO PARA 4 COLUNAS (8 ITENS NO TOTAL) */
+                .header-container { display: flex; justify-content: space-between; align-items: center; border: 2px solid #000; padding: 10px; margin-bottom: 10px; background-color: #f0f0f0; }
+                .header-title { text-align: center; font-weight: bold; font-size: 16px; flex-grow: 1; }
+                .header-os-num { font-size: 18px; font-weight: bold; color: #dc2626; border: 2px solid #dc2626; padding: 5px 10px; background: #fff; border-radius: 4px; min-width: 80px; text-align: center; }
                 .info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px; }
                 .info-box { border: 1px solid #000; padding: 8px; }
                 .full-box { border: 1px solid #000; padding: 8px; margin-bottom: 15px; }
@@ -791,24 +766,16 @@ function imprimirOS(id) {
                 th { background-color: #f0f0f0; }
                 .signatures { display: flex; justify-content: space-between; margin-top: 40px; }
                 .sig-line { border-top: 1px solid #000; width: 45%; text-align: center; padding-top: 5px; }
-                
-                @media print {
-                    body { margin: 0; padding: 10px; }
-                    .header-container, th, .full-box, .header-os-num { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                    .no-print { display: none; }
-                }
+                @media print { body { margin: 0; padding: 10px; } .header-container, th, .full-box, .header-os-num { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .no-print { display: none; } }
             </style>
         </head>
         <body>
-            
             <div class="header-container">
                 <div style="width: 100px;"></div> <div class="header-title">
                     ORDEM DE SERVIÇO - MANUTENÇÃO E FROTAS<br>
                     <span style="font-size: 12px;">Serrana Florestal - CCOL</span>
                 </div>
-                <div>
-                    <div class="header-os-num">Nº ${numeroOSFormatado}</div>
-                </div>
+                <div><div class="header-os-num">Nº ${numeroOSFormatado}</div></div>
             </div>
             
             <div class="info-grid">
@@ -950,9 +917,6 @@ function renderizarCardsTV() {
     osAtivas.forEach(os => {
         let stringEntrada = os.data_abertura;
         
-        // --- CORREÇÃO DO FUSO HORÁRIO (MODO TV) ---
-        // Se a data vier do Supabase com o fuso ('Z' ou '+00:00'), nós removemos
-        // para que o navegador leia a hora puramente do jeito que foi salva (como local time)
         if (stringEntrada) {
             stringEntrada = stringEntrada.replace('Z', '').replace('+00:00', '');
         }
@@ -1033,12 +997,16 @@ function renderizarCardsTV() {
             }
         }
 
+        // Lógica visual para destacar se a OS sofreu adição de Serviço Extra
+        const temServicoExtra = os.problema && os.problema.includes('[SERVIÇO EXTRA]');
+        const tagExtraTV = temServicoExtra ? `<span style="background: #eab308; color: #000; font-size: 0.7rem; font-weight: 900; padding: 3px 6px; border-radius: 4px; margin-left: 10px; vertical-align: middle; text-shadow: none;">⚠️ ADD SERVIÇO EXTRA</span>` : '';
+
         html += `
             <div class="${cardClass}">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                     <div>
                         <h3 style="font-size: 2.2rem; margin: 0; color: #fff; font-weight: 900; letter-spacing: 2px;">${os.placa}</h3>
-                        <p style="margin: 0; color: var(--text-secondary); font-size: 1rem;">O.S. #${os.id} | ${os.prioridade}</p>
+                        <p style="margin: 0; color: var(--text-secondary); font-size: 1rem;">O.S. #${os.id} | ${os.prioridade} ${tagExtraTV}</p>
                     </div>
                     <div style="font-size: 2.5rem; display: flex; align-items: center; gap: 15px;">
                         ${iconGiro}
@@ -1046,10 +1014,13 @@ function renderizarCardsTV() {
                     </div>
                 </div>
                 
-                <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; border-left: 3px solid #64748b;">
+                <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; border-left: 3px solid #64748b; margin-top: 15px; margin-bottom: 15px;">
                     <p style="margin: 0 0 5px 0; color: #cbd5e1; font-size: 1.1rem;"><strong>Serviço:</strong> ${os.tipo}</p>
                     ${os.mecanico_responsavel ? `<p style="margin: 0 0 5px 0; color: var(--ccol-green-bright); font-size: 0.95rem;">👨‍🔧 Mecânico: <strong>${os.mecanico_responsavel}</strong></p>` : ''}
-                    <p style="margin: 0; color: #94a3b8; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${os.problema || 'Nenhum detalhe informado'}</p>
+                    
+                    <p style="margin: 0; color: #94a3b8; font-size: 1rem; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+                        ${os.problema || 'Nenhum detalhe informado'}
+                    </p>
                 </div>
                 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: auto;">

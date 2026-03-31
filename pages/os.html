@@ -314,15 +314,19 @@
             <button class="close-modal" onclick="fecharModalServicoExtra()">×</button>
         </div>
         <div class="modal-body">
-            <p style="color: var(--text-secondary); font-size: 0.85rem;">O mecânico identificou um novo problema? Descreva o serviço adicional para justificar o tempo extra.</p>
+            <p style="color: var(--text-secondary); font-size: 0.85rem;">Descreva o serviço extra identificado e defina o novo prazo estendido para a finalização.</p>
             <div class="form-group-dark">
                 <label>Descrição do Novo Serviço / Problema</label>
                 <input type="text" id="extraServicoDescricao" placeholder="Ex: Necessário também a troca da lona de freio...">
             </div>
+            <div class="form-group-dark" style="margin-top: 15px; border-top: 1px dashed rgba(255,255,255,0.2); padding-top: 15px;">
+                <label style="color: var(--ccol-blue-bright);">Nova Previsão de Entrega (Ajustará a TV)</label>
+                <input type="datetime-local" id="extraServicoPrevisao" class="dark-select">
+            </div>
         </div>
         <div class="modal-footer">
             <button class="btn-secondary-dark" onclick="fecharModalServicoExtra()">Cancelar</button>
-            <button class="btn-primary-blue" onclick="salvarServicoExtra()">Adicionar à O.S.</button>
+            <button class="btn-primary-blue" onclick="salvarServicoExtra()">Salvar e Ajustar TV</button>
         </div>
     </div>
 </div>
