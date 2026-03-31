@@ -28,6 +28,7 @@ async function carregarDadosOS() {
 
 async function alternarTelaOS(tela) {
     const telaLista = document.getElementById('telaListaOS');
+    const telaHistorico = document.getElementById('telaHistoricoOS');
     const telaNova = document.getElementById('telaNovaOS');
     const telaFrota = document.getElementById('telaFrotaOS');
     const telaRelatorio = document.getElementById('telaRelatorioOS');
@@ -40,7 +41,9 @@ async function alternarTelaOS(tela) {
         }
     }
 
+    // Esconde todas as telas primeiro
     telaLista.style.display = 'none';
+    if(telaHistorico) telaHistorico.style.display = 'none';
     telaNova.style.display = 'none';
     telaFrota.style.display = 'none';
     if(telaRelatorio) telaRelatorio.style.display = 'none';
@@ -48,9 +51,13 @@ async function alternarTelaOS(tela) {
 
     await carregarDadosOS();
 
+    // Mostra a tela selecionada
     if (tela === 'lista') {
         telaLista.style.display = 'block';
         renderizarTabelaOS();
+    } else if (tela === 'historico') {
+        telaHistorico.style.display = 'block';
+        renderizarTabelaHistoricoOS();
     } else if (tela === 'nova') {
         telaNova.style.display = 'block';
         carregarMotoristasSelectOS();
@@ -289,20 +296,22 @@ function togglePneuFields() {
     }
 }
 
+// ---- TABELA DE ACOMPANHAMENTO (APENAS ABERTAS) ----
 function renderizarTabelaOS() {
     const tbody = document.getElementById('tabelaAcompanhamentoOS');
     const termo = document.getElementById('searchOS').value.toLowerCase();
     if (!tbody) return;
 
-    if (ordensServico.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">Nenhuma O.S. registada.</td></tr>';
+    // Filtra para mostrar apenas as que NÃO ESTÃO concluídas e bate com a busca
+    const filtradas = ordensServico.filter(os => 
+        os.status !== 'Concluída' &&
+        (os.placa.toLowerCase().includes(termo) || os.motorista.toLowerCase().includes(termo))
+    );
+
+    if (filtradas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">Nenhuma O.S. em aberto encontrada.</td></tr>';
         return;
     }
-
-    const filtradas = ordensServico.filter(os => 
-        os.placa.toLowerCase().includes(termo) || 
-        os.motorista.toLowerCase().includes(termo)
-    );
 
     tbody.innerHTML = filtradas.map(os => {
         let statusBadge = '';
@@ -312,8 +321,6 @@ function renderizarTabelaOS() {
             statusBadge = `<span style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; padding: 4px 8px; border-radius: 4px;">Aguardando Oficina</span>`;
         } else if (os.status === 'Em Manutenção') {
             statusBadge = `<span style="background: rgba(96, 165, 250, 0.2); color: var(--ccol-blue-bright); padding: 4px 8px; border-radius: 4px;">Em Manutenção</span>`;
-        } else {
-            statusBadge = `<span style="background: rgba(61, 220, 132, 0.2); color: var(--ccol-green-bright); padding: 4px 8px; border-radius: 4px;">Concluída</span>`;
         }
 
         let botoesAcao = `<button onclick="imprimirOS(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-blue-bright); color: var(--ccol-blue-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer;">🖨️ Imprimir</button>`;
@@ -341,6 +348,67 @@ function renderizarTabelaOS() {
         `;
     }).join('');
 }
+
+// ---- NOVA TABELA DE HISTÓRICO (COM FILTROS COMPLETOS) ----
+function renderizarTabelaHistoricoOS() {
+    const tbody = document.getElementById('tabelaHistoricoOS');
+    if (!tbody) return;
+
+    const numTerm = document.getElementById('filtroHistOSNum').value.toLowerCase().trim();
+    const placaTerm = document.getElementById('filtroHistPlaca').value.toLowerCase().trim();
+    const motTerm = document.getElementById('filtroHistMotorista').value.toLowerCase().trim();
+    const dataTerm = document.getElementById('filtroHistData').value; // Formato YYYY-MM-DD
+
+    const filtradas = ordensServico.filter(os => {
+        const matchNum = numTerm === '' || String(os.id).includes(numTerm);
+        const matchPlaca = placaTerm === '' || os.placa.toLowerCase().includes(placaTerm);
+        const matchMot = motTerm === '' || os.motorista.toLowerCase().includes(motTerm);
+        
+        let matchData = true;
+        if (dataTerm) {
+            // A data do banco vem como '2026-03-31T09:00...' pegamos só a parte da data
+            const osData = os.data_abertura.split('T')[0];
+            matchData = osData === dataTerm;
+        }
+
+        return matchNum && matchPlaca && matchMot && matchData;
+    });
+
+    if (filtradas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">Nenhuma O.S. encontrada com esses filtros.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtradas.map(os => {
+        let statusBadge = '';
+        if (os.status === 'Agendada') statusBadge = `<span style="background: rgba(139, 92, 246, 0.2); color: #8b5cf6; padding: 4px 8px; border-radius: 4px;">📅 Agendada</span>`;
+        else if (os.status === 'Aguardando Oficina') statusBadge = `<span style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; padding: 4px 8px; border-radius: 4px;">Aguardando Oficina</span>`;
+        else if (os.status === 'Em Manutenção') statusBadge = `<span style="background: rgba(96, 165, 250, 0.2); color: var(--ccol-blue-bright); padding: 4px 8px; border-radius: 4px;">Em Manutenção</span>`;
+        else statusBadge = `<span style="background: rgba(61, 220, 132, 0.2); color: var(--ccol-green-bright); padding: 4px 8px; border-radius: 4px;">Concluída</span>`;
+
+        let botoesAcao = `<button onclick="imprimirOS(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-blue-bright); color: var(--ccol-blue-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer;">🖨️ Visualizar/Imprimir</button>`;
+        
+        // Se ela não estiver concluída no histórico, ainda permite dar sequência, senão pode apenas excluir
+        if (os.status === 'Agendada') botoesAcao += `<button onclick="darEntradaPatio(${os.id})" style="background: var(--bg-panel); border: 1px solid #8b5cf6; color: #8b5cf6; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">🚚 Dar Entrada</button>`;
+        else if (os.status === 'Aguardando Oficina') botoesAcao += `<button onclick="abrirModalAceiteOS(${os.id})" style="background: var(--bg-panel); border: 1px solid #f59e0b; color: #f59e0b; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">🛠️ Aceitar</button>`;
+        else if (os.status === 'Em Manutenção') botoesAcao += `<button onclick="abrirModalConclusaoOS(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-green-bright); color: var(--ccol-green-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">✅ Concluir</button>`;
+
+        botoesAcao += `<button onclick="deletarOS(${os.id})" style="background: transparent; border: none; color: #ef4444; font-size: 1.2rem; cursor: pointer; margin-left: 5px;" title="Excluir">🗑️</button>`;
+
+        return `
+            <tr>
+                <td><strong>#${os.id}</strong></td>
+                <td>${formatarDataHoraBrasil(os.data_abertura)}</td>
+                <td style="color: var(--ccol-blue-bright); font-weight: bold;">${os.placa}</td>
+                <td>${os.motorista}</td>
+                <td>${os.tipo}</td>
+                <td>${statusBadge}</td>
+                <td>${botoesAcao}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
 
 async function salvarNovaOS() {
     const placa = document.getElementById('osPlaca').value;
@@ -418,6 +486,7 @@ async function darEntradaPatio(id) {
         if (!error) {
             await carregarDadosOS();
             renderizarTabelaOS();
+            renderizarTabelaHistoricoOS(); // Atualiza histórico se estiver nele
             alert("Entrada registrada! O cronômetro da O.S. já iniciou na TV.");
         } else {
             alert("Erro ao dar entrada na O.S.");
@@ -463,6 +532,7 @@ async function salvarAceiteOS() {
         fecharModalAceiteOS();
         await carregarDadosOS();
         renderizarTabelaOS();
+        renderizarTabelaHistoricoOS();
     } else {
         alert("Erro ao aceitar a O.S.");
         console.error(error);
@@ -502,6 +572,7 @@ async function salvarConclusaoOS() {
         fecharModalConclusaoOS();
         await carregarDadosOS();
         renderizarTabelaOS();
+        renderizarTabelaHistoricoOS();
         alert("O.S. marcada como concluída com sucesso!");
     } else {
         alert("Erro ao concluir a O.S.");
@@ -519,6 +590,7 @@ async function deletarOS(id) {
         if (!error) {
             await carregarDadosOS();
             renderizarTabelaOS();
+            renderizarTabelaHistoricoOS();
         } else {
             alert("Erro ao excluir a O.S.");
         }

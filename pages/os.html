@@ -1,7 +1,8 @@
 <div class="action-bar" style="flex-wrap: wrap; gap: 15px;">
     <h3 style="color: var(--text-primary); margin: 0; align-self: center;">🛠️ Gestão de Manutenção (O.S.)</h3>
     <div class="button-group" style="margin-left: auto;">
-        <button class="btn-primary-blue" onclick="alternarTelaOS('lista')">📋 Acompanhamento</button>
+        <button class="btn-primary-blue" onclick="alternarTelaOS('lista')">📋 Acompanhamento (Abertas)</button>
+        <button class="btn-secondary-dark" onclick="alternarTelaOS('historico')">🗄️ Histórico (Todas)</button>
         <button class="btn-primary-blue" onclick="alternarTelaOS('painel_tv')" style="background-color: #8b5cf6; border-color: #8b5cf6;">📺 Modo TV (Tempo Real)</button>
         <button class="btn-primary-green" onclick="alternarTelaOS('nova')">➕ Abrir Nova O.S.</button>
         <button class="btn-secondary-dark" onclick="alternarTelaOS('frota')">🚛 Cadastro Frota (O.S.)</button>
@@ -11,7 +12,7 @@
 
 <div id="telaListaOS" class="content-panel">
     <div class="panel-header">
-        <h3>Acompanhamento de Ordens de Serviço</h3>
+        <h3>Acompanhamento de O.S. (Somente Abertas/Andamento)</h3>
         <div class="panel-controls">
             <input type="text" id="searchOS" placeholder="Buscar placa ou motorista..." class="search-input-dark" onkeyup="renderizarTabelaOS()">
         </div>
@@ -30,6 +31,46 @@
                 </tr>
             </thead>
             <tbody id="tabelaAcompanhamentoOS"></tbody>
+        </table>
+    </div>
+</div>
+
+<div id="telaHistoricoOS" class="content-panel" style="display: none;">
+    <div class="panel-header">
+        <h3>🗄️ Histórico Geral de Ordens de Serviço</h3>
+    </div>
+    <div class="form-grid" style="margin-bottom: 15px; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;">
+        <div class="form-group-dark">
+            <label>Nº da O.S.</label>
+            <input type="text" id="filtroHistOSNum" placeholder="Ex: 15" oninput="renderizarTabelaHistoricoOS()">
+        </div>
+        <div class="form-group-dark">
+            <label>Placa do Cavalo</label>
+            <input type="text" id="filtroHistPlaca" placeholder="Ex: ABC" oninput="renderizarTabelaHistoricoOS()">
+        </div>
+        <div class="form-group-dark">
+            <label>Motorista</label>
+            <input type="text" id="filtroHistMotorista" placeholder="Parte do nome..." oninput="renderizarTabelaHistoricoOS()">
+        </div>
+        <div class="form-group-dark">
+            <label>Data de Abertura</label>
+            <input type="date" id="filtroHistData" class="dark-select" onchange="renderizarTabelaHistoricoOS()">
+        </div>
+    </div>
+    <div class="table-modern-wrapper">
+        <table class="data-table-modern">
+            <thead>
+                <tr>
+                    <th>Nº O.S.</th>
+                    <th>Data/Hora</th>
+                    <th>Placa (Cavalo)</th>
+                    <th>Motorista</th>
+                    <th>Tipo</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="tabelaHistoricoOS"></tbody>
         </table>
     </div>
 </div>
