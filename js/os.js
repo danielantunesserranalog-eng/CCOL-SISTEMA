@@ -29,9 +29,8 @@ async function alternarTelaOS(tela) {
     const telaNova = document.getElementById('telaNovaOS');
     const telaFrota = document.getElementById('telaFrotaOS');
     const telaRelatorio = document.getElementById('telaRelatorioOS');
-    const telaPainelTV = document.getElementById('telaPainelTV'); // Nova tela
+    const telaPainelTV = document.getElementById('telaPainelTV'); 
     
-    // Verificação de Segurança para o Relatório Gerencial
     if (tela === 'relatorio') {
         if (!currentUser || currentUser.role !== 'Admin') {
             alert('⛔ Acesso Restrito: Apenas Administradores do CCOL podem visualizar o Relatório Gerencial de Custos e Manutenção.');
@@ -39,7 +38,6 @@ async function alternarTelaOS(tela) {
         }
     }
 
-    // Ocultar todas
     telaLista.style.display = 'none';
     telaNova.style.display = 'none';
     telaFrota.style.display = 'none';
@@ -86,7 +84,6 @@ function renderizarRelatorioGerencialOS() {
     document.getElementById('kpiConcluidasOS').innerText = concluidas;
     document.getElementById('kpiTaxaOS').innerText = taxa + '%';
 
-    // 1. Agrupar por Cavalo (Top 5)
     const porCavalo = {};
     ordensServico.forEach(o => { porCavalo[o.placa] = (porCavalo[o.placa] || 0) + 1; });
     const topCavalos = Object.entries(porCavalo).sort((a, b) => b[1] - a[1]).slice(0, 5);
@@ -95,7 +92,7 @@ function renderizarRelatorioGerencialOS() {
     let htmlCavalos = '';
     topCavalos.forEach(([placa, qtd], index) => {
         const percent = (qtd / maxCavaloCount) * 100;
-        let color = '#ef4444'; // Vermelho pro que mais quebra
+        let color = '#ef4444';
         if (index > 1) color = '#f59e0b';
         if (index > 3) color = 'var(--ccol-blue-bright)';
         
@@ -112,7 +109,6 @@ function renderizarRelatorioGerencialOS() {
     });
     document.getElementById('rankingCavalosOS').innerHTML = htmlCavalos || '<p>Sem dados.</p>';
 
-    // 2. Agrupar por Tipo de Serviço
     const porTipo = {};
     ordensServico.forEach(o => { porTipo[o.tipo] = (porTipo[o.tipo] || 0) + 1; });
     const listaTipos = Object.entries(porTipo).sort((a, b) => b[1] - a[1]);
@@ -129,7 +125,6 @@ function renderizarRelatorioGerencialOS() {
     htmlTipos += '</ul>';
     document.getElementById('graficoTipoOS').innerHTML = htmlTipos;
 
-    // 3. Agrupar por Prioridade
     const porPrioridade = { 'Urgente': 0, 'Alta': 0, 'Normal': 0, 'Baixa': 0 };
     ordensServico.forEach(o => { if(porPrioridade[o.prioridade] !== undefined) porPrioridade[o.prioridade]++; });
     
@@ -540,7 +535,6 @@ function imprimirOS(id) {
 // ==================== PARTE 4: MODO TV (ACOMPANHAMENTO EM TEMPO REAL) ====================
 
 function entrarModoTV() {
-    // Esconde a interface do sistema para ficar focado na TV
     document.querySelector('.main-header').style.display = 'none';
     const menuContainer = document.getElementById('menu-container');
     if (menuContainer) menuContainer.style.display = 'none';
@@ -550,7 +544,6 @@ function entrarModoTV() {
     document.getElementById('conteudo-principal').style.padding = '0';
     document.getElementById('telaPainelTV').style.display = 'block';
     
-    // Pede ao navegador para colocar em ecrã inteiro
     if (document.documentElement.requestFullscreen) {
         document.documentElement.requestFullscreen().catch(err => console.log(err));
     }
@@ -566,7 +559,6 @@ function sairModoTV() {
         document.exitFullscreen();
     }
     
-    // Devolve o layout normal do sistema
     document.querySelector('.main-header').style.display = 'flex';
     const menuContainer = document.getElementById('menu-container');
     if (menuContainer) menuContainer.style.display = 'block';
@@ -585,7 +577,6 @@ function renderizarCardsTV() {
     document.getElementById('tvRelogio').innerText = agora.toLocaleTimeString('pt-BR');
     document.getElementById('tvData').innerText = agora.toLocaleDateString('pt-BR');
 
-    // Filtra apenas as O.S. abertas
     const osAbertas = ordensServico.filter(o => o.status === 'Aberta');
     
     if (osAbertas.length === 0) {
@@ -596,58 +587,104 @@ function renderizarCardsTV() {
     let html = '';
     
     osAbertas.forEach(os => {
-        let statusBox = '';
-        let cardStyle = 'border: 2px solid #334155; background: #1e293b;';
-        let tempoRestanteStr = 'Sem previsão';
+        // Data de entrada real no pátio (usando created_at do banco)
+        const dataEntrada = os.created_at ? new Date(os.created_at) : new Date(os.data_abertura + 'T00:00:00');
+        const diffEntrada = agora - dataEntrada;
         
+        // Cálculos do tempo parado no pátio
+        const horasPatio = Math.floor(diffEntrada / (1000 * 60 * 60));
+        const minPatio = Math.floor((diffEntrada % (1000 * 60 * 60)) / (1000 * 60));
+        const segPatio = Math.floor((diffEntrada % (1000 * 60)) / 1000);
+        const tempoPatioStr = `${String(horasPatio).padStart(2, '0')}:${String(minPatio).padStart(2, '0')}:${String(segPatio).padStart(2, '0')}`;
+
+        let statusBox = '';
+        let cardClass = 'tv-card-modern';
+        let iconGiro = '';
+
         if (os.previsao) {
             const dataPrev = new Date(os.previsao);
-            const diffMs = dataPrev - agora;
+            const diffPrev = dataPrev - agora;
             
-            if (diffMs < 0) {
+            if (diffPrev < 0) {
                 // ATRASADO
-                cardStyle = 'border: 2px solid #ef4444; background: rgba(239, 68, 68, 0.1); animation: piscar-tv 1.5s infinite; box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);';
+                cardClass += ' tv-card-atrasado';
+                const absDiff = Math.abs(diffPrev);
+                const hAtraso = Math.floor(absDiff / (1000 * 60 * 60));
+                const mAtraso = Math.floor((absDiff % (1000 * 60 * 60)) / (1000 * 60));
+                const sAtraso = Math.floor((absDiff % (1000 * 60)) / 1000);
                 
-                const horasAtraso = Math.abs(Math.floor(diffMs / (1000 * 60 * 60)));
-                const minAtraso = Math.abs(Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60)));
-                tempoRestanteStr = `ATRASADO ${horasAtraso}h ${minAtraso}m`;
-                
-                statusBox = `<div style="background: #ef4444; color: #fff; padding: 5px 10px; border-radius: 6px; font-weight: 800; font-size: 1.2rem; text-align: center;">🚨 ${tempoRestanteStr}</div>`;
+                statusBox = `
+                    <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; border-radius: 8px; padding: 10px; text-align: center;">
+                        <div style="color: #ef4444; font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">🚨 ATRASADO</div>
+                        <div style="color: #fff; font-size: 1.5rem; font-family: monospace; font-weight: bold; text-shadow: 0 0 10px #ef4444;">
+                            + ${String(hAtraso).padStart(2,'0')}:${String(mAtraso).padStart(2,'0')}:${String(sAtraso).padStart(2,'0')}
+                        </div>
+                    </div>
+                `;
+                iconGiro = `<div class="spinner-red" title="Atrasado"></div>`;
             } else {
                 // NO PRAZO
-                const horas = Math.floor(diffMs / (1000 * 60 * 60));
-                const min = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                const hRestante = Math.floor(diffPrev / (1000 * 60 * 60));
+                const mRestante = Math.floor((diffPrev % (1000 * 60 * 60)) / (1000 * 60));
+                const sRestante = Math.floor((diffPrev % (1000 * 60)) / 1000);
                 
-                if (horas < 2) {
-                    cardStyle = 'border: 2px solid #f59e0b; background: rgba(245, 158, 11, 0.1);';
-                    statusBox = `<div style="background: #f59e0b; color: #000; padding: 5px 10px; border-radius: 6px; font-weight: 800; font-size: 1.2rem; text-align: center;">⚠️ Faltam ${horas}h ${min}m</div>`;
+                if (hRestante < 2) {
+                    cardClass += ' tv-card-atencao';
+                    statusBox = `
+                        <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; border-radius: 8px; padding: 10px; text-align: center;">
+                            <div style="color: #f59e0b; font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">⚠️ Vencendo</div>
+                            <div style="color: #fff; font-size: 1.5rem; font-family: monospace; font-weight: bold;">
+                                - ${String(hRestante).padStart(2,'0')}:${String(mRestante).padStart(2,'0')}:${String(sRestante).padStart(2,'0')}
+                            </div>
+                        </div>
+                    `;
+                    iconGiro = `<div class="spinner-warning" title="Vencendo"></div>`;
                 } else {
-                    cardStyle = 'border: 2px solid var(--ccol-blue-bright); background: rgba(96, 165, 250, 0.05);';
-                    statusBox = `<div style="background: var(--ccol-blue-bright); color: #000; padding: 5px 10px; border-radius: 6px; font-weight: 800; font-size: 1.2rem; text-align: center;">⏳ Faltam ${horas}h ${min}m</div>`;
+                    statusBox = `
+                        <div style="background: rgba(96, 165, 250, 0.1); border: 1px solid var(--ccol-blue-bright); border-radius: 8px; padding: 10px; text-align: center;">
+                            <div style="color: var(--ccol-blue-bright); font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">⏳ Prazo Restante</div>
+                            <div style="color: #fff; font-size: 1.5rem; font-family: monospace; font-weight: bold;">
+                                - ${String(hRestante).padStart(2,'0')}:${String(mRestante).padStart(2,'0')}:${String(sRestante).padStart(2,'0')}
+                            </div>
+                        </div>
+                    `;
+                    iconGiro = `<div class="spinner-blue" title="No Prazo"></div>`;
                 }
             }
         } else {
-            statusBox = `<div style="background: #475569; color: #fff; padding: 5px 10px; border-radius: 6px; font-weight: 800; font-size: 1.2rem; text-align: center;">TBD - Aguardando Prazo</div>`;
+            statusBox = `
+                <div style="background: rgba(255, 255, 255, 0.05); border: 1px dashed #64748b; border-radius: 8px; padding: 10px; text-align: center; display: flex; flex-direction: column; justify-content: center; height: 100%;">
+                    <div style="color: #94a3b8; font-size: 0.9rem; font-weight: bold;">Aguardando Previsão</div>
+                </div>
+            `;
         }
 
         html += `
-            <div style="border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 15px; transition: all 0.3s; ${cardStyle}">
+            <div class="${cardClass}">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                     <div>
                         <h3 style="font-size: 2.2rem; margin: 0; color: #fff; font-weight: 900; letter-spacing: 2px;">${os.placa}</h3>
                         <p style="margin: 0; color: var(--text-secondary); font-size: 1rem;">O.S. #${os.id} | ${os.prioridade}</p>
                     </div>
-                    <div style="font-size: 2.5rem;">${os.prioridade === 'Urgente' ? '🔴' : '🔧'}</div>
+                    <div style="font-size: 2.5rem; display: flex; align-items: center; gap: 15px;">
+                        ${iconGiro}
+                        ${os.prioridade === 'Urgente' ? '🔴' : '🔧'}
+                    </div>
                 </div>
                 
-                <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px;">
+                <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; border-left: 3px solid #64748b;">
                     <p style="margin: 0 0 5px 0; color: #cbd5e1; font-size: 1.1rem;"><strong>Serviço:</strong> ${os.tipo}</p>
                     <p style="margin: 0; color: #94a3b8; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${os.problema || 'Nenhum detalhe informado'}</p>
                 </div>
                 
-                <div style="margin-top: auto;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: auto;">
+                    <div style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 10px; text-align: center;">
+                        <div style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">⏱️ Tempo no Pátio</div>
+                        <div style="color: var(--ccol-green-bright); font-size: 1.5rem; font-family: monospace; font-weight: bold;">
+                            ${tempoPatioStr}
+                        </div>
+                    </div>
                     ${statusBox}
-                    <p style="text-align: center; margin: 8px 0 0 0; color: var(--text-secondary); font-size: 0.9rem;">Previsão: ${os.previsao ? new Date(os.previsao).toLocaleString('pt-BR').substring(0, 16) : '--'}</p>
                 </div>
             </div>
         `;
