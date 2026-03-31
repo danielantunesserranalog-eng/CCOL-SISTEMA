@@ -475,11 +475,15 @@ async function salvarNovaOS() {
     }
 
     const status_inicial = (modoEntrada === 'agendada') ? 'Agendada' : 'Aguardando Oficina';
+    
+    // Captura o nome do usuário logado se ele existir
+    const usuarioLogado = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.nome : 'Usuário Desconhecido';
 
     const novaOS = {
         placa, go, motorista, data_abertura, hodometro, prioridade, tipo, problema, observacoes, detalhes_pneu,
         previsao: null, 
-        status: status_inicial
+        status: status_inicial,
+        aberto_por: usuarioLogado
     };
 
     const { error } = await supabaseClient.from('ordens_servico').insert([novaOS]);
@@ -713,6 +717,9 @@ function imprimirOS(id) {
     const dataConclusaoFormatada = os.data_conclusao ? formatarDataHoraBrasil(os.data_conclusao) : 'Em andamento';
     const numeroOSFormatado = String(os.id).padStart(4, '0');
     
+    // Captura o usuario que abriu a OS, ou o logado caso n seja encontrado
+    const infoAbertoPor = os.aberto_por || ((typeof currentUser !== 'undefined' && currentUser) ? currentUser.nome : 'N/A');
+    
     let painelBorracharia = '';
     if (os.tipo === 'Borracharia (PNEU)' && os.detalhes_pneu) {
         try {
@@ -732,7 +739,7 @@ function imprimirOS(id) {
     for(let i=0; i<5; i++) {
         linhasServicos += `
             <tr>
-                <td style="height: 30px;"></td>
+                <td style="height: 40px;"></td>
                 <td></td>
                 <td>1º( ) 2º( ) 3º( )</td>
                 <td></td>
@@ -754,10 +761,11 @@ function imprimirOS(id) {
             <style>
                 @page { size: landscape; margin: 10mm; }
                 body { font-family: Arial, sans-serif; font-size: 12px; margin: 20px; color: #000; }
+                .page-break { page-break-before: always; }
                 .header-container { display: flex; justify-content: space-between; align-items: center; border: 2px solid #000; padding: 10px; margin-bottom: 10px; background-color: #f0f0f0; }
                 .header-title { text-align: center; font-weight: bold; font-size: 16px; flex-grow: 1; }
                 .header-os-num { font-size: 18px; font-weight: bold; color: #dc2626; border: 2px solid #dc2626; padding: 5px 10px; background: #fff; border-radius: 4px; min-width: 80px; text-align: center; }
-                .info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px; }
+                .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
                 .info-box { border: 1px solid #000; padding: 8px; }
                 .full-box { border: 1px solid #000; padding: 8px; margin-bottom: 15px; }
                 table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
@@ -780,12 +788,13 @@ function imprimirOS(id) {
             <div class="info-grid">
                 <div class="info-box"><strong>Cavalo:</strong> ${os.placa}</div>
                 <div class="info-box"><strong>GO:</strong> ${os.go || '-'}</div>
+                <div class="info-box"><strong>Motorista:</strong> ${os.motorista}</div>
                 <div class="info-box"><strong>Abertura:</strong> ${dataAberturaFormatada}</div>
                 <div class="info-box"><strong>Conclusão:</strong> ${dataConclusaoFormatada}</div>
-                <div class="info-box"><strong>Motorista:</strong> ${os.motorista}</div>
-                <div class="info-box"><strong>Mecânico:</strong> ${os.mecanico_responsavel || 'A Definir'}</div>
                 <div class="info-box"><strong>Prioridade:</strong> ${os.prioridade}</div>
                 <div class="info-box"><strong>Status:</strong> ${os.status}</div>
+                <div class="info-box"><strong>Mecânico:</strong> ${os.mecanico_responsavel || 'A Definir'}</div>
+                <div class="info-box"><strong>Aberto por:</strong> ${infoAbertoPor}</div>
             </div>
 
             <div class="full-box" style="background: #fafafa; font-size: 11px;">
@@ -810,19 +819,26 @@ function imprimirOS(id) {
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 30%;">Descrição do Serviço</th>
-                        <th style="width: 10%;">Hora Início</th>
-                        <th style="width: 15%;">Compartimentos<br>(Tritrem)</th>
-                        <th style="width: 15%;">Eixo<br>LD/LE</th>
+                        <th style="width: 40%;">Descrição do Serviço</th>
+                        <th style="width: 8%;">Hora Início</th>
+                        <th style="width: 12%;">Compartimentos<br>(Tritrem)</th>
+                        <th style="width: 8%;">Eixo<br>LD/LE</th>
                         <th style="width: 10%;">PLACA</th>
-                        <th style="width: 10%;">Mecânico</th>
-                        <th style="width: 10%;">Hora Fim</th>
+                        <th style="width: 15%;">Mecânico</th>
+                        <th style="width: 7%;">Hora Fim</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${linhasServicos}
                 </tbody>
             </table>
+
+            <div class="signatures">
+                <div class="sig-line">Assinatura do CCOL</div>
+                <div class="sig-line">Assinatura do Encarregado de Manutenção</div>
+            </div>
+            
+            <div class="page-break"></div>
 
             <h3 style="margin: 0 0 5px 0;">Requisição de Peças / Almoxarifado:</h3>
             <table>
@@ -842,11 +858,6 @@ function imprimirOS(id) {
                 <div class="info-box" style="height: 60px;"><strong>Observações Administrativas:</strong><br>${os.observacoes || ''}</div>
             </div>
 
-            <div class="signatures">
-                <div class="sig-line">Assinatura do Condutor / CCOL</div>
-                <div class="sig-line">Assinatura do Encarregado de Manutenção</div>
-            </div>
-            
             <div style="text-align: center; margin-top: 20px;" class="no-print">
                 <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor: pointer; border: 1px solid #333; background: #fff;">🖨️ Imprimir Documento de O.S.</button>
             </div>
