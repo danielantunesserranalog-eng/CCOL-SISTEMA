@@ -309,7 +309,7 @@ function renderizarTabelaOS() {
     );
 
     if (filtradas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">Nenhuma O.S. em aberto encontrada.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px;">Nenhuma O.S. em aberto encontrada.</td></tr>';
         return;
     }
 
@@ -335,10 +335,13 @@ function renderizarTabelaOS() {
 
         botoesAcao += `<button onclick="deletarOS(${os.id})" style="background: transparent; border: none; color: #ef4444; font-size: 1.2rem; cursor: pointer; margin-left: 5px;" title="Excluir">🗑️</button>`;
 
+        const dataConclusaoStr = os.data_conclusao ? formatarDataHoraBrasil(os.data_conclusao) : '-';
+
         return `
             <tr>
                 <td><strong>#${os.id}</strong></td>
                 <td>${formatarDataHoraBrasil(os.data_abertura)}</td>
+                <td style="color: var(--text-secondary);">${dataConclusaoStr}</td>
                 <td style="color: var(--ccol-blue-bright); font-weight: bold;">${os.placa}</td>
                 <td>${os.motorista}</td>
                 <td>${os.tipo}</td>
@@ -375,7 +378,7 @@ function renderizarTabelaHistoricoOS() {
     });
 
     if (filtradas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">Nenhuma O.S. encontrada com esses filtros.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px;">Nenhuma O.S. encontrada com esses filtros.</td></tr>';
         return;
     }
 
@@ -395,10 +398,13 @@ function renderizarTabelaHistoricoOS() {
 
         botoesAcao += `<button onclick="deletarOS(${os.id})" style="background: transparent; border: none; color: #ef4444; font-size: 1.2rem; cursor: pointer; margin-left: 5px;" title="Excluir">🗑️</button>`;
 
+        const dataConclusaoStr = os.data_conclusao ? formatarDataHoraBrasil(os.data_conclusao) : '-';
+
         return `
             <tr>
                 <td><strong>#${os.id}</strong></td>
                 <td>${formatarDataHoraBrasil(os.data_abertura)}</td>
+                <td style="color: var(--text-secondary);">${dataConclusaoStr}</td>
                 <td style="color: var(--ccol-blue-bright); font-weight: bold;">${os.placa}</td>
                 <td>${os.motorista}</td>
                 <td>${os.tipo}</td>
@@ -598,14 +604,19 @@ async function deletarOS(id) {
 }
 
 // -------------------------------------------------------------
-// FUNÇÃO DE IMPRESSÃO ATUALIZADA (COM O Nº DA O.S. NO CABEÇALHO)
+// FUNÇÃO DE IMPRESSÃO ATUALIZADA (COM O Nº DA O.S. NO CABEÇALHO E HORA DE CONCLUSÃO)
 // -------------------------------------------------------------
 function imprimirOS(id) {
     const os = ordensServico.find(o => o.id === id);
     if (!os) return;
 
     const frota = frotasManutencao.find(f => f.cavalo === os.placa) || { carreta1: '', carreta2: '', carreta3: '' };
-    const dataFormatada = formatarDataHoraBrasil(os.data_abertura);
+    
+    // Formata a data de abertura
+    const dataAberturaFormatada = formatarDataHoraBrasil(os.data_abertura);
+    
+    // Formata a data de conclusão (se existir)
+    const dataConclusaoFormatada = os.data_conclusao ? formatarDataHoraBrasil(os.data_conclusao) : 'Em andamento';
     
     // Formata o ID para ter 4 dígitos (ex: de 5 vira 0005)
     const numeroOSFormatado = String(os.id).padStart(4, '0');
@@ -651,7 +662,7 @@ function imprimirOS(id) {
             <style>
                 body { font-family: Arial, sans-serif; font-size: 12px; margin: 20px; color: #000; }
                 
-                /* NOVO ESTILO PARA O CABEÇALHO DA O.S. */
+                /* ESTILO PARA O CABEÇALHO DA O.S. */
                 .header-container { 
                     display: flex; 
                     justify-content: space-between; 
@@ -670,7 +681,7 @@ function imprimirOS(id) {
                 .header-os-num { 
                     font-size: 18px; 
                     font-weight: bold; 
-                    color: #dc2626; /* Vermelho escuro para destaque */
+                    color: #dc2626; 
                     border: 2px solid #dc2626; 
                     padding: 5px 10px; 
                     background: #fff; 
@@ -679,7 +690,8 @@ function imprimirOS(id) {
                     text-align: center;
                 }
 
-                .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
+                /* GRID ATUALIZADO PARA 4 COLUNAS (8 ITENS NO TOTAL) */
+                .info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px; }
                 .info-box { border: 1px solid #000; padding: 8px; }
                 .full-box { border: 1px solid #000; padding: 8px; margin-bottom: 15px; }
                 table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
@@ -690,7 +702,6 @@ function imprimirOS(id) {
                 
                 @media print {
                     body { margin: 0; padding: 10px; }
-                    /* Garante que o fundo cinza e a borda vermelha apareçam na impressão */
                     .header-container, th, .full-box, .header-os-num { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                     .no-print { display: none; }
                 }
@@ -711,10 +722,12 @@ function imprimirOS(id) {
             <div class="info-grid">
                 <div class="info-box"><strong>Cavalo:</strong> ${os.placa}</div>
                 <div class="info-box"><strong>GO:</strong> ${os.go || '-'}</div>
-                <div class="info-box"><strong>Data:</strong> ${dataFormatada}</div>
+                <div class="info-box"><strong>Abertura:</strong> ${dataAberturaFormatada}</div>
+                <div class="info-box"><strong>Conclusão:</strong> ${dataConclusaoFormatada}</div>
                 <div class="info-box"><strong>Motorista:</strong> ${os.motorista}</div>
                 <div class="info-box"><strong>Mecânico:</strong> ${os.mecanico_responsavel || 'A Definir'}</div>
                 <div class="info-box"><strong>Prioridade:</strong> ${os.prioridade}</div>
+                <div class="info-box"><strong>Status:</strong> ${os.status}</div>
             </div>
 
             <div class="full-box" style="background: #fafafa; font-size: 11px;">
