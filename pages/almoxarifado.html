@@ -1,0 +1,102 @@
+<div class="action-bar" style="flex-wrap: wrap; gap: 15px;">
+    <h3 style="color: var(--text-primary); margin: 0; align-self: center;">📦 Almoxarifado / Estoque</h3>
+    <div class="button-group" style="margin-left: auto;">
+        <button class="btn-primary-blue" onclick="alternarTelaAlmoxarifado('lista')">📋 Controle de Estoque</button>
+        <button class="btn-primary-green" onclick="alternarTelaAlmoxarifado('novo')">➕ Cadastrar Produto</button>
+    </div>
+</div>
+
+<div id="telaListaAlmoxarifado" class="content-panel">
+    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3>Inventário Atual</h3>
+        <input type="text" id="searchEstoque" placeholder="Buscar peça ou produto..." class="search-input-dark" onkeyup="renderizarTabelaEstoque()">
+    </div>
+    
+    <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+        <div style="background: rgba(96, 165, 250, 0.1); border: 1px solid var(--ccol-blue-bright); padding: 15px; border-radius: 8px; flex: 1; text-align: center;">
+            <div style="color: var(--ccol-blue-bright); font-size: 0.9rem;">Total de Itens Cadastrados</div>
+            <div id="kpiTotalItens" style="font-size: 1.8rem; font-weight: bold; color: #fff;">0</div>
+        </div>
+        <div style="background: rgba(34, 197, 94, 0.1); border: 1px solid var(--ccol-green-bright); padding: 15px; border-radius: 8px; flex: 1; text-align: center;">
+            <div style="color: var(--ccol-green-bright); font-size: 0.9rem;">Valor Total em Estoque (R$)</div>
+            <div id="kpiValorTotal" style="font-size: 1.8rem; font-weight: bold; color: #fff;">R$ 0,00</div>
+        </div>
+        <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; padding: 15px; border-radius: 8px; flex: 1; text-align: center;">
+            <div style="color: #ef4444; font-size: 0.9rem;">Itens em Estoque Baixo</div>
+            <div id="kpiEstoqueBaixo" style="font-size: 1.8rem; font-weight: bold; color: #fff;">0</div>
+        </div>
+    </div>
+
+    <div class="table-modern-wrapper">
+        <table class="data-table-modern">
+            <thead>
+                <tr>
+                    <th>Cód. (ID)</th>
+                    <th>Produto / Descrição</th>
+                    <th>Categoria</th>
+                    <th>Em Estoque</th>
+                    <th>Valor Unit.</th>
+                    <th>Valor Total</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="tabelaEstoque"></tbody>
+        </table>
+    </div>
+</div>
+
+<div id="telaNovoProduto" class="content-panel form-panel-dark" style="display: none;">
+    <div class="panel-header"><h3>📦 Cadastro de Novo Produto / Peça</h3></div>
+    <div class="form-grid">
+        <div class="form-group-dark" style="grid-column: span 2;">
+            <label>Nome do Produto / Descrição Detalhada</label>
+            <input type="text" id="prodNome" placeholder="Ex: Filtro de Óleo Diesel Motor Cummins...">
+        </div>
+        
+        <div class="form-group-dark">
+            <label>Categoria</label>
+            <select id="prodCategoria" class="dark-select">
+                <option value="Peças Mecânicas">🔧 Peças Mecânicas</option>
+                <option value="Elétrica">⚡ Elétrica (Lâmpadas, Fios, Relés)</option>
+                <option value="Lubrificantes e Fluidos">🛢️ Lubrificantes e Fluidos</option>
+                <option value="Pneus e Borracharia">🛞 Pneus e Borracharia</option>
+                <option value="Ferramentas">🔨 Ferramentas</option>
+                <option value="EPI e Segurança">🦺 EPI e Segurança</option>
+                <option value="Outros">📦 Outros</option>
+            </select>
+        </div>
+
+        <div class="form-group-dark">
+            <label>Unidade de Medida</label>
+            <select id="prodUnidade" class="dark-select">
+                <option value="UN (Unidade)">UN (Unidade)</option>
+                <option value="PR (Par)">PR (Par)</option>
+                <option value="LT (Litro)">LT (Litros)</option>
+                <option value="GL (Galão)">GL (Galão)</option>
+                <option value="KG (Quilo)">KG (Quilogramas)</option>
+                <option value="MT (Metros)">MT (Metros)</option>
+                <option value="CX (Caixa)">CX (Caixa)</option>
+            </select>
+        </div>
+
+        <div class="form-group-dark">
+            <label>Quantidade Atual (Entrada Inicial)</label>
+            <input type="number" step="0.01" id="prodQtd" placeholder="Ex: 10">
+        </div>
+
+        <div class="form-group-dark">
+            <label>Estoque Mínimo (Alerta)</label>
+            <input type="number" step="0.01" id="prodMinimo" placeholder="Ex: 2">
+            <small style="color: #64748b; font-size: 0.75rem;">Avisa quando chegar nesta quantidade.</small>
+        </div>
+
+        <div class="form-group-dark">
+            <label>Valor Unitário (Custo R$)</label>
+            <input type="number" step="0.01" id="prodValor" placeholder="Ex: 45.90">
+        </div>
+
+        <div class="form-actions" style="grid-column: 1 / -1; margin-top: 15px;">
+            <button class="btn-primary-green btn-full" onclick="salvarProduto()">💾 Salvar Produto no Estoque</button>
+        </div>
+    </div>
+</div>

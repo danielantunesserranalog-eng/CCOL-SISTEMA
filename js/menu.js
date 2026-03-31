@@ -32,6 +32,12 @@ window.renderizarMenu = function() {
     }
 
     if (meusMenus.includes('os')) navHtml += `<button class="nav-item" onclick="navegarPara('os', this)">🛠️ Ordem de Serviço</button>`;
+    
+    // NOVO MENU: ALMOXARIFADO (Mostramos se ele tiver acesso a OS ou se for Admin)
+    if (meusMenus.includes('os') || isAdmin || meusMenus.includes('almoxarifado')) {
+        navHtml += `<button class="nav-item" onclick="navegarPara('almoxarifado', this)">📦 Almoxarifado</button>`;
+    }
+
     if (meusMenus.includes('troca')) navHtml += `<button class="nav-item" onclick="navegarPara('troca', this)">⏱️ Painel de Troca</button>`;
     if (meusMenus.includes('jornada')) navHtml += `<button class="nav-item" onclick="navegarPara('jornada', this)">⏳ Controle de Jornada</button>`;
     if (meusMenus.includes('treinamento')) navHtml += `<button class="nav-item" onclick="navegarPara('treinamento', this)">🎓 Treinamento</button>`;
@@ -89,6 +95,7 @@ window.navegarPara = async function(pagina, elementoClicado) {
         
         mainContent.innerHTML = pageCache[pagina];
 
+        // Chama as funções de renderização específicas de cada módulo após carregar o HTML
         if (pagina === 'escala' && typeof window.renderizarEscala === 'function') window.renderizarEscala();
         if (pagina === 'alocacao' && typeof window.renderizarAlocacao === 'function') window.renderizarAlocacao();
         if (pagina === 'motoristas' && typeof window.renderizarMotoristas === 'function') window.renderizarMotoristas();
@@ -96,6 +103,11 @@ window.navegarPara = async function(pagina, elementoClicado) {
         if (pagina === 'os' && typeof window.renderizarTabelaOS === 'function') window.renderizarTabelaOS();
         if (pagina === 'troca' && typeof window.renderizarTrocaTurno === 'function') window.renderizarTrocaTurno();
         if (pagina === 'treinamento' && typeof window.renderizarCronogramaTreinamento === 'function') window.renderizarCronogramaTreinamento();
+        
+        // NOVO GATILHO: ALMOXARIFADO
+        if (pagina === 'almoxarifado' && typeof window.alternarTelaAlmoxarifado === 'function') {
+            window.alternarTelaAlmoxarifado('lista');
+        }
         
         if (pagina === 'jornada') {
             if (typeof window.initJornadaTab === 'function') window.initJornadaTab();
