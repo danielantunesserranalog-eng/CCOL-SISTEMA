@@ -1,39 +1,68 @@
-<div class="action-bar" style="flex-wrap: wrap; gap: 15px;">
-    <h3 style="color: var(--text-primary); margin: 0; align-self: center;">📊 Dashboard: Status Frotas Operantes</h3>
-    <div class="button-group" style="margin-left: auto;">
-        <button class="btn-primary-green" onclick="imprimirStatusFrotaWhatsapp()" style="font-weight: 800; font-size: 1rem;">📱 Gerar Visão WhatsApp (Planilha)</button>
-        <button class="btn-primary-blue" onclick="renderizarStatusFrota()">🔄 Atualizar Status</button>
+<div class="action-bar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; background: var(--bg-card); padding: 15px; border-radius: 12px; border: 1px solid var(--border-dim);">
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <img src="assets/logo.png" alt="Logo" style="height: 50px; filter: drop-shadow(0 0 5px rgba(0,0,0,0.5));">
+        <div>
+            <h2 style="color: var(--ccol-blue-bright); margin: 0; font-weight: 800; letter-spacing: -0.5px;">DASHBOARD OPERACIONAL</h2>
+            <p style="color: var(--text-secondary); margin: 0; font-size: 0.85rem; text-transform: uppercase;">Status de Frota & Disponibilidade</p>
+        </div>
+    </div>
+    <div class="button-group">
+        <button class="btn-primary-blue" onclick="renderizarStatusFrota()" style="padding: 10px 20px;">🔄 Atualizar Dados</button>
+        <button class="btn-primary-green" onclick="imprimirStatusFrotaWhatsapp()" style="padding: 10px 20px; font-weight: bold;">📱 Print WhatsApp</button>
     </div>
 </div>
 
-<div class="quick-stats-header" style="justify-content: space-between; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 15px;">
-    <div class="q-stat" style="flex: 1; text-align: center; background: rgba(0,0,0,0.2); padding: 20px;">
-        <div style="color: var(--text-secondary); font-size: 1rem; text-transform: uppercase;">Total da Frota</div>
-        <div id="kpiTotalStatus" style="font-size: 2.5rem; color: #fff; font-weight: 900;">0</div>
+<div class="dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
+    
+    <div class="kpi-card-modern" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 5px solid var(--ccol-blue-bright); padding: 20px; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <div style="color: var(--text-secondary); font-size: 0.8rem; font-weight: 700; text-transform: uppercase;">Frota Total</div>
+                <div id="kpiTotalStatus" style="font-size: 2.2rem; font-weight: 900; color: #fff;">0</div>
+            </div>
+            <div style="font-size: 2rem; opacity: 0.3;">🚛</div>
+        </div>
     </div>
-    <div class="q-stat" style="flex: 1; text-align: center; background: rgba(22, 163, 74, 0.1); border: 1px solid #16a34a; padding: 20px;">
-        <div style="color: #16a34a; font-size: 1rem; text-transform: uppercase; font-weight: bold;">✅ Em Operação</div>
-        <div id="kpiOperandoStatus" style="font-size: 2.5rem; color: #16a34a; font-weight: 900;">0</div>
+
+    <div class="kpi-card-modern" style="background: linear-gradient(135deg, #064e3b 0%, #065f46 100%); border-left: 5px solid #10b981; padding: 20px; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <div style="color: #a7f3d0; font-size: 0.8rem; font-weight: 700; text-transform: uppercase;">Disponível</div>
+                <div id="kpiOperandoStatus" style="font-size: 2.2rem; font-weight: 900; color: #fff;">0</div>
+            </div>
+            <div style="font-size: 2rem; opacity: 0.5;">✅</div>
+        </div>
+        <div id="percOperando" style="font-size: 0.75rem; color: #a7f3d0; margin-top: 5px; font-weight: 600;">0% da frota</div>
     </div>
-    <div class="q-stat" style="flex: 1; text-align: center; background: rgba(220, 38, 38, 0.1); border: 1px solid #dc2626; padding: 20px;">
-        <div style="color: #dc2626; font-size: 1rem; text-transform: uppercase; font-weight: bold;">🚨 Parados / Manutenção</div>
-        <div id="kpiParadoStatus" style="font-size: 2.5rem; color: #dc2626; font-weight: 900;">0</div>
+
+    <div class="kpi-card-modern" style="background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%); border-left: 5px solid #ef4444; padding: 20px; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <div style="color: #fecaca; font-size: 0.8rem; font-weight: 700; text-transform: uppercase;">Em Manutenção</div>
+                <div id="kpiParadoStatus" style="font-size: 2.2rem; font-weight: 900; color: #fff;">0</div>
+            </div>
+            <div style="font-size: 2rem; opacity: 0.5;">🛠️</div>
+        </div>
+        <div id="percParado" style="font-size: 0.75rem; color: #fecaca; margin-top: 5px; font-weight: 600;">0% da frota</div>
     </div>
+
 </div>
 
-<div class="content-panel">
+<div class="content-panel" style="background: var(--bg-card); border-radius: 12px; overflow: hidden; border: 1px solid var(--border-dim);">
+    <div style="padding: 15px; border-bottom: 1px solid var(--border-dim); background: rgba(255,255,255,0.02);">
+        <h3 style="margin: 0; font-size: 1rem; color: var(--text-primary);">📋 Detalhamento de Veículos Parados</h3>
+    </div>
     <div class="table-modern-wrapper">
         <table class="data-table-modern">
             <thead>
-                <tr>
-                    <th style="width: 50px;">QT</th>
-                    <th style="width: 80px;">GO</th>
+                <tr style="background: #1e293b;">
                     <th>PLACA</th>
-                    <th>DESCRIÇÃO / MOTIVO</th>
-                    <th>DATA HORA QUE PAROU</th>
-                    <th>PREVISÃO RETORNO</th>
-                    <th>TEMPO PARADO</th>
-                    <th>STATUS MANUTENÇÃO</th>
+                    <th>GO</th>
+                    <th>MOTIVO DA PARADA (O.S.)</th>
+                    <th style="text-align: center;">INÍCIO</th>
+                    <th style="text-align: center;">PREVISÃO RETORNO</th>
+                    <th style="text-align: center;">TEMPO</th>
+                    <th style="text-align: center;">STATUS</th>
                 </tr>
             </thead>
             <tbody id="tabelaStatusFrota"></tbody>
