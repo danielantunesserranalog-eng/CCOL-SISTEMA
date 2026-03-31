@@ -54,10 +54,6 @@
             <input type="date" id="osDataAbertura" class="dark-select">
         </div>
         <div class="form-group-dark">
-            <label>Previsão de Conclusão (Data e Hora)</label>
-            <input type="datetime-local" id="osPrevisao" class="dark-select">
-        </div>
-        <div class="form-group-dark">
             <label>Hodômetro (Km Atual)</label>
             <input type="number" id="osHodometro" placeholder="Ex: 150500">
         </div>
@@ -115,7 +111,7 @@
             <input type="text" id="osObservacoes" placeholder="Ex: Lâmpada de freio queimada, rolamento roncando...">
         </div>
         <div class="form-actions" style="grid-column: 1 / -1; margin-top: 15px;">
-            <button class="btn-primary-green btn-full" onclick="salvarNovaOS()">💾 Salvar e Gerar O.S.</button>
+            <button class="btn-primary-green btn-full" onclick="salvarNovaOS()">💾 Salvar e Enviar para Oficina</button>
         </div>
     </div>
 </div>
@@ -172,7 +168,7 @@
 <div id="telaRelatorioOS" style="display: none;">
     <div class="quick-stats-header" style="justify-content: space-between; margin-bottom: 20px;">
         <div class="q-stat" style="flex: 1; text-align: center;">Total de O.S. <br><span id="kpiTotalOS" style="font-size: 2rem; color: #fff;">0</span></div>
-        <div class="q-stat" style="flex: 1; text-align: center; border-left: 3px solid #ef4444;">Abertas <br><span id="kpiAbertasOS" style="font-size: 2rem; color: #f87171;">0</span></div>
+        <div class="q-stat" style="flex: 1; text-align: center; border-left: 3px solid #ef4444;">Abertas/Manutenção <br><span id="kpiAbertasOS" style="font-size: 2rem; color: #f87171;">0</span></div>
         <div class="q-stat" style="flex: 1; text-align: center; border-left: 3px solid var(--ccol-green-bright);">Concluídas <br><span id="kpiConcluidasOS" style="font-size: 2rem; color: var(--ccol-green-bright);">0</span></div>
         <div class="q-stat" style="flex: 1; text-align: center; border-left: 3px solid var(--ccol-blue-bright);">Taxa de Conclusão <br><span id="kpiTaxaOS" style="font-size: 2rem; color: var(--ccol-blue-bright);">0%</span></div>
     </div>
@@ -212,4 +208,28 @@
     
     <div id="tvCardsContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(450px, 1fr)); gap: 25px;">
         </div>
+</div>
+
+<div id="modalAceiteOS" class="modal-overlay">
+    <div class="custom-modal">
+        <div class="modal-header">
+            <h3>🛠️ Aceitar Ordem de Serviço</h3>
+            <button class="close-modal" onclick="fecharModalAceiteOS()">×</button>
+        </div>
+        <div class="modal-body">
+            <p style="color: var(--text-secondary); font-size: 0.85rem;">Defina o mecânico responsável e o prazo estimado para iniciar a contagem na TV.</p>
+            <div class="form-group-dark">
+                <label>Mecânico / Equipe Responsável</label>
+                <input type="text" id="aceiteMecanico" placeholder="Ex: João Silva ou Equipe A">
+            </div>
+            <div class="form-group-dark">
+                <label>Previsão de Finalização</label>
+                <input type="datetime-local" id="aceitePrevisao" class="dark-select">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary-dark" onclick="fecharModalAceiteOS()">Cancelar</button>
+            <button class="btn-primary-blue" onclick="salvarAceiteOS()">Confirmar Aceite</button>
+        </div>
+    </div>
 </div>

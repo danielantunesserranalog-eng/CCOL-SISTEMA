@@ -3,6 +3,7 @@
 let ordensServico = [];
 let frotasManutencao = [];
 let tvInterval = null;
+let osSelecionadaParaAceite = null; // Variavel global para o modal de aceite
 
 async function carregarDadosOS() {
     try {
@@ -75,7 +76,8 @@ function renderizarRelatorioGerencialOS() {
     }
 
     const total = ordensServico.length;
-    const abertas = ordensServico.filter(o => o.status === 'Aberta').length;
+    // Ajustado para contar as "Aguardando Oficina" e "Em Manutenção"
+    const abertas = ordensServico.filter(o => o.status === 'Aguardando Oficina' || o.status === 'Em Manutenção').length;
     const concluidas = ordensServico.filter(o => o.status === 'Concluída').length;
     const taxa = ((concluidas / total) * 100).toFixed(1);
 
@@ -100,7 +102,7 @@ function renderizarRelatorioGerencialOS() {
             <div style="margin-bottom: 12px;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.85rem; color: #e2e8f0;">
                     <strong>${index + 1}º ${placa}</strong>
-                    <span>${qtd} O.S. abertas</span>
+                    <span>${qtd} O.S.</span>
                 </div>
                 <div style="background: rgba(255,255,255,0.1); border-radius: 4px; height: 12px; overflow: hidden;">
                     <div style="background: ${color}; width: ${percent}%; height: 100%; border-radius: 4px;"></div>
@@ -219,7 +221,6 @@ async function deletarFrotaManutencao(id) {
     }
 }
 
-
 // ==================== PARTE 3: ABERTURA E ACOMPANHAMENTO DE O.S. ====================
 
 function carregarSelectCavalosOS() {
@@ -276,9 +277,24 @@ function renderizarTabelaOS() {
     );
 
     tbody.innerHTML = filtradas.map(os => {
-        const statusBadge = os.status === 'Aberta' 
-            ? `<span style="background: rgba(239, 68, 68, 0.2); color: #f87171; padding: 4px 8px; border-radius: 4px;">Aberta</span>`
-            : `<span style="background: rgba(61, 220, 132, 0.2); color: var(--ccol-green-bright); padding: 4px 8px; border-radius: 4px;">Concluída</span>`;
+        let statusBadge = '';
+        if (os.status === 'Aguardando Oficina') {
+            statusBadge = `<span style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; padding: 4px 8px; border-radius: 4px;">Aguardando Oficina</span>`;
+        } else if (os.status === 'Em Manutenção') {
+            statusBadge = `<span style="background: rgba(96, 165, 250, 0.2); color: var(--ccol-blue-bright); padding: 4px 8px; border-radius: 4px;">Em Manutenção</span>`;
+        } else {
+            statusBadge = `<span style="background: rgba(61, 220, 132, 0.2); color: var(--ccol-green-bright); padding: 4px 8px; border-radius: 4px;">Concluída</span>`;
+        }
+
+        let botoesAcao = `<button onclick="imprimirOS(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-blue-bright); color: var(--ccol-blue-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer;">🖨️ Imprimir</button>`;
+        
+        if (os.status === 'Aguardando Oficina') {
+            botoesAcao += `<button onclick="abrirModalAceiteOS(${os.id})" style="background: var(--bg-panel); border: 1px solid #f59e0b; color: #f59e0b; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">🛠️ Aceitar O.S.</button>`;
+        } else if (os.status === 'Em Manutenção') {
+            botoesAcao += `<button onclick="concluirOS(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-green-bright); color: var(--ccol-green-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">✅ Concluir</button>`;
+        }
+
+        botoesAcao += `<button onclick="deletarOS(${os.id})" style="background: transparent; border: none; color: #ef4444; font-size: 1.2rem; cursor: pointer; margin-left: 5px;" title="Excluir">🗑️</button>`;
 
         return `
             <tr>
@@ -288,11 +304,7 @@ function renderizarTabelaOS() {
                 <td>${os.motorista}</td>
                 <td>${os.tipo}</td>
                 <td>${statusBadge}</td>
-                <td>
-                    <button onclick="imprimirOS(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-blue-bright); color: var(--ccol-blue-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer;">🖨️ Imprimir</button>
-                    <button onclick="concluirOS(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-green-bright); color: var(--ccol-green-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">✅ Concluir</button>
-                    <button onclick="deletarOS(${os.id})" style="background: transparent; border: none; color: #ef4444; font-size: 1.2rem; cursor: pointer; margin-left: 5px;" title="Excluir">🗑️</button>
-                </td>
+                <td>${botoesAcao}</td>
             </tr>
         `;
     }).join('');
@@ -307,7 +319,6 @@ async function salvarNovaOS() {
     const tipo = document.getElementById('osTipo').value;
     const problema = document.getElementById('osProblema').value;
     const observacoes = document.getElementById('osObservacoes').value;
-    const previsao = document.getElementById('osPrevisao').value;
 
     if (!placa || !motorista) {
         alert("Conjunto/Cavalo e Motorista são obrigatórios!");
@@ -326,10 +337,11 @@ async function salvarNovaOS() {
         });
     }
 
+    // A O.S. agora nasce como Aguardando Oficina e SEM previsão
     const novaOS = {
         placa, go, motorista, data_abertura, hodometro, prioridade, tipo, problema, observacoes, detalhes_pneu,
-        previsao: previsao || null,
-        status: 'Aberta'
+        previsao: null, 
+        status: 'Aguardando Oficina'
     };
 
     const { error } = await supabaseClient.from('ordens_servico').insert([novaOS]);
@@ -348,10 +360,53 @@ async function salvarNovaOS() {
     document.getElementById('osPneuPosicao').value = '';
     document.getElementById('osPneuServico').value = '';
     document.getElementById('osPneuMotivo').value = '';
-    document.getElementById('osPrevisao').value = '';
 
-    alert("O.S. Aberta com sucesso!");
+    alert("O.S. Aberta! Agora a Oficina precisa aceitar o chamado.");
     alternarTelaOS('lista');
+}
+
+// Lógica do Modal de Aceite
+function abrirModalAceiteOS(id) {
+    osSelecionadaParaAceite = id;
+    document.getElementById('aceiteMecanico').value = '';
+    document.getElementById('aceitePrevisao').value = '';
+    document.getElementById('modalAceiteOS').classList.add('show');
+}
+
+function fecharModalAceiteOS() {
+    osSelecionadaParaAceite = null;
+    document.getElementById('modalAceiteOS').classList.remove('show');
+}
+
+async function salvarAceiteOS() {
+    if (!osSelecionadaParaAceite) return;
+    
+    const mecanico = document.getElementById('aceiteMecanico').value.trim();
+    const previsao = document.getElementById('aceitePrevisao').value;
+
+    if (!mecanico || !previsao) {
+        alert("Preencha o mecânico/equipe responsável e a previsão de entrega!");
+        return;
+    }
+
+    const { error } = await supabaseClient
+        .from('ordens_servico')
+        .update({ 
+            status: 'Em Manutenção', 
+            previsao: previsao,
+            mecanico_responsavel: mecanico 
+        })
+        .eq('id', osSelecionadaParaAceite);
+
+    if (!error) {
+        alert("O.S. Aceita com sucesso! O relógio na TV foi ativado.");
+        fecharModalAceiteOS();
+        await carregarDadosOS();
+        renderizarTabelaOS();
+    } else {
+        alert("Erro ao aceitar a O.S.");
+        console.error(error);
+    }
 }
 
 async function concluirOS(id) {
@@ -457,7 +512,7 @@ function imprimirOS(id) {
                 <div class="info-box"><strong>GO:</strong> ${os.go || '-'}</div>
                 <div class="info-box"><strong>Data Abertura:</strong> ${dataFormatada}</div>
                 <div class="info-box"><strong>Motorista:</strong> ${os.motorista}</div>
-                <div class="info-box"><strong>Hodômetro (Km):</strong> ${os.hodometro || 'Não informado'}</div>
+                <div class="info-box"><strong>Mecânico:</strong> ${os.mecanico_responsavel || 'A Definir'}</div>
                 <div class="info-box"><strong>Prioridade:</strong> ${os.prioridade}</div>
             </div>
 
@@ -577,16 +632,16 @@ function renderizarCardsTV() {
     document.getElementById('tvRelogio').innerText = agora.toLocaleTimeString('pt-BR');
     document.getElementById('tvData').innerText = agora.toLocaleDateString('pt-BR');
 
-    const osAbertas = ordensServico.filter(o => o.status === 'Aberta');
+    const osAtivas = ordensServico.filter(o => o.status === 'Aguardando Oficina' || o.status === 'Em Manutenção');
     
-    if (osAbertas.length === 0) {
+    if (osAtivas.length === 0) {
         container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: var(--ccol-green-bright); font-size: 2rem; margin-top: 50px;">✅ Pátio Livre! Nenhuma manutenção pendente.</div>';
         return;
     }
 
     let html = '';
     
-    osAbertas.forEach(os => {
+    osAtivas.forEach(os => {
         // Data de entrada real no pátio (usando created_at do banco)
         const dataEntrada = os.created_at ? new Date(os.created_at) : new Date(os.data_abertura + 'T00:00:00');
         const diffEntrada = agora - dataEntrada;
@@ -601,7 +656,19 @@ function renderizarCardsTV() {
         let cardClass = 'tv-card-modern';
         let iconGiro = '';
 
-        if (os.previsao) {
+        if (os.status === 'Aguardando Oficina') {
+            // Caminhão no pátio, mas ninguém da oficina aceitou ainda
+            cardClass += ' tv-card-atencao';
+            statusBox = `
+                <div style="background: rgba(245, 158, 11, 0.1); border: 1px dashed #f59e0b; border-radius: 8px; padding: 10px; text-align: center; display: flex; flex-direction: column; justify-content: center; height: 100%;">
+                    <div style="color: #f59e0b; font-size: 0.95rem; font-weight: 800; text-transform: uppercase;">⚠️ Aguardando Aceite</div>
+                    <div style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 5px;">A Oficina precisa definir o prazo</div>
+                </div>
+            `;
+            iconGiro = `<div class="spinner-warning" title="Aguardando Aceite"></div>`;
+            
+        } else if (os.status === 'Em Manutenção' && os.previsao) {
+            // Oficina aceitou e tem previsão rodando
             const dataPrev = new Date(os.previsao);
             const diffPrev = dataPrev - agora;
             
@@ -651,12 +718,6 @@ function renderizarCardsTV() {
                     iconGiro = `<div class="spinner-blue" title="No Prazo"></div>`;
                 }
             }
-        } else {
-            statusBox = `
-                <div style="background: rgba(255, 255, 255, 0.05); border: 1px dashed #64748b; border-radius: 8px; padding: 10px; text-align: center; display: flex; flex-direction: column; justify-content: center; height: 100%;">
-                    <div style="color: #94a3b8; font-size: 0.9rem; font-weight: bold;">Aguardando Previsão</div>
-                </div>
-            `;
         }
 
         html += `
@@ -674,6 +735,7 @@ function renderizarCardsTV() {
                 
                 <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; border-left: 3px solid #64748b;">
                     <p style="margin: 0 0 5px 0; color: #cbd5e1; font-size: 1.1rem;"><strong>Serviço:</strong> ${os.tipo}</p>
+                    ${os.mecanico_responsavel ? `<p style="margin: 0 0 5px 0; color: var(--ccol-green-bright); font-size: 0.95rem;">👨‍🔧 Mecânico: <strong>${os.mecanico_responsavel}</strong></p>` : ''}
                     <p style="margin: 0; color: #94a3b8; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${os.problema || 'Nenhum detalhe informado'}</p>
                 </div>
                 
