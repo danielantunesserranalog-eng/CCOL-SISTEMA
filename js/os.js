@@ -5,14 +5,14 @@ let frotasManutencao = [];
 
 async function carregarDadosOS() {
     try {
-        const { data: osData, error: osError } = await supabase
+        const { data: osData, error: osError } = await supabaseClient
             .from('ordens_servico')
             .select('*')
             .order('created_at', { ascending: false });
         
         if (!osError && osData) ordensServico = osData;
 
-        const { data: frotaData, error: frotaError } = await supabase
+        const { data: frotaData, error: frotaError } = await supabaseClient
             .from('frotas_manutencao')
             .select('*')
             .order('cavalo', { ascending: true });
@@ -166,10 +166,10 @@ async function salvarFrotaManutencao() {
     const dadosFrota = { cavalo, go, carreta1, carreta2, carreta3 };
 
     if (frotaExistente) {
-        const { error } = await supabase.from('frotas_manutencao').update(dadosFrota).eq('id', frotaExistente.id);
+        const { error } = await supabaseClient.from('frotas_manutencao').update(dadosFrota).eq('id', frotaExistente.id);
         if (error) { alert("Erro ao atualizar frota."); return; }
     } else {
-        const { error } = await supabase.from('frotas_manutencao').insert([dadosFrota]);
+        const { error } = await supabaseClient.from('frotas_manutencao').insert([dadosFrota]);
         if (error) { alert("Erro ao inserir frota."); return; }
     }
 
@@ -209,7 +209,7 @@ function renderizarTabelaFrotaManutencao() {
 
 async function deletarFrotaManutencao(id) {
     if (confirm("Excluir este conjunto da lista de manutenção?")) {
-        const { error } = await supabase.from('frotas_manutencao').delete().eq('id', id);
+        const { error } = await supabaseClient.from('frotas_manutencao').delete().eq('id', id);
         if (!error) {
             await carregarDadosOS();
             renderizarTabelaFrotaManutencao();
@@ -330,7 +330,7 @@ async function salvarNovaOS() {
         status: 'Aberta'
     };
 
-    const { error } = await supabase.from('ordens_servico').insert([novaOS]);
+    const { error } = await supabaseClient.from('ordens_servico').insert([novaOS]);
 
     if (error) {
         alert("Erro ao gravar O.S.");
@@ -353,7 +353,7 @@ async function salvarNovaOS() {
 
 async function concluirOS(id) {
     if (confirm("Marcar O.S. como concluída?")) {
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('ordens_servico')
             .update({ status: 'Concluída' })
             .eq('id', id);
@@ -369,7 +369,7 @@ async function concluirOS(id) {
 
 async function deletarOS(id) {
     if (confirm("Deseja realmente excluir esta O.S.?")) {
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('ordens_servico')
             .delete()
             .eq('id', id);
