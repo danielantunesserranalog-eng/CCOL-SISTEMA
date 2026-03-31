@@ -108,18 +108,50 @@ function formatarDataHoraBrasil(dataString) {
 function renderizarRelatorioGerencialOS() {
     if (ordensServico.length === 0) {
         document.getElementById('kpiTotalOS').innerText = '0';
+        document.getElementById('kpiAbertasOS').innerText = '0';
+        document.getElementById('kpiConcluidasOS').innerText = '0';
+        document.getElementById('kpiTaxaOS').innerText = '0%';
+        if(document.getElementById('kpiTempoMedioOS')) document.getElementById('kpiTempoMedioOS').innerText = '0h 0m';
         return;
     }
 
     const total = ordensServico.length;
     const abertas = ordensServico.filter(o => o.status === 'Aguardando Oficina' || o.status === 'Em Manutenção').length;
-    const concluidas = ordensServico.filter(o => o.status === 'Concluída').length;
-    const taxa = ((concluidas / total) * 100).toFixed(1);
+    const concluidas = ordensServico.filter(o => o.status === 'Concluída');
+    const taxa = ((concluidas.length / total) * 100).toFixed(1);
 
     document.getElementById('kpiTotalOS').innerText = total;
     document.getElementById('kpiAbertasOS').innerText = abertas;
-    document.getElementById('kpiConcluidasOS').innerText = concluidas;
+    document.getElementById('kpiConcluidasOS').innerText = concluidas.length;
     document.getElementById('kpiTaxaOS').innerText = taxa + '%';
+
+    // === CÁLCULO DE TEMPO MÉDIO ===
+    let tempoTotalMs = 0;
+    let qtdValidas = 0;
+
+    concluidas.forEach(o => {
+        if (o.data_abertura && o.data_conclusao) {
+            const inicio = new Date(o.data_abertura);
+            const fim = new Date(o.data_conclusao);
+            
+            if (!isNaN(inicio) && !isNaN(fim) && fim > inicio) {
+                tempoTotalMs += (fim - inicio);
+                qtdValidas++;
+            }
+        }
+    });
+
+    let textoTempoMedio = '0h 0m';
+    if (qtdValidas > 0) {
+        const mediaMs = tempoTotalMs / qtdValidas;
+        const mediaHoras = Math.floor(mediaMs / (1000 * 60 * 60));
+        const mediaMinutos = Math.floor((mediaMs % (1000 * 60 * 60)) / (1000 * 60));
+        textoTempoMedio = `${mediaHoras}h ${mediaMinutos}m`;
+    }
+    
+    const elTempoMedio = document.getElementById('kpiTempoMedioOS');
+    if (elTempoMedio) elTempoMedio.innerText = textoTempoMedio;
+    // ===================================
 
     const porCavalo = {};
     ordensServico.forEach(o => { porCavalo[o.placa] = (porCavalo[o.placa] || 0) + 1; });
@@ -414,7 +446,6 @@ function renderizarTabelaHistoricoOS() {
         `;
     }).join('');
 }
-
 
 async function salvarNovaOS() {
     const placa = document.getElementById('osPlaca').value;
