@@ -2,6 +2,7 @@
 
 let ordensServico = [];
 let frotasManutencao = [];
+let tvInterval = null;
 
 async function carregarDadosOS() {
     try {
@@ -28,6 +29,7 @@ async function alternarTelaOS(tela) {
     const telaNova = document.getElementById('telaNovaOS');
     const telaFrota = document.getElementById('telaFrotaOS');
     const telaRelatorio = document.getElementById('telaRelatorioOS');
+    const telaPainelTV = document.getElementById('telaPainelTV'); // Nova tela
     
     // Verificação de Segurança para o Relatório Gerencial
     if (tela === 'relatorio') {
@@ -42,6 +44,7 @@ async function alternarTelaOS(tela) {
     telaNova.style.display = 'none';
     telaFrota.style.display = 'none';
     if(telaRelatorio) telaRelatorio.style.display = 'none';
+    if(telaPainelTV) telaPainelTV.style.display = 'none';
 
     await carregarDadosOS();
 
@@ -60,6 +63,8 @@ async function alternarTelaOS(tela) {
     } else if (tela === 'relatorio') {
         telaRelatorio.style.display = 'block';
         renderizarRelatorioGerencialOS();
+    } else if (tela === 'painel_tv') {
+        entrarModoTV();
     }
 }
 
@@ -307,6 +312,7 @@ async function salvarNovaOS() {
     const tipo = document.getElementById('osTipo').value;
     const problema = document.getElementById('osProblema').value;
     const observacoes = document.getElementById('osObservacoes').value;
+    const previsao = document.getElementById('osPrevisao').value;
 
     if (!placa || !motorista) {
         alert("Conjunto/Cavalo e Motorista são obrigatórios!");
@@ -327,6 +333,7 @@ async function salvarNovaOS() {
 
     const novaOS = {
         placa, go, motorista, data_abertura, hodometro, prioridade, tipo, problema, observacoes, detalhes_pneu,
+        previsao: previsao || null,
         status: 'Aberta'
     };
 
@@ -346,6 +353,7 @@ async function salvarNovaOS() {
     document.getElementById('osPneuPosicao').value = '';
     document.getElementById('osPneuServico').value = '';
     document.getElementById('osPneuMotivo').value = '';
+    document.getElementById('osPrevisao').value = '';
 
     alert("O.S. Aberta com sucesso!");
     alternarTelaOS('lista');
@@ -527,4 +535,123 @@ function imprimirOS(id) {
     const janela = window.open('', '', 'width=900,height=800');
     janela.document.write(htmlImpressao);
     janela.document.close();
+}
+
+// ==================== PARTE 4: MODO TV (ACOMPANHAMENTO EM TEMPO REAL) ====================
+
+function entrarModoTV() {
+    // Esconde a interface do sistema para ficar focado na TV
+    document.querySelector('.main-header').style.display = 'none';
+    const menuContainer = document.getElementById('menu-container');
+    if (menuContainer) menuContainer.style.display = 'none';
+    const mainNav = document.querySelector('.main-nav');
+    if (mainNav) mainNav.style.display = 'none';
+    
+    document.getElementById('conteudo-principal').style.padding = '0';
+    document.getElementById('telaPainelTV').style.display = 'block';
+    
+    // Pede ao navegador para colocar em ecrã inteiro
+    if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(err => console.log(err));
+    }
+    
+    renderizarCardsTV();
+    tvInterval = setInterval(renderizarCardsTV, 1000); 
+}
+
+function sairModoTV() {
+    if (tvInterval) clearInterval(tvInterval);
+    
+    if (document.exitFullscreen && document.fullscreenElement) {
+        document.exitFullscreen();
+    }
+    
+    // Devolve o layout normal do sistema
+    document.querySelector('.main-header').style.display = 'flex';
+    const menuContainer = document.getElementById('menu-container');
+    if (menuContainer) menuContainer.style.display = 'block';
+    const mainNav = document.querySelector('.main-nav');
+    if (mainNav) mainNav.style.display = 'flex';
+    
+    document.getElementById('conteudo-principal').style.padding = '25px';
+    
+    alternarTelaOS('lista');
+}
+
+function renderizarCardsTV() {
+    const container = document.getElementById('tvCardsContainer');
+    const agora = new Date();
+    
+    document.getElementById('tvRelogio').innerText = agora.toLocaleTimeString('pt-BR');
+    document.getElementById('tvData').innerText = agora.toLocaleDateString('pt-BR');
+
+    // Filtra apenas as O.S. abertas
+    const osAbertas = ordensServico.filter(o => o.status === 'Aberta');
+    
+    if (osAbertas.length === 0) {
+        container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: var(--ccol-green-bright); font-size: 2rem; margin-top: 50px;">✅ Pátio Livre! Nenhuma manutenção pendente.</div>';
+        return;
+    }
+
+    let html = '';
+    
+    osAbertas.forEach(os => {
+        let statusBox = '';
+        let cardStyle = 'border: 2px solid #334155; background: #1e293b;';
+        let tempoRestanteStr = 'Sem previsão';
+        
+        if (os.previsao) {
+            const dataPrev = new Date(os.previsao);
+            const diffMs = dataPrev - agora;
+            
+            if (diffMs < 0) {
+                // ATRASADO
+                cardStyle = 'border: 2px solid #ef4444; background: rgba(239, 68, 68, 0.1); animation: piscar-tv 1.5s infinite; box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);';
+                
+                const horasAtraso = Math.abs(Math.floor(diffMs / (1000 * 60 * 60)));
+                const minAtraso = Math.abs(Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60)));
+                tempoRestanteStr = `ATRASADO ${horasAtraso}h ${minAtraso}m`;
+                
+                statusBox = `<div style="background: #ef4444; color: #fff; padding: 5px 10px; border-radius: 6px; font-weight: 800; font-size: 1.2rem; text-align: center;">🚨 ${tempoRestanteStr}</div>`;
+            } else {
+                // NO PRAZO
+                const horas = Math.floor(diffMs / (1000 * 60 * 60));
+                const min = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                
+                if (horas < 2) {
+                    cardStyle = 'border: 2px solid #f59e0b; background: rgba(245, 158, 11, 0.1);';
+                    statusBox = `<div style="background: #f59e0b; color: #000; padding: 5px 10px; border-radius: 6px; font-weight: 800; font-size: 1.2rem; text-align: center;">⚠️ Faltam ${horas}h ${min}m</div>`;
+                } else {
+                    cardStyle = 'border: 2px solid var(--ccol-blue-bright); background: rgba(96, 165, 250, 0.05);';
+                    statusBox = `<div style="background: var(--ccol-blue-bright); color: #000; padding: 5px 10px; border-radius: 6px; font-weight: 800; font-size: 1.2rem; text-align: center;">⏳ Faltam ${horas}h ${min}m</div>`;
+                }
+            }
+        } else {
+            statusBox = `<div style="background: #475569; color: #fff; padding: 5px 10px; border-radius: 6px; font-weight: 800; font-size: 1.2rem; text-align: center;">TBD - Aguardando Prazo</div>`;
+        }
+
+        html += `
+            <div style="border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 15px; transition: all 0.3s; ${cardStyle}">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div>
+                        <h3 style="font-size: 2.2rem; margin: 0; color: #fff; font-weight: 900; letter-spacing: 2px;">${os.placa}</h3>
+                        <p style="margin: 0; color: var(--text-secondary); font-size: 1rem;">O.S. #${os.id} | ${os.prioridade}</p>
+                    </div>
+                    <div style="font-size: 2.5rem;">${os.prioridade === 'Urgente' ? '🔴' : '🔧'}</div>
+                </div>
+                
+                <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px;">
+                    <p style="margin: 0 0 5px 0; color: #cbd5e1; font-size: 1.1rem;"><strong>Serviço:</strong> ${os.tipo}</p>
+                    <p style="margin: 0; color: #94a3b8; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${os.problema || 'Nenhum detalhe informado'}</p>
+                </div>
+                
+                <div style="margin-top: auto;">
+                    ${statusBox}
+                    <p style="text-align: center; margin: 8px 0 0 0; color: var(--text-secondary); font-size: 0.9rem;">Previsão: ${os.previsao ? new Date(os.previsao).toLocaleString('pt-BR').substring(0, 16) : '--'}</p>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
 }
