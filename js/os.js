@@ -752,6 +752,7 @@ function imprimirOS(id) {
         <head>
             <title>O.S. #${os.id} - ${os.placa}</title>
             <style>
+                @page { size: landscape; margin: 10mm; }
                 body { font-family: Arial, sans-serif; font-size: 12px; margin: 20px; color: #000; }
                 .header-container { display: flex; justify-content: space-between; align-items: center; border: 2px solid #000; padding: 10px; margin-bottom: 10px; background-color: #f0f0f0; }
                 .header-title { text-align: center; font-weight: bold; font-size: 16px; flex-grow: 1; }
