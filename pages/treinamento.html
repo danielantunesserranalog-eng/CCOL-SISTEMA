@@ -15,9 +15,16 @@
             <option value="Dia">Apenas Dia (Equipes A, B, C)</option>
             <option value="Noite">Apenas Noite (Equipes D, E, F)</option>
         </select>
+
+        <div style="display: flex; align-items: center; gap: 5px; margin-left: 10px; background: rgba(0,0,0,0.2); padding: 5px 10px; border-radius: 6px;">
+            <input type="checkbox" id="apenasDiasUteis" checked style="cursor: pointer;">
+            <label for="apenasDiasUteis" style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600; cursor: pointer; margin:0;">Seg a Sex</label>
+        </div>
     </div>
-    <div class="button-group">
+    <div class="button-group" style="display: flex; gap: 10px;">
         <button class="btn-primary-green" onclick="gerarTreinamentoAuto()">⚡ Gerar Cronograma</button>
+        <button class="btn-primary-blue" style="background: var(--ccol-blue-bright); color: #000;" onclick="imprimirCronogramaPDF()">🖨️ Imprimir PDF</button>
+        <button class="btn-primary-green" style="background: #10b981; color: #fff;" onclick="exportarCronogramaExcel()">📊 Exportar Excel</button>
     </div>
 </div>
 

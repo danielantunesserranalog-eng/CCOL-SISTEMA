@@ -1,5 +1,16 @@
 // ==================== MÓDULO: TREINAMENTO MASTER DRIVE ====================
 
+// Função inteligente que identifica 1, 2, 3 ou mais viagens no texto
+function getViagensNecessarias(str) {
+    if (!str) return 1;
+    let nums = str.match(/\d+/g);
+    if (nums && nums.length > 0) {
+        let max = Math.max(...nums.map(Number));
+        return max > 0 ? max : 1;
+    }
+    return 1;
+}
+
 const listaViagemAssistida = [
     { nome: "JOSÉ FERREIRA DE OLIVEIRA", class: "C", viagens: "1 VIAGEM" },
     { nome: "BENILTON SANTOS DE OLIVEIRA", class: "C", viagens: "1 VIAGEM" },
@@ -191,22 +202,29 @@ window.renderizarCronogramaTreinamento = function() {
     }
 
     let alunosPendentes = listaViagemAssistida.filter(req => {
-        const jaConcluido = treinamentosConcluidos.some(c => strNormalize(c.motoristaNome) === strNormalize(req.nome));
-        const jaAgendado = cronogramaTreinamento.some(a => strNormalize(a.motoristaNome) === strNormalize(req.nome));
-        return !jaConcluido && !jaAgendado;
+        let necessarias = getViagensNecessarias(req.viagens);
+        let realizadas = treinamentosConcluidos.filter(c => strNormalize(c.motoristaNome) === strNormalize(req.nome)).length;
+        let agendadas = cronogramaTreinamento.filter(a => strNormalize(a.motoristaNome) === strNormalize(req.nome)).length;
+        return (realizadas + agendadas) < necessarias;
     });
 
     if (alunosPendentes.length === 0) {
         tbodyPendentes.innerHTML = '<tr><td colspan="4" style="padding: 20px; text-align: center; color: var(--ccol-green-bright);">Todos os motoristas da lista já foram agendados ou concluídos! 🎉</td></tr>';
     } else {
-        tbodyPendentes.innerHTML = alunosPendentes.map(p => `
+        tbodyPendentes.innerHTML = alunosPendentes.map(p => {
+            let necessarias = getViagensNecessarias(p.viagens);
+            let realizadas = treinamentosConcluidos.filter(c => strNormalize(c.motoristaNome) === strNormalize(p.nome)).length;
+            let agendadas = cronogramaTreinamento.filter(a => strNormalize(a.motoristaNome) === strNormalize(p.nome)).length;
+            let faltando = necessarias - (realizadas + agendadas);
+
+            return `
             <tr style="background-color: rgba(251, 146, 60, 0.05);">
                 <td style="color: var(--text-primary); font-size: 0.95rem;"><strong>${p.nome}</strong></td>
                 <td><span style="background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.8rem;">${p.class}</span></td>
-                <td style="font-size: 0.9rem;">${p.viagens}</td>
+                <td style="font-size: 0.9rem;">Falta: ${faltando} de ${necessarias} Viagem(ns)</td>
                 <td><span style="background: #fb923c; color: #000; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">PENDENTE</span></td>
             </tr>
-        `).join('');
+        `}).join('');
     }
 
     if (treinamentosConcluidos.length === 0) {
@@ -262,106 +280,248 @@ window.concluirTreinamento = async function(id) {
     }
 }
 
-// SOLUÇÃO: GERAÇÃO COM LIMITADOR DE DIAS (PROMPT)
 window.gerarTreinamentoAuto = async function() {
     if(instrutoresMaster.length === 0) { alert('⚠️ Adicione um Instrutor Master Drive primeiro!'); return; }
     
     const dataInicioInput = document.getElementById('treinamentoDataInicio').value;
     const instrutorSelecionado = document.getElementById('treinamentoInstrutor').value;
     const turnoSelecionado = document.getElementById('treinamentoTurno').value;
+    const checkboxDiasUteis = document.getElementById('apenasDiasUteis');
+    const apenasDiasUteis = checkboxDiasUteis ? checkboxDiasUteis.checked : true;
 
     if(!dataInicioInput) { alert('⚠️ Selecione a Data de Início para agendar o treinamento!'); return; }
     if(!instrutorSelecionado) { alert('⚠️ Selecione qual Instrutor aplicará o treinamento!'); return; }
     
     let alunosPendentes = listaViagemAssistida.filter(req => {
-        const jaConcluido = treinamentosConcluidos.some(c => strNormalize(c.motoristaNome) === strNormalize(req.nome));
-        const jaAgendado = cronogramaTreinamento.some(a => strNormalize(a.motoristaNome) === strNormalize(req.nome));
-        return !jaConcluido && !jaAgendado;
+        let necessarias = getViagensNecessarias(req.viagens);
+        let realizadas = treinamentosConcluidos.filter(c => strNormalize(c.motoristaNome) === strNormalize(req.nome)).length;
+        let agendadas = cronogramaTreinamento.filter(a => strNormalize(a.motoristaNome) === strNormalize(req.nome)).length;
+        return (realizadas + agendadas) < necessarias;
     });
 
     if(alunosPendentes.length === 0) { alert('✅ Todos os motoristas da Lista do PDF já foram agendados ou concluídos!'); return; }
 
-    let msgPrompt = `Existem ${alunosPendentes.length} motoristas aguardando agendamento.\n\nQuantos dias/motoristas você deseja agendar para o instrutor ${instrutorSelecionado} a partir da data selecionada?\n(Digite um número, ex: 6)`;
-    if (turnoSelecionado !== 'Todos') msgPrompt += `\n(Aplicando filtro para agendar apenas quem é do turno do ${turnoSelecionado})`;
-    
-    let qtdDiasResposta = prompt(msgPrompt);
-    
-    if (qtdDiasResposta === null) {
-        return; // Usuário clicou em cancelar
+    if(!confirm(`Deseja gerar o cronograma automaticamente para TODOS os motoristas pendentes a partir do dia ${dataInicioInput.split('-').reverse().join('/')}?`)) {
+        return; 
     }
 
-    let quantidadeDias = parseInt(qtdDiasResposta);
-    if (isNaN(quantidadeDias) || quantidadeDias <= 0) {
-        alert("⚠️ Por favor, digite um número válido maior que zero.");
-        return;
-    }
-
-    if (quantidadeDias > alunosPendentes.length) {
-        alert(`Como temos apenas ${alunosPendentes.length} motoristas pendentes, o sistema vai agendar o máximo possível (${alunosPendentes.length}).`);
-        quantidadeDias = alunosPendentes.length;
-    }
-
-    // Agora geramos apenas a quantidade exata de dias que o utilizador escolheu
-    const dias = [];
     const dataBase = new Date(dataInicioInput + 'T00:00:00');
     const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-    for (let i = 0; i < quantidadeDias; i++) {
-        const data = new Date(dataBase);
-        data.setDate(dataBase.getDate() + i);
-        const dataStr = data.toISOString().split('T')[0];
-        dias.push({ dateKey: dataStr, diaTexto: diasSemana[data.getDay()], diaNum: `${String(data.getDate()).padStart(2, '0')}/${String(data.getMonth()+1).padStart(2, '0')}` });
-    }
-
+    let dataAtual = new Date(dataBase);
     let agendamentosNovos = 0;
+    
+    let diasSemAgendarNinguem = 0; 
 
-    // USO DO FOR LOOP COM ASYNC/AWAIT PARA ESPERAR O BANCO DE DADOS
-    for (let dia of dias) {
+    let totalViagensFaltantes = 0;
+    alunosPendentes.forEach(p => {
+        let necessarias = getViagensNecessarias(p.viagens);
+        let realizadas = treinamentosConcluidos.filter(c => strNormalize(c.motoristaNome) === strNormalize(p.nome)).length;
+        let agendadas = cronogramaTreinamento.filter(a => strNormalize(a.motoristaNome) === strNormalize(p.nome)).length;
+        totalViagensFaltantes += (necessarias - (realizadas + agendadas));
+    });
+
+    // Aumentado o limite de segurança para suportar mais de 100 agendamentos sem parar na metade
+    let limiteSeguranca = 0;
+    while(totalViagensFaltantes > 0 && limiteSeguranca < 3000) {
+        let diaSemana = dataAtual.getDay();
+        
+        if (apenasDiasUteis && (diaSemana === 0 || diaSemana === 6)) {
+            dataAtual.setDate(dataAtual.getDate() + 1);
+            continue; 
+        }
+
+        const dataStr = dataAtual.toISOString().split('T')[0];
+        const diaTexto = diasSemana[diaSemana];
+        const diaNum = `${String(dataAtual.getDate()).padStart(2, '0')}/${String(dataAtual.getMonth()+1).padStart(2, '0')}`;
+        
         let alunoEscolhido = null, infoPDF = null;
-        for(let i = 0; i < alunosPendentes.length; i++) {
-            let reqPDF = alunosPendentes[i];
-            let motSistema = motoristas.find(m => strNormalize(m.nome).includes(strNormalize(reqPDF.nome)) || strNormalize(reqPDF.nome).includes(strNormalize(m.nome)));
-            if (motSistema) {
-                const equipeMot = motSistema.equipe || '-';
-                const isDia = ['A', 'B', 'C'].includes(equipeMot);
-                const isNoite = ['D', 'E', 'F'].includes(equipeMot);
-                if (turnoSelecionado === 'Dia' && !isDia) continue;
-                if (turnoSelecionado === 'Noite' && !isNoite) continue;
+        
+        let instrutorOcupadoHoje = cronogramaTreinamento.some(t => t.data === dataStr && t.instrutor === instrutorSelecionado && t.status === 'agendado');
 
-                let escalaDia = window.getEscalaDiaComputada(motSistema, dia.dateKey);
-                if(escalaDia && escalaDia.caminhao !== 'F') {
-                    if (!cronogramaTreinamento.some(t => t.data === dia.dateKey && t.instrutor === instrutorSelecionado && t.status === 'agendado')) {
-                        alunoEscolhido = motSistema; infoPDF = reqPDF; break;
+        if (!instrutorOcupadoHoje) {
+            for(let i = 0; i < alunosPendentes.length; i++) {
+                let reqPDF = alunosPendentes[i];
+                
+                // === SEGURANÇA: IMPEDE AGENDAR A MESMA PESSOA 2 VEZES NO MESMO DIA ===
+                let jaAgendadoHoje = cronogramaTreinamento.some(t => t.data === dataStr && strNormalize(t.motoristaNome) === strNormalize(reqPDF.nome));
+                if (jaAgendadoHoje) continue; // Pula esta pessoa e procura a próxima na fila
+
+                let motSistema = typeof motoristas !== 'undefined' ? motoristas.find(m => strNormalize(m.nome) === strNormalize(reqPDF.nome) || strNormalize(m.nome).includes(strNormalize(reqPDF.nome)) || strNormalize(reqPDF.nome).includes(strNormalize(m.nome))) : null;
+                
+                let isElegivel = true;
+
+                if (motSistema) {
+                    const equipeMot = motSistema.equipe || '-';
+                    const isDia = ['A', 'B', 'C'].includes(equipeMot);
+                    const isNoite = ['D', 'E', 'F'].includes(equipeMot);
+
+                    if (diasSemAgendarNinguem < 5) {
+                        if (turnoSelecionado === 'Dia' && !isDia) isElegivel = false;
+                        if (turnoSelecionado === 'Noite' && !isNoite) isElegivel = false;
+
+                        let escalaDia = window.getEscalaDiaComputada ? window.getEscalaDiaComputada(motSistema, dataStr) : null;
+                        if(escalaDia && (escalaDia.caminhao === 'F' || escalaDia.caminhao === 'FOLGA')) {
+                            isElegivel = false;
+                        }
                     }
+                } else {
+                    if (turnoSelecionado !== 'Todos' && diasSemAgendarNinguem < 3) {
+                        isElegivel = false;
+                    }
+                }
+
+                if(isElegivel) {
+                    alunoEscolhido = motSistema; 
+                    infoPDF = reqPDF; 
+                    break; // Sai do loop de pessoas porque já achou alguém para este dia
                 }
             }
         }
         
-        if(alunoEscolhido && infoPDF) {
+        if(infoPDF) {
+            // === CORREÇÃO DO ERRO DO BANCO: null no lugar de 'N/A' ===
             const novoTreino = {
                 id: Date.now() + Math.floor(Math.random() * 100000), 
-                data: dia.dateKey, 
-                dataTexto: dia.diaNum,
+                data: dataStr, 
+                dataTexto: diaNum,
                 instrutor: instrutorSelecionado, 
-                motoristaId: alunoEscolhido.id, 
+                motoristaId: alunoEscolhido ? alunoEscolhido.id : null, // AQUI: null evita erro tipo bigint
                 motoristaNome: infoPDF.nome,
                 classificacao: infoPDF.class, 
                 viagens: infoPDF.viagens, 
-                turno: alunoEscolhido.turno || 'Misto',
+                turno: alunoEscolhido ? (alunoEscolhido.turno || 'Misto') : 'Misto',
                 status: 'agendado', 
                 dataConclusao: null
             };
             
             cronogramaTreinamento.push(novoTreino);
-            await db.upsertTreinamento(novoTreino); // AGORA ELE ESPERA O BANCO RESPONDER
+            try {
+                await db.upsertTreinamento(novoTreino);
+            } catch(dbErr) {
+                console.error("Aviso ao salvar no BD, mas mantido local:", dbErr);
+            }
 
-            alunosPendentes = alunosPendentes.filter(p => strNormalize(p.nome) !== strNormalize(infoPDF.nome));
+            let necessarias = getViagensNecessarias(infoPDF.viagens);
+            let feitas = treinamentosConcluidos.filter(c => strNormalize(c.motoristaNome) === strNormalize(infoPDF.nome)).length;
+            let marcadas = cronogramaTreinamento.filter(a => strNormalize(a.motoristaNome) === strNormalize(infoPDF.nome)).length;
+            
+            if ((feitas + marcadas) >= necessarias) {
+                alunosPendentes = alunosPendentes.filter(p => strNormalize(p.nome) !== strNormalize(infoPDF.nome));
+            }
+
             agendamentosNovos++;
+            totalViagensFaltantes--;
+            diasSemAgendarNinguem = 0; 
+        } else {
+            diasSemAgendarNinguem++;
         }
+
+        dataAtual.setDate(dataAtual.getDate() + 1); // Pula para o próximo dia
+        limiteSeguranca++;
     }
     
     renderizarCronogramaTreinamento();
     if(typeof window.renderizarEscala === 'function') window.renderizarEscala(); 
     
-    if (agendamentosNovos > 0) alert(`🎉 Sucesso! Foram agendados e salvos no banco ${agendamentosNovos} novos treinamentos com o Instrutor ${instrutorSelecionado}.`);
-    else alert(`⚠️ Nenhum agendamento foi feito. \nO Instrutor pode estar ocupado nestes dias ou os motoristas da lista não têm dias de trabalho agendados neste período/turno selecionado.`);
+    if (agendamentosNovos > 0) {
+        alert(`🎉 SUCESSO TOTAL! A lista foi esgotada.\nForam criados ${agendamentosNovos} novos agendamentos com o Instrutor ${instrutorSelecionado}.`);
+    } else {
+        alert(`⚠️ Nenhum agendamento foi feito. O Instrutor pode estar ocupado.`);
+    }
+}
+
+// === NOVA FUNÇÃO EXPORTAR PARA EXCEL (CSV) ===
+window.exportarCronogramaExcel = function() {
+    if (cronogramaTreinamento.length === 0) {
+        alert("⚠️ Não há treinamentos agendados para exportar!");
+        return;
+    }
+
+    let agendados = [...cronogramaTreinamento].sort((a, b) => a.data.localeCompare(b.data));
+    
+    // Adiciona BOM (\uFEFF) para o Excel reconhecer os acentos do Brasil no CSV
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
+    csvContent += "Data Prevista;Instrutor;Motorista;Classificacao;Situacao de Viagens\n";
+
+    agendados.forEach(t => {
+        let dataPt = t.data.split('-').reverse().join('/');
+        let dataCompleta = `${dataPt} (${t.dataTexto})`;
+        // Aspas ajudam o excel a não quebrar as colunas em textos estranhos
+        csvContent += `"${dataCompleta}";"${t.instrutor}";"${t.motoristaNome}";"${t.classificacao}";"${t.viagens}"\n`;
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "Cronograma_Treinamento_MasterDrive.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+window.imprimirCronogramaPDF = function() {
+    if (cronogramaTreinamento.length === 0) {
+        alert("⚠️ Não há treinamentos agendados para imprimir!");
+        return;
+    }
+
+    let janela = window.open('', '', 'width=900,height=700');
+    let agendados = [...cronogramaTreinamento].sort((a, b) => a.data.localeCompare(b.data));
+
+    let html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Cronograma de Treinamento</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
+                h2 { text-align: center; color: #1e3a8a; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+                th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
+                th { background-color: #f1f5f9; color: #0f172a; }
+                tr:nth-child(even) { background-color: #f8fafc; }
+                .footer { margin-top: 30px; font-size: 12px; color: #666; text-align: center; }
+            </style>
+        </head>
+        <body>
+            <h2>Relatório de Cronograma: Master Drive</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Data Agendada</th>
+                        <th>Instrutor</th>
+                        <th>Motorista</th>
+                        <th>Classificação</th>
+                        <th>Situação de Viagens</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    agendados.forEach(t => {
+        let dataPt = t.data.split('-').reverse().join('/');
+        html += `
+            <tr>
+                <td><strong>${dataPt}</strong> (${t.dataTexto})</td>
+                <td>${t.instrutor}</td>
+                <td><strong>${t.motoristaNome}</strong></td>
+                <td>${t.classificacao}</td>
+                <td>${t.viagens}</td>
+            </tr>
+        `;
+    });
+
+    html += `
+                </tbody>
+            </table>
+            <div class="footer">Gerado pelo CCOL - Controle Operacional e Logístico em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</div>
+            <script>
+                window.onload = function() { window.print(); }
+            </script>
+        </body>
+        </html>
+    `;
+
+    janela.document.write(html);
+    janela.document.close();
 }
