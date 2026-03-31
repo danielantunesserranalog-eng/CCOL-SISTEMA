@@ -31,6 +31,8 @@ window.realizarLogin = async function() {
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('change-password-screen').style.display = 'flex';
             } else {
+                // SALVA A SESSÃO DO USUÁRIO NO NAVEGADOR
+                localStorage.setItem('ccol_user_session', JSON.stringify(currentUser));
                 iniciarSistemaAutorizado();
             }
         } else {
@@ -58,11 +60,16 @@ window.salvarNovaSenha = async function() {
     
     alert('✅ Senha alterada com sucesso! Bem-vindo(a) ao CCOL.');
     currentUser.primeiro_acesso = false;
+    
+    // SALVA A SESSÃO DO USUÁRIO APÓS MUDAR A SENHA
+    localStorage.setItem('ccol_user_session', JSON.stringify(currentUser));
     iniciarSistemaAutorizado();
 }
 
 window.fazerLogout = function() {
     if(confirm('Deseja realmente sair do sistema?')) {
+        // APAGA A SESSÃO QUANDO CLICA EM SAIR
+        localStorage.removeItem('ccol_user_session');
         location.reload();
     }
 }
@@ -83,6 +90,13 @@ async function iniciarSistemaAutorizado() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // VERIFICA SE EXISTE UMA SESSÃO SALVA AO ABRIR O SITE
+    const sessaoSalva = localStorage.getItem('ccol_user_session');
+    if (sessaoSalva) {
+        currentUser = JSON.parse(sessaoSalva);
+        iniciarSistemaAutorizado(); // Pula o login e entra direto
+    }
+
     document.getElementById('loginPass')?.addEventListener('keypress', function (e) {
         if (e.key === 'Enter') realizarLogin();
     });
