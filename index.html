@@ -178,27 +178,45 @@
                         <option value="Outra Cidade">Outra Cidade</option>
                     </select>
                 </div>
-
-                <div class="form-group-dark">
-                    <label>Venc. Cargas Indivisíveis</label>
-                    <input type="date" id="editMotoristaVencCargas" class="dark-select">
-                </div>
-                <div class="form-group-dark">
-                    <label>Vencimento CNH</label>
-                    <input type="date" id="editMotoristaVencCNH" class="dark-select">
-                </div>
-                <div class="form-group-dark">
-                    <label>Vencimento ASO</label>
-                    <input type="date" id="editMotoristaVencASO" class="dark-select">
-                </div>
-                <div class="form-group-dark">
-                    <label>Vencimento Integração</label>
-                    <input type="date" id="editMotoristaVencIntegracao" class="dark-select">
-                </div>
-                </div>
+            </div>
             <div class="modal-footer">
                 <button class="btn-secondary-dark" onclick="fecharModalEdicao()">Cancelar</button>
                 <button class="btn-primary-green" onclick="salvarEdicaoMotorista()">💾 Salvar Modificações</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalEdicaoSSMA" class="modal-overlay">
+        <div class="custom-modal">
+            <div class="modal-header">
+                <h3>📋 Editar Datas SSMA</h3>
+                <button class="close-modal" onclick="fecharModalSSMA()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editSsmaId">
+                <div style="margin-bottom: 15px;">
+                    <strong id="editSsmaNome" style="color: var(--ccol-blue-bright); font-size: 1.1rem;"></strong>
+                </div>
+                <div class="form-group-dark">
+                    <label>Venc. Cargas Indivisíveis</label>
+                    <input type="date" id="editSsmaVencCargas" class="dark-select">
+                </div>
+                <div class="form-group-dark">
+                    <label>Vencimento CNH</label>
+                    <input type="date" id="editSsmaVencCNH" class="dark-select">
+                </div>
+                <div class="form-group-dark">
+                    <label>Vencimento ASO</label>
+                    <input type="date" id="editSsmaVencASO" class="dark-select">
+                </div>
+                <div class="form-group-dark">
+                    <label>Vencimento Integração</label>
+                    <input type="date" id="editSsmaVencIntegracao" class="dark-select">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary-dark" onclick="fecharModalSSMA()">Cancelar</button>
+                <button class="btn-primary-green" onclick="salvarEdicaoSSMA()">💾 Salvar Datas</button>
             </div>
         </div>
     </div>

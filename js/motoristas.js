@@ -32,17 +32,15 @@ window.renderizarMotoristas = function() {
     
     if (!tbody) return;
 
-    // --- CORREÇÃO AQUI: Ativa a busca dinamicamente assim que a tela abre ---
     if (searchInput && !searchInput.dataset.buscaAtiva) {
         searchInput.addEventListener('input', window.renderizarMotoristas);
-        searchInput.dataset.buscaAtiva = "true"; // Marca para não adicionar o evento duas vezes
+        searchInput.dataset.buscaAtiva = "true";
     }
 
     window.popularSelectsConjuntoMotorista();
 
     let html = '';
     
-    // Filtra pela busca e logo em seguida ORDENA em ordem alfabética de A a Z
     const motoristasFiltrados = motoristas
         .filter(m => m.nome.toLowerCase().includes(termoBusca))
         .sort((a, b) => a.nome.localeCompare(b.nome));
@@ -77,7 +75,6 @@ window.renderizarMotoristas = function() {
     tbody.innerHTML = html;
 };
 
-// As funções abaixo agora estão com o 'window.' para garantir escopo global
 window.adicionarMotorista = async function() {
     const nome = document.getElementById('motoristaNome').value.trim();
     if (!nome) { alert('⚠️ Digite o nome completo do motorista!'); return; }
@@ -91,12 +88,7 @@ window.adicionarMotorista = async function() {
         conjuntoId: document.getElementById('motoristaConjunto').value ? parseInt(document.getElementById('motoristaConjunto').value) : null,
         equipe: document.getElementById('motoristaEquipe').value || '-',
         turno: document.getElementById('motoristaTurno').value || '-',
-        data_ancora: document.getElementById('motoristaDataAncora').value || null,
-        // DADOS SSMA AQUI
-        venc_cargas_indivisiveis: document.getElementById('motoristaVencCargas').value || null,
-        venc_cnh: document.getElementById('motoristaVencCNH').value || null,
-        venc_aso: document.getElementById('motoristaVencASO').value || null,
-        venc_integracao: document.getElementById('motoristaVencIntegracao').value || null
+        data_ancora: document.getElementById('motoristaDataAncora').value || null
     };
 
     motoristas.push(novoMotorista);
@@ -108,11 +100,6 @@ window.adicionarMotorista = async function() {
     document.getElementById('motoristaConjunto').value = '';
     document.getElementById('motoristaEquipe').value = '-';
     document.getElementById('motoristaTurno').value = '-';
-    // LIMPANDO DADOS SSMA
-    document.getElementById('motoristaVencCargas').value = '';
-    document.getElementById('motoristaVencCNH').value = '';
-    document.getElementById('motoristaVencASO').value = '';
-    document.getElementById('motoristaVencIntegracao').value = '';
     
     window.renderizarMotoristas();
     if(typeof renderizarAlocacao === 'function') renderizarAlocacao();
@@ -138,12 +125,6 @@ window.abrirModalEdicao = function(id) {
     document.getElementById('editMotoristaTurno').value = m.turno || '-';
     document.getElementById('editMotoristaDataAncora').value = m.data_ancora || '';
 
-    // DADOS SSMA NO MODAL
-    document.getElementById('editMotoristaVencCargas').value = m.venc_cargas_indivisiveis || '';
-    document.getElementById('editMotoristaVencCNH').value = m.venc_cnh || '';
-    document.getElementById('editMotoristaVencASO').value = m.venc_aso || '';
-    document.getElementById('editMotoristaVencIntegracao').value = m.venc_integracao || '';
-
     document.getElementById('modalEdicaoMotorista').classList.add('show');
 };
 
@@ -167,20 +148,9 @@ window.salvarEdicaoMotorista = async function() {
     m.turno = document.getElementById('editMotoristaTurno').value;
     m.data_ancora = document.getElementById('editMotoristaDataAncora').value || null;
 
-    // LENDO DADOS SSMA DO MODAL
-    m.venc_cargas_indivisiveis = document.getElementById('editMotoristaVencCargas').value || null;
-    m.venc_cnh = document.getElementById('editMotoristaVencCNH').value || null;
-    m.venc_aso = document.getElementById('editMotoristaVencASO').value || null;
-    m.venc_integracao = document.getElementById('editMotoristaVencIntegracao').value || null;
-
     await db.updateMotorista(id, {
         nome: m.nome, masterDrive: m.masterDrive, destra: m.destra, cidade: m.cidade,
-        conjuntoId: m.conjuntoId, equipe: m.equipe, turno: m.turno, data_ancora: m.data_ancora,
-        // ENVIANDO PRO BANCO DADOS SSMA
-        venc_cargas_indivisiveis: m.venc_cargas_indivisiveis,
-        venc_cnh: m.venc_cnh,
-        venc_aso: m.venc_aso,
-        venc_integracao: m.venc_integracao
+        conjuntoId: m.conjuntoId, equipe: m.equipe, turno: m.turno, data_ancora: m.data_ancora
     });
     
     if(typeof salvarBackupLocal === 'function') salvarBackupLocal();
@@ -190,8 +160,6 @@ window.salvarEdicaoMotorista = async function() {
     if(typeof renderizarAlocacao === 'function') renderizarAlocacao();
     if(typeof renderizarEscala === 'function') renderizarEscala();
     if(typeof renderizarTrocaTurno === 'function') renderizarTrocaTurno();
-    // Atualiza SSMA se tiver função na página
-    if(typeof renderizarSSMA === 'function') renderizarSSMA();
     
     alert('🔄 Modificações aplicadas com sucesso!');
 };

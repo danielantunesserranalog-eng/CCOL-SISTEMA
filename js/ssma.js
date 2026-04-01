@@ -3,11 +3,9 @@
 window.calcularStatusSSMA = function(dataIso) {
     if (!dataIso) return { classe: 'color: var(--text-secondary);', texto: 'Sem Data' };
 
-    // Pegar apenas a data, ignorando o horário para não dar diferença de fuso
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
     
-    // Precisamos ajustar o timezone da data que vem do banco (YYYY-MM-DD)
     const partes = dataIso.split('-');
     const vencimento = new Date(partes[0], partes[1] - 1, partes[2]);
     vencimento.setHours(0, 0, 0, 0);
@@ -15,7 +13,6 @@ window.calcularStatusSSMA = function(dataIso) {
     const diferencaTempo = vencimento.getTime() - hoje.getTime();
     const diferencaDias = Math.ceil(diferencaTempo / (1000 * 3600 * 24));
 
-    // Lógica das cores conforme solicitado
     if (diferencaDias < 0) {
         return { classe: 'color: #ef4444; font-weight: bold;', texto: `Vencido há ${Math.abs(diferencaDias)} dias` };
     } else if (diferencaDias <= 60) {
@@ -32,7 +29,6 @@ window.renderizarSSMA = function() {
     const searchInput = document.getElementById('searchSsma');
     const termoBusca = searchInput?.value.toLowerCase() || '';
     
-    // Filtrar e ordenar alfabeticamente
     const funcFiltrados = motoristas
         .filter(m => m.nome.toLowerCase().includes(termoBusca))
         .sort((a, b) => a.nome.localeCompare(b.nome));
@@ -45,10 +41,7 @@ window.renderizarSSMA = function() {
         const asoInfo = calcularStatusSSMA(m.venc_aso);
         const integracaoInfo = calcularStatusSSMA(m.venc_integracao);
 
-        // Verifica se o funcionário tem algum alerta vermelho para destacar a linha inteira
         const temAlertaCritico = [cargasInfo, cnhInfo, asoInfo, integracaoInfo].some(info => info.texto.includes('Vencido há'));
-        
-        // Verifica se tem alerta amarelo
         const temAlertaAmarelo = [cargasInfo, cnhInfo, asoInfo, integracaoInfo].some(info => info.texto.includes('Vence em'));
 
         let backgroundTr = '';
@@ -77,13 +70,61 @@ window.renderizarSSMA = function() {
                     <span style="${integracaoInfo.classe}">${integracaoInfo.texto}</span><br>
                     <small style="color: var(--text-secondary);">${m.venc_integracao ? m.venc_integracao.split('-').reverse().join('/') : '-'}</small>
                 </td>
+                <td>
+                    <button onclick="abrirModalSSMA(${m.id})" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid #f59e0b; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold;">✏️ Editar Datas</button>
+                </td>
             </tr>
         `;
     });
 
     if (funcFiltrados.length === 0) {
-        html = '<tr><td colspan="5" style="text-align: center; padding: 20px;">Nenhum funcionário encontrado.</td></tr>';
+        html = '<tr><td colspan="6" style="text-align: center; padding: 20px;">Nenhum funcionário encontrado.</td></tr>';
     }
 
     tbody.innerHTML = html;
+};
+
+// --- FUNÇÕES DE CONTROLE DO MODAL DE SSMA ---
+
+window.abrirModalSSMA = function(id) {
+    const m = motoristas.find(mot => mot.id === id);
+    if (!m) return;
+
+    document.getElementById('editSsmaId').value = m.id;
+    document.getElementById('editSsmaNome').innerText = m.nome;
+
+    document.getElementById('editSsmaVencCargas').value = m.venc_cargas_indivisiveis || '';
+    document.getElementById('editSsmaVencCNH').value = m.venc_cnh || '';
+    document.getElementById('editSsmaVencASO').value = m.venc_aso || '';
+    document.getElementById('editSsmaVencIntegracao').value = m.venc_integracao || '';
+
+    document.getElementById('modalEdicaoSSMA').classList.add('show');
+};
+
+window.fecharModalSSMA = function() {
+    document.getElementById('modalEdicaoSSMA').classList.remove('show');
+};
+
+window.salvarEdicaoSSMA = async function() {
+    const id = parseInt(document.getElementById('editSsmaId').value);
+    const m = motoristas.find(mot => mot.id === id);
+    if (!m) return;
+
+    m.venc_cargas_indivisiveis = document.getElementById('editSsmaVencCargas').value || null;
+    m.venc_cnh = document.getElementById('editSsmaVencCNH').value || null;
+    m.venc_aso = document.getElementById('editSsmaVencASO').value || null;
+    m.venc_integracao = document.getElementById('editSsmaVencIntegracao').value || null;
+
+    await db.updateMotorista(id, {
+        venc_cargas_indivisiveis: m.venc_cargas_indivisiveis,
+        venc_cnh: m.venc_cnh,
+        venc_aso: m.venc_aso,
+        venc_integracao: m.venc_integracao
+    });
+    
+    if(typeof salvarBackupLocal === 'function') salvarBackupLocal();
+    window.fecharModalSSMA();
+    window.renderizarSSMA();
+    
+    alert('✅ Datas de SSMA atualizadas com sucesso!');
 };
