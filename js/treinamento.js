@@ -355,14 +355,16 @@ window.gerarTreinamentoAuto = async function() {
                     const isDia = ['A', 'B', 'C'].includes(equipeMot);
                     const isNoite = ['D', 'E', 'F'].includes(equipeMot);
 
-                    if (diasSemAgendarNinguem < 5) {
+                    // 1. REGRA ABSOLUTA: Nunca agendar no dia de folga
+                    let escalaDia = window.getEscalaDiaComputada ? window.getEscalaDiaComputada(motSistema, dataStr) : null;
+                    if(escalaDia && (escalaDia.caminhao === 'F' || escalaDia.caminhao === 'FOLGA')) {
+                        isElegivel = false;
+                    }
+
+                    // 2. REGRA DE TURNO: Pode ser flexibilizada se o sistema travar (diasSemAgendarNinguem >= 5)
+                    if (isElegivel && diasSemAgendarNinguem < 5) {
                         if (turnoSelecionado === 'Dia' && !isDia) isElegivel = false;
                         if (turnoSelecionado === 'Noite' && !isNoite) isElegivel = false;
-
-                        let escalaDia = window.getEscalaDiaComputada ? window.getEscalaDiaComputada(motSistema, dataStr) : null;
-                        if(escalaDia && (escalaDia.caminhao === 'F' || escalaDia.caminhao === 'FOLGA')) {
-                            isElegivel = false;
-                        }
                     }
                 } else {
                     if (turnoSelecionado !== 'Todos' && diasSemAgendarNinguem < 3) {
