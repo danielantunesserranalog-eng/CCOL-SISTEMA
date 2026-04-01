@@ -1,0 +1,29 @@
+<div class="content-panel">
+    <div class="panel-header">
+        <h3>⚠️ Painel de Vencimentos SSMA</h3>
+        <div class="panel-controls">
+            <input type="text" id="searchSsma" placeholder="Buscar funcionário..." class="search-input-dark" onkeyup="renderizarSSMA()">
+        </div>
+    </div>
+    
+    <div class="alert-info" style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 0.85rem; display: flex; gap: 20px; justify-content: center;">
+        <span style="color: #ef4444; font-weight: bold;">🔴 Vencido (Urgente)</span>
+        <span style="color: #f59e0b; font-weight: bold;">🟡 Vence em até 60 dias (Alerta)</span>
+        <span style="color: #10b981; font-weight: bold;">🟢 Mais de 60 dias (OK)</span>
+    </div>
+
+    <div class="table-modern-wrapper">
+        <table class="data-table-modern">
+            <thead>
+                <tr>
+                    <th>Funcionário</th>
+                    <th>Cargas Indivisíveis</th>
+                    <th>CNH</th>
+                    <th>ASO</th>
+                    <th>Integração</th>
+                </tr>
+            </thead>
+            <tbody id="ssmaList"></tbody>
+        </table>
+    </div>
+</div>

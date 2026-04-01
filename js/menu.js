@@ -42,6 +42,11 @@ window.renderizarMenu = function() {
     if (meusMenus.includes('jornada')) navHtml += `<button class="nav-item" onclick="navegarPara('jornada', this)">⏳ Controle de Jornada</button>`;
     if (meusMenus.includes('treinamento')) navHtml += `<button class="nav-item" onclick="navegarPara('treinamento', this)">🎓 Treinamento</button>`;
     
+    // MENU SSMA ADICIONADO AQUI
+    if (meusMenus.includes('ssma') || isAdmin) {
+        navHtml += `<button class="nav-item" onclick="navegarPara('ssma', this)" style="color: #f59e0b; font-weight: bold;">⚠️ SSMA</button>`;
+    }
+
     // Configurações: Apenas o Admin vê (Questão de segurança máxima)
     if (isAdmin) navHtml += `<button id="navConfigBtn" class="nav-item" onclick="navegarPara('config', this)">⚙️ Configurações</button>`;
 
@@ -101,15 +106,15 @@ window.navegarPara = async function(pagina, elementoClicado) {
         if (pagina === 'motoristas' && typeof window.renderizarMotoristas === 'function') window.renderizarMotoristas();
         if (pagina === 'caminhoes' && typeof window.renderizarConjuntos === 'function') window.renderizarConjuntos();
         
-        // ADICIONE ESTA LINHA PARA O STATUS DA FROTA:
         if (pagina === 'status_frota' && typeof window.renderizarStatusFrota === 'function') window.renderizarStatusFrota();
-        
-        // --- LINHA ALTERADA AQUI ---
         if (pagina === 'os' && typeof window.alternarTelaOS === 'function') window.alternarTelaOS('lista');
         
         if (pagina === 'troca' && typeof window.renderizarTrocaTurno === 'function') window.renderizarTrocaTurno();
         if (pagina === 'treinamento' && typeof window.renderizarCronogramaTreinamento === 'function') window.renderizarCronogramaTreinamento();
         
+        // NOVO: SSMA
+        if (pagina === 'ssma' && typeof window.renderizarSSMA === 'function') window.renderizarSSMA();
+
         if (pagina === 'jornada') {
             if (typeof window.initJornadaTab === 'function') window.initJornadaTab();
         } else {
