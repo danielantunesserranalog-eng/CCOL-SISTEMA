@@ -114,53 +114,61 @@ window.renderizarStatusFrota = async function(atualizarBanco = true) {
 function iniciarRelogioStatusFrota() {
     if (statusFrotaInterval) clearInterval(statusFrotaInterval);
     
-    // Atualiza apenas os cálculos da tabela a cada 60 segundos, sem recarregar o banco
     statusFrotaInterval = setInterval(() => {
-        // Verifica se a tela de status da frota ainda está aberta
         const tbody = document.getElementById('tabelaStatusFrota');
         if (tbody) {
-            window.renderizarStatusFrota(false); // Atualiza a tela, mas false = não busca no banco
+            window.renderizarStatusFrota(false);
         } else {
             clearInterval(statusFrotaInterval);
         }
-    }, 60000); // 60.000 ms = 1 minuto
+    }, 60000); 
 }
 
-// === FUNÇÃO PARA GERAR A VISÃO EXATA DA PLANILHA PARA WHATSAPP ===
-window.imprimirStatusFrotaWhatsapp = async function() {
+// === FUNÇÃO PARA GERAR IMAGEM IDENTICA AO EXCEL E BAIXAR (NOVO) ===
+window.gerarImagemStatusFrota = async function() {
     if (typeof carregarDadosOS === 'function') await carregarDadosOS();
 
     let linhasTabela = '';
     const agora = new Date();
 
+    // Helper formatar data (Ex: "10/02/2026 10:20")
+    const formatDataPrint = (dataStr) => {
+        if (!dataStr) return '-';
+        if (dataStr.includes('T')) {
+            const [d, h] = dataStr.split('T');
+            return d.split('-').reverse().join('/') + ' ' + h.substring(0, 5);
+        }
+        return dataStr.split('-').reverse().join('/');
+    };
+
     frotasManutencao.forEach((frota, index) => {
         const osAberta = ordensServico.find(os => os.placa === frota.cavalo && os.status !== 'Concluída');
 
         let descricao = 'EM OPERAÇÃO';
-        let dataParou = '';
-        let dataRetorno = '';
-        let tempoParado = '';
+        let dataParou = '-';
+        let dataRetorno = '-';
+        let tempoParado = '-';
         let statusManu = 'LIBERADO';
         
         let bgLinha = '#ffffff';
         let bgStatus = '#00b050'; // Verde Excel
         let corTextoStatus = '#ffffff';
+        let corTextoGeral = '#000000';
 
         if (osAberta) {
             let isSinistro = osAberta.tipo === 'Sinistro';
             
             descricao = osAberta.problema ? osAberta.problema.toUpperCase() : (isSinistro ? 'SINISTRO' : 'EM MANUTENÇÃO');
-            dataRetorno = osAberta.previsao ? window.formatarDataHoraBrasil(osAberta.previsao) : '';
+            dataRetorno = osAberta.previsao ? formatDataPrint(osAberta.previsao) : '-';
             statusManu = isSinistro ? 'SINISTRADO' : osAberta.status.toUpperCase();
 
-            // Cálculo do tempo exato para o Print
             let stringEntrada = osAberta.data_abertura;
             if (stringEntrada) {
                 stringEntrada = stringEntrada.replace('Z', '').replace('+00:00', '');
                 if (!stringEntrada.includes('T')) stringEntrada += 'T00:00:00';
                 
                 const dataEntrada = new Date(stringEntrada);
-                dataParou = window.formatarDataHoraBrasil(osAberta.data_abertura);
+                dataParou = formatDataPrint(stringEntrada);
                 
                 const diffEntrada = agora - dataEntrada;
                 if (diffEntrada > 0) {
@@ -170,81 +178,164 @@ window.imprimirStatusFrotaWhatsapp = async function() {
                 }
             }
 
-            // Cores do Print
-            if (isSinistro) {
-                bgLinha = '#8b0000'; // Vermelho escuro para Sinistro
-                bgStatus = '#8b0000';
-                corTextoStatus = '#ffffff';
-            } else if (osAberta.prioridade === 'Urgente') {
-                bgLinha = '#ff0000'; // Vermelho vivo
+            if (isSinistro || osAberta.prioridade === 'Urgente') {
+                bgLinha = '#ff0000'; // Vermelho para sinistro/urgente
                 bgStatus = '#ff0000';
                 corTextoStatus = '#ffffff';
+                corTextoGeral = '#ffffff';
             } else {
                 bgLinha = '#ffff00'; // Amarelo
                 bgStatus = '#ffff00';
                 corTextoStatus = '#000000';
+                corTextoGeral = '#000000';
             }
         }
 
         linhasTabela += `
-            <tr style="background-color: ${bgLinha};">
-                <td style="text-align: center;">${index + 1}</td>
-                <td style="text-align: center; font-weight: bold;">GERAL</td>
-                <td style="text-align: center; font-weight: bold;">${frota.go || ''}</td>
-                <td style="text-align: center; font-weight: 900;">${frota.cavalo}</td>
-                <td style="font-weight: bold; color: ${bgLinha === '#8b0000' ? '#ffffff' : '#000000'};">${descricao}</td>
-                <td style="text-align: center; font-weight: bold; color: ${bgLinha === '#8b0000' ? '#ffffff' : '#000000'};">${dataParou}</td>
-                <td style="text-align: center; font-weight: bold; color: ${bgLinha === '#8b0000' ? '#ffffff' : '#000000'};">${dataRetorno}</td>
-                <td style="text-align: center; font-weight: bold; color: ${bgLinha === '#8b0000' ? '#ffffff' : '#000000'};">${tempoParado}</td>
-                <td style="text-align: center; background-color: ${bgStatus}; color: ${corTextoStatus}; font-weight: 900;">${statusManu}</td>
+            <tr style="background-color: ${bgLinha}; color: ${corTextoGeral};">
+                <td style="text-align: center; border: 1px solid #000; padding: 4px; font-weight: bold;">${index + 1}</td>
+                <td style="text-align: center; border: 1px solid #000; padding: 4px; font-weight: bold;">GERAL</td>
+                <td style="text-align: center; border: 1px solid #000; padding: 4px; font-weight: bold;">${frota.go || '-'}</td>
+                <td style="text-align: center; border: 1px solid #000; padding: 4px; font-weight: bold;">${frota.cavalo}</td>
+                <td style="text-align: center; border: 1px solid #000; padding: 4px; font-weight: bold;">${descricao}</td>
+                <td style="text-align: center; border: 1px solid #000; padding: 4px; font-weight: bold;">${dataParou}</td>
+                <td style="text-align: center; border: 1px solid #000; padding: 4px; font-weight: bold;">${dataRetorno}</td>
+                <td style="text-align: center; border: 1px solid #000; padding: 4px; font-weight: bold;">${tempoParado}</td>
+                <td style="text-align: center; border: 1px solid #000; padding: 4px; background-color: ${bgStatus}; color: ${corTextoStatus}; font-weight: bold;">${statusManu}</td>
             </tr>
         `;
     });
 
-    const htmlImpressao = `
+    const htmlJanela = `
+        <!DOCTYPE html>
         <html>
         <head>
-            <title>Status Frotas Operantes</title>
+            <meta charset="UTF-8">
+            <title>Preview Tabela Frota</title>
             <style>
-                body { font-family: Arial, sans-serif; padding: 20px; background: #fff; }
-                .titulo-container { background-color: #00b050; padding: 15px; text-align: center; color: white; font-size: 32px; font-weight: bold; border: 2px solid #000; border-bottom: none; }
-                table { width: 100%; border-collapse: collapse; border: 2px solid #000; font-size: 13px; }
-                th, td { border: 1px solid #000; padding: 8px; }
-                th { background-color: #f2f2f2; font-weight: bold; text-align: center; }
-                @media print { .btn-imprimir { display: none; } body { padding: 0; } }
+                body { 
+                    font-family: Arial, sans-serif; 
+                    margin: 0; 
+                    padding: 30px; 
+                    background: #f0f2f5; 
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                }
+                .wrapper {
+                    background: #fff;
+                    display: inline-block;
+                    padding: 1px;
+                }
+                .titulo-container { 
+                    background-color: #00b050; 
+                    padding: 10px; 
+                    text-align: center; 
+                    color: white; 
+                    font-size: 24px; 
+                    font-weight: bold; 
+                    border: 2px solid #000; 
+                    border-bottom: none; 
+                    margin: 0;
+                    box-sizing: border-box;
+                }
+                table { 
+                    border-collapse: collapse; 
+                    border: 2px solid #000; 
+                    font-size: 14px; 
+                    width: max-content;
+                    box-sizing: border-box;
+                }
+                th { 
+                    background-color: #d9d9d9; 
+                    font-weight: bold; 
+                    text-align: center; 
+                    border: 1px solid #000; 
+                    padding: 6px;
+                }
+                .acoes {
+                    margin-bottom: 25px;
+                    text-align: center;
+                }
+                .btn-download {
+                    background-color: #00b050;
+                    color: #fff;
+                    border: none;
+                    padding: 12px 24px;
+                    font-size: 16px;
+                    font-weight: bold;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    transition: 0.2s;
+                }
+                .btn-download:hover {
+                    background-color: #008a3e;
+                }
             </style>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
         </head>
         <body>
-            <div class="titulo-container">
-                STATUS FROTAS OPERANTES
+            <div class="acoes" id="acoes-print">
+                <button class="btn-download" onclick="baixarImagem()">📸 BAIXAR IMAGEM AGORA (PNG)</button>
+                <p style="color: #666; font-size: 14px; margin-top: 10px;">Abaixo é apenas uma visualização. Clique no botão verde para gerar o arquivo.</p>
             </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 30px;">QT</th>
-                        <th style="width: 80px;">FRENTE</th>
-                        <th style="width: 60px;">GO</th>
-                        <th style="width: 80px;">PLACA</th>
-                        <th>DESCRIÇÃO</th>
-                        <th style="width: 130px;">DATA HORA QUE PAROU</th>
-                        <th style="width: 130px;">PREVISÃO RETORNO</th>
-                        <th style="width: 100px;">TEMPO PARADO (HR)</th>
-                        <th style="width: 150px;">STATUS MANUTENÇÃO</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${linhasTabela}
-                </tbody>
-            </table>
-            
-            <div style="text-align: center; margin-top: 30px;" class="btn-imprimir">
-                <p style="color: #666; font-size: 14px;">Dica: Você pode tirar um Print (Captura de Tela) agora mesmo para mandar no WhatsApp!</p>
+
+            <div class="wrapper" id="area-print">
+                <div class="titulo-container">STATUS FROTAS OPERANTES</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;">QT</th>
+                            <th style="width: 80px;">FRENTE</th>
+                            <th style="width: 60px;">GO</th>
+                            <th style="width: 100px;">PLACA</th>
+                            <th style="width: 250px;">DESCRIÇÃO</th>
+                            <th style="width: 150px;">DATA HORA QUE PAROU</th>
+                            <th style="width: 150px;">PREVISÃO RETORNO</th>
+                            <th style="width: 120px;">TEMPO PARADO (HR)</th>
+                            <th style="width: 150px;">STATUS MANUTENÇÃO</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${linhasTabela}
+                    </tbody>
+                </table>
             </div>
+
+            <script>
+                function baixarImagem() {
+                    const area = document.getElementById('area-print');
+                    const btnArea = document.getElementById('acoes-print');
+                    
+                    // Muda texto pra dar feedback
+                    const btn = document.querySelector('.btn-download');
+                    const textoOriginal = btn.innerHTML;
+                    btn.innerHTML = '⏳ Gerando Imagem...';
+                    
+                    html2canvas(area, {
+                        scale: 2, // Aumenta a resolução da imagem para ficar bem nítida
+                        backgroundColor: '#ffffff'
+                    }).then(canvas => {
+                        const dataUrl = canvas.toDataURL('image/png');
+                        const link = document.createElement('a');
+                        link.download = 'Status_Frota_' + new Date().toISOString().slice(0,10) + '.png';
+                        link.href = dataUrl;
+                        link.click();
+                        
+                        btn.innerHTML = '✅ Baixado com sucesso!';
+                        setTimeout(() => { btn.innerHTML = textoOriginal; }, 3000);
+                    }).catch(err => {
+                        alert('Ocorreu um erro ao gerar a imagem: ' + err);
+                        btn.innerHTML = textoOriginal;
+                    });
+                }
+            </script>
         </body>
         </html>
     `;
 
-    const janela = window.open('', '', 'width=1200,height=800');
-    janela.document.write(htmlImpressao);
+    const janela = window.open('', '_blank', 'width=1200,height=800');
+    janela.document.write(htmlJanela);
     janela.document.close();
 }
