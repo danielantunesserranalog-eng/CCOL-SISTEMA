@@ -29,6 +29,7 @@ async function carregarDadosOS() {
 
 async function alternarTelaOS(tela) {
     const telaLista = document.getElementById('telaListaOS');
+    const telaListaSinistro = document.getElementById('telaListaSinistro');
     const telaHistorico = document.getElementById('telaHistoricoOS');
     const telaNova = document.getElementById('telaNovaOS');
     const telaFrota = document.getElementById('telaFrotaOS');
@@ -44,6 +45,7 @@ async function alternarTelaOS(tela) {
 
     // Esconde todas as telas primeiro
     telaLista.style.display = 'none';
+    if(telaListaSinistro) telaListaSinistro.style.display = 'none';
     if(telaHistorico) telaHistorico.style.display = 'none';
     telaNova.style.display = 'none';
     telaFrota.style.display = 'none';
@@ -56,6 +58,9 @@ async function alternarTelaOS(tela) {
     if (tela === 'lista') {
         telaLista.style.display = 'block';
         renderizarTabelaOS();
+    } else if (tela === 'sinistro') {
+        if(telaListaSinistro) telaListaSinistro.style.display = 'block';
+        renderizarTabelaSinistro();
     } else if (tela === 'historico') {
         telaHistorico.style.display = 'block';
         renderizarTabelaHistoricoOS();
@@ -87,7 +92,7 @@ function mudarModoEntrada() {
     if (modo === 'agendada') {
         label.innerHTML = '📅 Data e Hora Prevista do Agendamento';
     } else {
-        label.innerHTML = 'Data e Hora da Entrada no Pátio';
+        label.innerHTML = 'Data e Hora da Entrada no Pátio / Ocorrência';
         const agora = new Date();
         const dataAberturaLocal = new Date(agora.getTime() - (agora.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
         document.getElementById('osDataAbertura').value = dataAberturaLocal;
@@ -106,7 +111,9 @@ function formatarDataHoraBrasil(dataString) {
 // ==================== PARTE 1: RELATÓRIO GERENCIAL ====================
 
 function renderizarRelatorioGerencialOS() {
-    if (ordensServico.length === 0) {
+    const osManutencao = ordensServico.filter(o => o.tipo !== 'Sinistro');
+
+    if (osManutencao.length === 0) {
         document.getElementById('kpiTotalOS').innerText = '0';
         document.getElementById('kpiAbertasOS').innerText = '0';
         document.getElementById('kpiConcluidasOS').innerText = '0';
@@ -115,9 +122,9 @@ function renderizarRelatorioGerencialOS() {
         return;
     }
 
-    const total = ordensServico.length;
-    const abertas = ordensServico.filter(o => o.status === 'Aguardando Oficina' || o.status === 'Em Manutenção').length;
-    const concluidas = ordensServico.filter(o => o.status === 'Concluída');
+    const total = osManutencao.length;
+    const abertas = osManutencao.filter(o => o.status === 'Aguardando Oficina' || o.status === 'Em Manutenção').length;
+    const concluidas = osManutencao.filter(o => o.status === 'Concluída');
     const taxa = ((concluidas.length / total) * 100).toFixed(1);
 
     document.getElementById('kpiTotalOS').innerText = total;
@@ -152,7 +159,7 @@ function renderizarRelatorioGerencialOS() {
     if (elTempoMedio) elTempoMedio.innerText = textoTempoMedio;
 
     const porCavalo = {};
-    ordensServico.forEach(o => { porCavalo[o.placa] = (porCavalo[o.placa] || 0) + 1; });
+    osManutencao.forEach(o => { porCavalo[o.placa] = (porCavalo[o.placa] || 0) + 1; });
     const topCavalos = Object.entries(porCavalo).sort((a, b) => b[1] - a[1]).slice(0, 5);
     
     const maxCavaloCount = topCavalos.length > 0 ? topCavalos[0][1] : 1;
@@ -177,7 +184,7 @@ function renderizarRelatorioGerencialOS() {
     document.getElementById('rankingCavalosOS').innerHTML = htmlCavalos || '<p>Sem dados.</p>';
 
     const porTipo = {};
-    ordensServico.forEach(o => { porTipo[o.tipo] = (porTipo[o.tipo] || 0) + 1; });
+    osManutencao.forEach(o => { porTipo[o.tipo] = (porTipo[o.tipo] || 0) + 1; });
     const listaTipos = Object.entries(porTipo).sort((a, b) => b[1] - a[1]);
     
     let htmlTipos = '<ul style="list-style: none; padding: 0; margin: 0;">';
@@ -193,7 +200,7 @@ function renderizarRelatorioGerencialOS() {
     document.getElementById('graficoTipoOS').innerHTML = htmlTipos;
 
     const porPrioridade = { 'Urgente': 0, 'Alta': 0, 'Normal': 0, 'Baixa': 0 };
-    ordensServico.forEach(o => { if(porPrioridade[o.prioridade] !== undefined) porPrioridade[o.prioridade]++; });
+    osManutencao.forEach(o => { if(porPrioridade[o.prioridade] !== undefined) porPrioridade[o.prioridade]++; });
     
     const colors = { 'Urgente': '#ef4444', 'Alta': '#f97316', 'Normal': '#eab308', 'Baixa': 'var(--ccol-green-bright)' };
     
@@ -331,8 +338,9 @@ function renderizarTabelaOS() {
     const termo = document.getElementById('searchOS').value.toLowerCase();
     if (!tbody) return;
 
+    // Filtra ocultando Sinistros da tela principal de manutenções
     const filtradas = ordensServico.filter(os => 
-        os.status !== 'Concluída' &&
+        os.status !== 'Concluída' && os.tipo !== 'Sinistro' &&
         (os.placa.toLowerCase().includes(termo) || os.motorista.toLowerCase().includes(termo))
     );
 
@@ -381,6 +389,48 @@ function renderizarTabelaOS() {
     }).join('');
 }
 
+function renderizarTabelaSinistro() {
+    const tbody = document.getElementById('tabelaAcompanhamentoSinistro');
+    const termo = document.getElementById('searchSinistro') ? document.getElementById('searchSinistro').value.toLowerCase() : '';
+    if (!tbody) return;
+
+    // Traz apenas os veículos em sinistro
+    const filtradas = ordensServico.filter(os => 
+        os.status !== 'Concluída' && os.tipo === 'Sinistro' &&
+        (os.placa.toLowerCase().includes(termo) || os.motorista.toLowerCase().includes(termo))
+    );
+
+    if (filtradas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px;">Nenhum veículo sinistrado pendente no momento.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtradas.map(os => {
+        let statusBadge = `<span style="background: rgba(239, 68, 68, 0.2); color: #ef4444; padding: 4px 8px; border-radius: 4px; font-weight: bold;">🚨 Sinistrado (Inativo)</span>`;
+
+        let botoesAcao = `<button onclick="imprimirOS(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-blue-bright); color: var(--ccol-blue-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer;">🖨️ Imprimir Ocorrência</button>`;
+        
+        botoesAcao += `<button onclick="abrirModalConclusaoOS(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-green-bright); color: var(--ccol-green-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">✅ Liberar / Retornar à Operação</button>`;
+        
+        botoesAcao += `<button onclick="deletarOS(${os.id})" style="background: transparent; border: none; color: #ef4444; font-size: 1.2rem; cursor: pointer; margin-left: 5px;" title="Excluir Registro">🗑️</button>`;
+
+        const dataConclusaoStr = os.data_conclusao ? formatarDataHoraBrasil(os.data_conclusao) : '-';
+
+        return `
+            <tr style="background: rgba(239, 68, 68, 0.05);">
+                <td><strong>#${os.id}</strong></td>
+                <td>${formatarDataHoraBrasil(os.data_abertura)}</td>
+                <td style="color: var(--text-secondary);">${dataConclusaoStr}</td>
+                <td style="color: #ef4444; font-weight: bold;">${os.placa}</td>
+                <td>${os.motorista}</td>
+                <td>${os.tipo}</td>
+                <td>${statusBadge}</td>
+                <td>${botoesAcao}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
 function renderizarTabelaHistoricoOS() {
     const tbody = document.getElementById('tabelaHistoricoOS');
     if (!tbody) return;
@@ -416,15 +466,21 @@ function renderizarTabelaHistoricoOS() {
         else if (os.status === 'Em Manutenção') statusBadge = `<span style="background: rgba(96, 165, 250, 0.2); color: var(--ccol-blue-bright); padding: 4px 8px; border-radius: 4px;">Em Manutenção</span>`;
         else statusBadge = `<span style="background: rgba(61, 220, 132, 0.2); color: var(--ccol-green-bright); padding: 4px 8px; border-radius: 4px;">Concluída</span>`;
 
+        if (os.tipo === 'Sinistro' && os.status !== 'Concluída') {
+             statusBadge = `<span style="background: rgba(239, 68, 68, 0.2); color: #ef4444; padding: 4px 8px; border-radius: 4px;">🚨 Sinistrado</span>`;
+        }
+
         let botoesAcao = `<button onclick="imprimirOS(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-blue-bright); color: var(--ccol-blue-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer;">🖨️ Visualizar/Imprimir</button>`;
         
-        if (os.status === 'Agendada') {
+        if (os.status === 'Agendada' && os.tipo !== 'Sinistro') {
             botoesAcao += `<button onclick="darEntradaPatio(${os.id})" style="background: var(--bg-panel); border: 1px solid #8b5cf6; color: #8b5cf6; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">🚚 Dar Entrada</button>`;
-        } else if (os.status === 'Aguardando Oficina') {
+        } else if (os.status === 'Aguardando Oficina' && os.tipo !== 'Sinistro') {
             botoesAcao += `<button onclick="abrirModalAceiteOS(${os.id})" style="background: var(--bg-panel); border: 1px solid #f59e0b; color: #f59e0b; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">🛠️ Aceitar</button>`;
-        } else if (os.status === 'Em Manutenção') {
+        } else if ((os.status === 'Em Manutenção' || os.tipo === 'Sinistro') && os.status !== 'Concluída') {
             botoesAcao += `<button onclick="abrirModalConclusaoOS(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-green-bright); color: var(--ccol-green-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">✅ Concluir</button>`;
-            botoesAcao += `<button onclick="abrirModalServicoExtra(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-blue-bright); color: var(--ccol-blue-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">➕ Add Serviço</button>`;
+            if (os.tipo !== 'Sinistro') {
+                botoesAcao += `<button onclick="abrirModalServicoExtra(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-blue-bright); color: var(--ccol-blue-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">➕ Add Serviço</button>`;
+            }
         }
 
         botoesAcao += `<button onclick="deletarOS(${os.id})" style="background: transparent; border: none; color: #ef4444; font-size: 1.2rem; cursor: pointer; margin-left: 5px;" title="Excluir">🗑️</button>`;
@@ -474,7 +530,12 @@ async function salvarNovaOS() {
         });
     }
 
-    const status_inicial = (modoEntrada === 'agendada') ? 'Agendada' : 'Aguardando Oficina';
+    let status_inicial = (modoEntrada === 'agendada') ? 'Agendada' : 'Aguardando Oficina';
+    
+    // Se for Sinistro, não entra no fluxo de agendamento normal, vai direto pra inativo
+    if (tipo === 'Sinistro') {
+        status_inicial = 'Sinistrado';
+    }
     
     // Captura o nome do usuário logado se ele existir
     const usuarioLogado = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.nome : 'Usuário Desconhecido';
@@ -489,7 +550,7 @@ async function salvarNovaOS() {
     const { error } = await supabaseClient.from('ordens_servico').insert([novaOS]);
 
     if (error) {
-        alert("Erro ao gravar O.S.");
+        alert("Erro ao gravar registro.");
         console.error(error);
         return;
     }
@@ -503,12 +564,16 @@ async function salvarNovaOS() {
     document.getElementById('osPneuServico').value = '';
     document.getElementById('osPneuMotivo').value = '';
 
-    if (modoEntrada === 'agendada') {
+    if (tipo === 'Sinistro') {
+        alert("Sinistro registrado! O veículo consta agora como inativo e no painel de sinistros.");
+        alternarTelaOS('sinistro');
+    } else if (modoEntrada === 'agendada') {
         alert("O.S. Agendada com sucesso! Ela ficará oculta da TV até você clicar em 'Dar Entrada'.");
+        alternarTelaOS('lista');
     } else {
         alert("O.S. Aberta no Pátio! Agora a Oficina precisa aceitar o chamado.");
+        alternarTelaOS('lista');
     }
-    alternarTelaOS('lista');
 }
 
 async function darEntradaPatio(id) {
@@ -614,10 +679,11 @@ async function salvarConclusaoOS() {
         fecharModalConclusaoOS();
         await carregarDadosOS();
         renderizarTabelaOS();
+        renderizarTabelaSinistro();
         renderizarTabelaHistoricoOS();
-        alert("O.S. marcada como concluída com sucesso!");
+        alert("Ação marcada como concluída com sucesso!");
     } else {
-        alert("Erro ao concluir a O.S.");
+        alert("Erro ao concluir a ação.");
         console.error(error);
     }
 }
@@ -691,7 +757,7 @@ async function salvarServicoExtra() {
 }
 
 async function deletarOS(id) {
-    if (confirm("Deseja realmente excluir esta O.S.?")) {
+    if (confirm("Deseja realmente excluir este registro?")) {
         const { error } = await supabaseClient
             .from('ordens_servico')
             .delete()
@@ -700,9 +766,10 @@ async function deletarOS(id) {
         if (!error) {
             await carregarDadosOS();
             renderizarTabelaOS();
+            renderizarTabelaSinistro();
             renderizarTabelaHistoricoOS();
         } else {
-            alert("Erro ao excluir a O.S.");
+            alert("Erro ao excluir o registro.");
         }
     }
 }
@@ -757,7 +824,7 @@ function imprimirOS(id) {
     const htmlImpressao = `
         <html>
         <head>
-            <title>O.S. #${os.id} - ${os.placa}</title>
+            <title>Registro #${os.id} - ${os.placa}</title>
             <style>
                 @page { size: landscape; margin: 10mm; }
                 body { font-family: Arial, sans-serif; font-size: 12px; margin: 20px; color: #000; }
@@ -779,7 +846,7 @@ function imprimirOS(id) {
         <body>
             <div class="header-container">
                 <div style="width: 100px;"></div> <div class="header-title">
-                    ORDEM DE SERVIÇO - MANUTENÇÃO E FROTAS<br>
+                    ORDEM DE SERVIÇO / OCORRÊNCIA - MANUTENÇÃO E FROTAS<br>
                     <span style="font-size: 12px;">Serrana Florestal - CCOL</span>
                 </div>
                 <div><div class="header-os-num">Nº ${numeroOSFormatado}</div></div>
@@ -793,7 +860,7 @@ function imprimirOS(id) {
                 <div class="info-box"><strong>Conclusão:</strong> ${dataConclusaoFormatada}</div>
                 <div class="info-box"><strong>Prioridade:</strong> ${os.prioridade}</div>
                 <div class="info-box"><strong>Status:</strong> ${os.status}</div>
-                <div class="info-box"><strong>Mecânico:</strong> ${os.mecanico_responsavel || 'A Definir'}</div>
+                <div class="info-box"><strong>Mecânico/Responsável:</strong> ${os.mecanico_responsavel || 'A Definir'}</div>
                 <div class="info-box"><strong>Aberto por:</strong> ${infoAbertoPor}</div>
             </div>
 
@@ -805,14 +872,14 @@ function imprimirOS(id) {
             </div>
 
             <div class="full-box">
-                <strong>Classificação da Manutenção:</strong> ${os.tipo}
+                <strong>Classificação da Manutenção / Tipo:</strong> ${os.tipo}
             </div>
 
             ${painelBorracharia}
 
             <div class="full-box">
-                <strong>Diagnóstico Inicial do Condutor / Problema Relatado:</strong><br><br>
-                ${os.problema || 'Nenhum problema detalhado.'}
+                <strong>Diagnóstico Inicial do Condutor / Problema / Detalhes Sinistro:</strong><br><br>
+                ${os.problema || 'Nenhum detalhe informado.'}
             </div>
 
             <h3 style="margin: 0 0 5px 0;">Serviços Executados (Preenchimento da Oficina):</h3>
@@ -835,7 +902,7 @@ function imprimirOS(id) {
 
             <div class="signatures">
                 <div class="sig-line">Assinatura do CCOL</div>
-                <div class="sig-line">Assinatura do Encarregado de Manutenção</div>
+                <div class="sig-line">Assinatura do Encarregado de Manutenção/Frota</div>
             </div>
             
             <div class="page-break"></div>
@@ -915,7 +982,11 @@ function renderizarCardsTV() {
     document.getElementById('tvRelogio').innerText = agora.toLocaleTimeString('pt-BR');
     document.getElementById('tvData').innerText = agora.toLocaleDateString('pt-BR');
 
-    const osAtivas = ordensServico.filter(o => o.status === 'Aguardando Oficina' || o.status === 'Em Manutenção');
+    // Filtra removendo os Sinistros para não mostrar na tela de oficina
+    const osAtivas = ordensServico.filter(o => 
+        (o.status === 'Aguardando Oficina' || o.status === 'Em Manutenção') && 
+        o.tipo !== 'Sinistro'
+    );
     
     if (osAtivas.length === 0) {
         container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: var(--ccol-green-bright); font-size: 2rem; margin-top: 50px;">✅ Pátio Livre! Nenhuma manutenção pendente.</div>';

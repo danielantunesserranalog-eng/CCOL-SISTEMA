@@ -11,7 +11,8 @@ window.renderizarStatusFrota = async function(atualizarBanco = true) {
     if (!tbody) return;
 
     let total = frotasManutencao.length;
-    let parados = 0;
+    let parados = 0; // Veículos em manutenção
+    let sinistrados = 0; // Veículos em sinistro
     let html = '';
     const agora = new Date(); // Pega a hora exata deste segundo
 
@@ -20,7 +21,13 @@ window.renderizarStatusFrota = async function(atualizarBanco = true) {
         const osAtiva = ordensServico.find(os => os.placa === veiculo.cavalo && os.status !== 'Concluída');
 
         if (osAtiva) {
-            parados++;
+            let isSinistro = osAtiva.tipo === 'Sinistro';
+            
+            if (isSinistro) {
+                sinistrados++;
+            } else {
+                parados++;
+            }
             
             // Tratamento da Data de Abertura (igual ao Painel de TV)
             let stringEntrada = osAtiva.data_abertura;
@@ -51,20 +58,26 @@ window.renderizarStatusFrota = async function(atualizarBanco = true) {
             let previsao = osAtiva.previsao ? (window.formatarDataHoraBrasil ? window.formatarDataHoraBrasil(osAtiva.previsao) : osAtiva.previsao) : '<span style="color:#666">NÃO INFORMADA</span>';
 
             // Estilo do status
-            let corStatus = osAtiva.prioridade === 'Urgente' ? '#ef4444' : '#facc15';
-            let bgRow = osAtiva.prioridade === 'Urgente' ? 'background: rgba(239, 68, 68, 0.05);' : '';
+            let corStatus = osAtiva.prioridade === 'Urgente' ? '#f97316' : '#facc15';
+            let bgRow = osAtiva.prioridade === 'Urgente' ? 'background: rgba(249, 115, 22, 0.05);' : '';
+            
+            // Override para Sinistro
+            if (isSinistro) {
+                corStatus = '#ef4444'; // Vermelho alerta
+                bgRow = 'background: rgba(239, 68, 68, 0.1);';
+            }
 
             html += `
                 <tr style="${bgRow}">
                     <td style="font-weight: 900; color: var(--ccol-blue-bright); font-size: 1.1rem;">${veiculo.cavalo}</td>
                     <td style="font-weight: bold; color: var(--text-secondary); text-align: center;">${veiculo.go || '-'}</td>
-                    <td style="color: var(--text-primary); font-weight: 600; font-size: 0.9rem;">${(osAtiva.problema || 'MANUTENÇÃO GERAL').toUpperCase()}</td>
+                    <td style="color: var(--text-primary); font-weight: 600; font-size: 0.9rem;">${(osAtiva.problema || (isSinistro ? 'SINISTRO' : 'MANUTENÇÃO GERAL')).toUpperCase()}</td>
                     <td style="text-align: center; font-size: 0.85rem; color: var(--text-secondary);">${dataParouStr}</td>
                     <td style="text-align: center; font-weight: bold; color: var(--ccol-green-bright);">${previsao}</td>
                     <td style="text-align: center; font-weight: 900; color: #fff; font-size: 1.1rem; font-family: monospace;">${tempoH}</td>
                     <td style="text-align: center;">
                         <span style="border: 1px solid ${corStatus}; background: rgba(0,0,0,0.2); color: ${corStatus}; padding: 6px 12px; border-radius: 4px; font-size: 0.75rem; font-weight: 800; display: inline-block;">
-                            ${osAtiva.status.toUpperCase()}
+                            ${isSinistro ? 'SINISTRADO' : osAtiva.status.toUpperCase()}
                         </span>
                     </td>
                 </tr>
@@ -72,23 +85,26 @@ window.renderizarStatusFrota = async function(atualizarBanco = true) {
         }
     });
 
-    if (parados === 0) {
+    if (parados === 0 && sinistrados === 0) {
         html = '<tr><td colspan="7" style="text-align:center; padding: 40px; color: #10b981; font-weight: bold; font-size: 1.2rem;">✅ TODA A FROTA ESTÁ OPERANTE NO MOMENTO</td></tr>';
     }
 
     tbody.innerHTML = html;
 
     // 3. Atualiza os Cartões de Indicadores (KPIs)
-    let operando = total - parados;
+    let operando = total - parados - sinistrados;
     let pOperando = total > 0 ? Math.round((operando / total) * 100) : 0;
     let pParado = total > 0 ? Math.round((parados / total) * 100) : 0;
+    let pSinistro = total > 0 ? Math.round((sinistrados / total) * 100) : 0;
 
     document.getElementById('kpiTotalStatus').innerText = total;
     document.getElementById('kpiOperandoStatus').innerText = operando;
     document.getElementById('kpiParadoStatus').innerText = parados;
+    if(document.getElementById('kpiSinistroStatus')) document.getElementById('kpiSinistroStatus').innerText = sinistrados;
     
     document.getElementById('percOperando').innerText = `${pOperando}% da frota disponível`;
     document.getElementById('percParado').innerText = `${pParado}% em manutenção`;
+    if(document.getElementById('percSinistro')) document.getElementById('percSinistro').innerText = `${pSinistro}% sinistrado`;
 
     // Inicia o relógio para atualizar o tempo na tela a cada minuto automaticamente
     iniciarRelogioStatusFrota();
@@ -131,9 +147,11 @@ window.imprimirStatusFrotaWhatsapp = async function() {
         let corTextoStatus = '#ffffff';
 
         if (osAberta) {
-            descricao = osAberta.problema ? osAberta.problema.toUpperCase() : 'EM MANUTENÇÃO';
+            let isSinistro = osAberta.tipo === 'Sinistro';
+            
+            descricao = osAberta.problema ? osAberta.problema.toUpperCase() : (isSinistro ? 'SINISTRO' : 'EM MANUTENÇÃO');
             dataRetorno = osAberta.previsao ? window.formatarDataHoraBrasil(osAberta.previsao) : '';
-            statusManu = osAberta.status.toUpperCase();
+            statusManu = isSinistro ? 'SINISTRADO' : osAberta.status.toUpperCase();
 
             // Cálculo do tempo exato para o Print
             let stringEntrada = osAberta.data_abertura;
@@ -153,8 +171,12 @@ window.imprimirStatusFrotaWhatsapp = async function() {
             }
 
             // Cores do Print
-            if (osAberta.prioridade === 'Urgente') {
-                bgLinha = '#ff0000'; // Vermelho
+            if (isSinistro) {
+                bgLinha = '#8b0000'; // Vermelho escuro para Sinistro
+                bgStatus = '#8b0000';
+                corTextoStatus = '#ffffff';
+            } else if (osAberta.prioridade === 'Urgente') {
+                bgLinha = '#ff0000'; // Vermelho vivo
                 bgStatus = '#ff0000';
                 corTextoStatus = '#ffffff';
             } else {
@@ -170,10 +192,10 @@ window.imprimirStatusFrotaWhatsapp = async function() {
                 <td style="text-align: center; font-weight: bold;">GERAL</td>
                 <td style="text-align: center; font-weight: bold;">${frota.go || ''}</td>
                 <td style="text-align: center; font-weight: 900;">${frota.cavalo}</td>
-                <td style="font-weight: bold;">${descricao}</td>
-                <td style="text-align: center; font-weight: bold;">${dataParou}</td>
-                <td style="text-align: center; font-weight: bold;">${dataRetorno}</td>
-                <td style="text-align: center; font-weight: bold;">${tempoParado}</td>
+                <td style="font-weight: bold; color: ${bgLinha === '#8b0000' ? '#ffffff' : '#000000'};">${descricao}</td>
+                <td style="text-align: center; font-weight: bold; color: ${bgLinha === '#8b0000' ? '#ffffff' : '#000000'};">${dataParou}</td>
+                <td style="text-align: center; font-weight: bold; color: ${bgLinha === '#8b0000' ? '#ffffff' : '#000000'};">${dataRetorno}</td>
+                <td style="text-align: center; font-weight: bold; color: ${bgLinha === '#8b0000' ? '#ffffff' : '#000000'};">${tempoParado}</td>
                 <td style="text-align: center; background-color: ${bgStatus}; color: ${corTextoStatus}; font-weight: 900;">${statusManu}</td>
             </tr>
         `;

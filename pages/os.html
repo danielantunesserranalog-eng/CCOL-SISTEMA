@@ -2,6 +2,7 @@
     <h3 style="color: var(--text-primary); margin: 0; align-self: center;">🛠️ Gestão de Manutenção (O.S.)</h3>
     <div class="button-group" style="margin-left: auto;">
         <button class="btn-primary-blue" onclick="alternarTelaOS('lista')">📋 Acompanhamento (Abertas)</button>
+        <button class="btn-danger-outline" onclick="alternarTelaOS('sinistro')" style="border-color: #ef4444; color: #ef4444;">🚨 Acompanhamento (Sinistros)</button>
         <button class="btn-secondary-dark" onclick="alternarTelaOS('historico')">🗄️ Histórico (Todas)</button>
         <button class="btn-primary-blue" onclick="alternarTelaOS('painel_tv')" style="background-color: #8b5cf6; border-color: #8b5cf6;">📺 Modo TV (Tempo Real)</button>
         <button class="btn-primary-green" onclick="alternarTelaOS('nova')">➕ Abrir Nova O.S.</button>
@@ -32,6 +33,32 @@
                 </tr>
             </thead>
             <tbody id="tabelaAcompanhamentoOS"></tbody>
+        </table>
+    </div>
+</div>
+
+<div id="telaListaSinistro" class="content-panel" style="display: none;">
+    <div class="panel-header">
+        <h3 style="color: #ef4444;">🚨 Acompanhamento de Veículos Sinistrados (Frota Inativa)</h3>
+        <div class="panel-controls">
+            <input type="text" id="searchSinistro" placeholder="Buscar placa ou motorista..." class="search-input-dark" onkeyup="renderizarTabelaSinistro()">
+        </div>
+    </div>
+    <div class="table-modern-wrapper">
+        <table class="data-table-modern">
+            <thead>
+                <tr>
+                    <th>Nº O.S.</th>
+                    <th>Abertura</th>
+                    <th>Conclusão</th>
+                    <th>Placa (Cavalo)</th>
+                    <th>Motorista</th>
+                    <th>Tipo</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="tabelaAcompanhamentoSinistro"></tbody>
         </table>
     </div>
 </div>
@@ -78,7 +105,7 @@
 </div>
 
 <div id="telaNovaOS" class="content-panel form-panel-dark" style="display: none;">
-    <div class="panel-header"><h3>📝 Abertura de Nova O.S. (Padrão Completo)</h3></div>
+    <div class="panel-header"><h3>📝 Abertura de Nova O.S. / Sinistro</h3></div>
     <div class="form-grid">
         <div class="form-group-dark">
             <label>Conjunto / Cavalo (Cadastrado)</label>
@@ -87,7 +114,7 @@
             </select>
         </div>
         <div class="form-group-dark">
-            <label>Motorista Solicitante</label>
+            <label>Motorista Solicitante / Envolvido</label>
             <select id="osMotorista" class="dark-select">
                 <option value="">Selecione o motorista...</option>
             </select>
@@ -102,7 +129,7 @@
         </div>
         
         <div class="form-group-dark">
-            <label id="labelDataAbertura">Data e Hora da Abertura</label>
+            <label id="labelDataAbertura">Data e Hora da Abertura / Ocorrência</label>
             <input type="datetime-local" id="osDataAbertura" class="dark-select">
         </div>
         <div class="form-group-dark">
@@ -115,7 +142,7 @@
                 <option value="Baixa">🟢 Baixa (Pode esperar rotina)</option>
                 <option value="Normal" selected>🟡 Normal (Manutenção regular)</option>
                 <option value="Alta">🟠 Alta (Risco de quebra/falha)</option>
-                <option value="Urgente">🔴 Urgente (Veículo quebrado / S.O.S)</option>
+                <option value="Urgente">🔴 Urgente (Veículo quebrado / S.O.S / Sinistro)</option>
             </select>
         </div>
         <div class="form-group-dark">
@@ -128,6 +155,7 @@
                 <option value="Borracharia (PNEU)">🛞 Borracharia (PNEU)</option>
                 <option value="S.O.S (Socorro Externo)">🚨 S.O.S (Socorro Externo)</option>
                 <option value="Lavação / Estética">🚿 Lavação / Limpeza</option>
+                <option value="Sinistro" style="background-color: #7f1d1d; color: white;">💥 Sinistro (Acidente/Avaria Grave)</option>
             </select>
         </div>
         <div id="camposPneu" style="display: none; grid-column: 1 / -1; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; border: 1px dashed var(--ccol-blue-bright); margin-top: 10px;">
@@ -155,8 +183,8 @@
             </div>
         </div>
         <div class="form-group-dark" style="grid-column: 1 / -1; margin-top: 10px;">
-            <label>Problema Relatado pelo Motorista (Diagnóstico Inicial)</label>
-            <input type="text" id="osProblema" placeholder="Descreva o problema detalhadamente...">
+            <label>Problema Relatado / Descrição do Sinistro</label>
+            <input type="text" id="osProblema" placeholder="Descreva o problema ou detalhes do sinistro detalhadamente...">
         </div>
         <div class="form-group-dark" style="grid-column: 1 / -1;">
             <label>Observações Adicionais / Peças Específicas Requisitadas</label>

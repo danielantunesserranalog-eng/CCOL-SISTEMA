@@ -35,22 +35,33 @@
         <div id="percOperando" style="font-size: 0.75rem; color: #a7f3d0; margin-top: 5px; font-weight: 600;">0% da frota</div>
     </div>
 
-    <div class="kpi-card-modern" style="background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%); border-left: 5px solid #ef4444; padding: 20px; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
+    <div class="kpi-card-modern" style="background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%); border-left: 5px solid #f97316; padding: 20px; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <div>
-                <div style="color: #fecaca; font-size: 0.8rem; font-weight: 700; text-transform: uppercase;">Em Manutenção</div>
+                <div style="color: #fed7aa; font-size: 0.8rem; font-weight: 700; text-transform: uppercase;">Em Manutenção</div>
                 <div id="kpiParadoStatus" style="font-size: 2.2rem; font-weight: 900; color: #fff;">0</div>
             </div>
             <div style="font-size: 2rem; opacity: 0.5;">🛠️</div>
         </div>
-        <div id="percParado" style="font-size: 0.75rem; color: #fecaca; margin-top: 5px; font-weight: 600;">0% da frota</div>
+        <div id="percParado" style="font-size: 0.75rem; color: #fed7aa; margin-top: 5px; font-weight: 600;">0% da frota</div>
+    </div>
+
+    <div class="kpi-card-modern" style="background: linear-gradient(135deg, #450a0a 0%, #7f1d1d 100%); border-left: 5px solid #ef4444; padding: 20px; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <div style="color: #fca5a5; font-size: 0.8rem; font-weight: 700; text-transform: uppercase;">Sinistrado</div>
+                <div id="kpiSinistroStatus" style="font-size: 2.2rem; font-weight: 900; color: #fff;">0</div>
+            </div>
+            <div style="font-size: 2rem; opacity: 0.5;">🚨</div>
+        </div>
+        <div id="percSinistro" style="font-size: 0.75rem; color: #fca5a5; margin-top: 5px; font-weight: 600;">0% da frota</div>
     </div>
 
 </div>
 
 <div class="content-panel" style="background: var(--bg-card); border-radius: 12px; overflow: hidden; border: 1px solid var(--border-dim);">
     <div style="padding: 15px; border-bottom: 1px solid var(--border-dim); background: rgba(255,255,255,0.02);">
-        <h3 style="margin: 0; font-size: 1rem; color: var(--text-primary);">📋 Detalhamento de Veículos Parados</h3>
+        <h3 style="margin: 0; font-size: 1rem; color: var(--text-primary);">📋 Detalhamento de Veículos Parados / Inativos</h3>
     </div>
     <div class="table-modern-wrapper">
         <table class="data-table-modern">
@@ -58,7 +69,7 @@
                 <tr style="background: #1e293b;">
                     <th>PLACA</th>
                     <th>GO</th>
-                    <th>MOTIVO DA PARADA (O.S.)</th>
+                    <th>MOTIVO DA PARADA (O.S. / SINISTRO)</th>
                     <th style="text-align: center;">INÍCIO</th>
                     <th style="text-align: center;">PREVISÃO RETORNO</th>
                     <th style="text-align: center;">TEMPO</th>
