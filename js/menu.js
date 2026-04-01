@@ -37,11 +37,6 @@ window.renderizarMenu = function() {
     if (meusMenus.includes('os') || isAdmin) {
         navHtml += `<button class="nav-item" onclick="navegarPara('status_frota', this)" style="color: var(--ccol-green-bright); font-weight: bold;">📊 Status Frota</button>`;
     }
-    
-    // MENU: ALMOXARIFADO (Mostramos se ele tiver acesso a OS ou se for Admin)
-    if (meusMenus.includes('os') || isAdmin || meusMenus.includes('almoxarifado')) {
-        navHtml += `<button class="nav-item" onclick="navegarPara('almoxarifado', this)">📦 Almoxarifado</button>`;
-    }
 
     if (meusMenus.includes('troca')) navHtml += `<button class="nav-item" onclick="navegarPara('troca', this)">⏱️ Painel de Troca</button>`;
     if (meusMenus.includes('jornada')) navHtml += `<button class="nav-item" onclick="navegarPara('jornada', this)">⏳ Controle de Jornada</button>`;
@@ -114,11 +109,6 @@ window.navegarPara = async function(pagina, elementoClicado) {
         
         if (pagina === 'troca' && typeof window.renderizarTrocaTurno === 'function') window.renderizarTrocaTurno();
         if (pagina === 'treinamento' && typeof window.renderizarCronogramaTreinamento === 'function') window.renderizarCronogramaTreinamento();
-        
-        // NOVO GATILHO: ALMOXARIFADO
-        if (pagina === 'almoxarifado' && typeof window.alternarTelaAlmoxarifado === 'function') {
-            window.alternarTelaAlmoxarifado('lista');
-        }
         
         if (pagina === 'jornada') {
             if (typeof window.initJornadaTab === 'function') window.initJornadaTab();
