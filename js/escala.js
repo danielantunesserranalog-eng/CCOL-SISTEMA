@@ -200,7 +200,7 @@ window.renderizarEscala = function() {
                 }
                 
                 const tagFolguista = isFolguista ? `<span style="background:#f97316; color:#fff; font-size:0.65rem; font-weight:bold; padding:2px 5px; border-radius:4px; margin-left:8px; vertical-align:middle;">FOLGUISTA</span>` : '';
-                let displayTurno = isFolguista ? 'Misto' : (m.turno || '-');
+                let displayTurno = m.turno || '-';
 
                 tHtml += `<tr>`;
                 tHtml += `<td class="td-name" style="${isBlocked ? 'color: red;' : ''}"><strong>${m.nome}</strong> ${tagFolguista}</td>`;
@@ -229,10 +229,9 @@ window.renderizarEscala = function() {
 
                     let opcoes = `<option value="F">F</option>`;
                     
-                    if (escala.caminhao === 'TRAB' || escala.caminhao === 'RES' || conj.isSemFrota) {
-                        opcoes += `<option value="TRAB" ${escala.caminhao === 'TRAB' ? 'selected' : ''}>TRAB</option>`;
-                        opcoes += `<option value="RES" ${escala.caminhao === 'RES' ? 'selected' : ''}>RES</option>`;
-                    }
+                    // Adicionamos as opções TRAB e RESERVA para que apareçam sempre
+                    opcoes += `<option value="TRAB" ${escala.caminhao === 'TRAB' ? 'selected' : ''}>TRAB</option>`;
+                    opcoes += `<option value="RESERVA" ${escala.caminhao === 'RESERVA' ? 'selected' : ''}>RESERVA</option>`;
                     
                     if (!conj.isSemFrota) {
                         opcoes += `<optgroup label="Neste Conjunto">`;
@@ -448,22 +447,40 @@ function updateAlocacao(e) {
 
 window.resetarCicloConjunto = async function(conjuntoId) {
     if(currentUser.role !== 'Admin') { alert('⛔ Acesso Negado: Apenas Administradores podem zerar o ciclo de um conjunto.'); return; }
-    if (!confirm(`Deseja ZERAR as datas do Conjunto ${conjuntoId}?`)) return;
+    if (!confirm(`Deseja ZERAR as datas e as edições manuais do Conjunto ${conjuntoId}?`)) return;
+
+    let promisesExclusao = []; // Guarda as promessas para apagar do banco de dados
 
     motoristas.forEach(m => {
-        if (m.conjuntoId === conjuntoId && m.data_ancora) {
-            m.data_ancora = null;
-            db.updateMotorista(m.id, { data_ancora: null });
+        if (m.conjuntoId === conjuntoId) {
+            // 1. Zera a data âncora
+            if (m.data_ancora) {
+                m.data_ancora = null;
+                db.updateMotorista(m.id, { data_ancora: null });
+            }
+            
+            // 2. Limpa a escala manual da memória
+            if (escalas[m.id]) {
+                escalas[m.id] = {};
+            }
+            
+            // 3. Remove as escalas do banco de dados (função já existe no seu database.js)
+            if (typeof db.deleteEscalasPorMotorista === 'function') {
+                promisesExclusao.push(db.deleteEscalasPorMotorista(m.id));
+            }
         }
     });
 
-    await db.addLog('Reset de Ciclo', `Datas âncora removidas para todos do Conjunto ${conjuntoId}.`);
+    // Aguarda o banco de dados deletar todas as edições manuais
+    await Promise.all(promisesExclusao);
+
+    await db.addLog('Reset de Ciclo', `Datas âncora e edições manuais removidas para todos do Conjunto ${conjuntoId}.`);
     if(typeof renderizarLogs === 'function') renderizarLogs();
 
     salvarBackupLocal();
     renderizarAlocacao();
     window.renderizarEscala();
-    alert(`O ciclo do Conjunto ${conjuntoId} foi zerado com sucesso!`);
+    alert(`O ciclo e a escala manual do Conjunto ${conjuntoId} foram zerados com sucesso!`);
 };
 
 window.abrirModalEscalaManual = function(id) {
@@ -903,7 +920,7 @@ window.imprimirRelatorioEscalaSemanal = function() {
                 }
 
                 let tagFolguista = isFolguista ? `<span class="tag-folguista">FOLG</span>` : '';
-                let displayTurno = isFolguista ? 'Misto' : (m.turno || '-');
+                let displayTurno = m.turno || '-';
 
                 tHtml += `<tr>`;
                 tHtml += `<td class="col-nome" style="${isBlocked ? 'color: red;' : ''}">${m.nome} ${tagFolguista}</td>`;
