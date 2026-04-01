@@ -1,5 +1,27 @@
 // ==================== MÓDULO: ESCALA & ALOCAÇÃO ====================
 
+window.popularSelectMotoristas = function() {
+    const select = document.getElementById('buscaMotoristaEscala');
+    if (!select) return;
+    
+    const valorAtual = select.value;
+    let html = '<option value="">Selecione o motorista...</option>';
+    
+    // Clona e ordena os motoristas por ordem alfabética
+    const motoristasOrdenados = [...motoristas].sort((a, b) => a.nome.localeCompare(b.nome));
+    
+    motoristasOrdenados.forEach(m => {
+        html += `<option value="${m.nome}">${m.nome}</option>`;
+    });
+    
+    select.innerHTML = html;
+    
+    // Mantém a seleção anterior caso a tela re-renderize
+    if (valorAtual && motoristas.some(m => m.nome === valorAtual)) {
+        select.value = valorAtual;
+    }
+};
+
 window.getStatusMotorista = function(m, dDate) {
     if (!m || !m.data_ancora) return 'F';
     const dataAncora = new Date(m.data_ancora + 'T00:00:00');
@@ -13,13 +35,10 @@ window.getEscalaDiaComputada = function(motorista, dateKey) {
         return escalas[motorista.id][dateKey];
     }
     
-    // MODIFICAÇÃO: Não barrar mais por falta de equipe se ele for "Sem Frota".
-    // Barra apenas se não tiver data, ou estiver bloqueado.
     if (!motorista.data_ancora || motorista.masterDrive === 'Não' || motorista.destra === 'Não') {
         return { caminhao: 'F', turno: motorista.turno };
     }
     
-    // Se ele tiver conjunto alocado, exigimos que tenha uma equipe.
     if (motorista.conjuntoId && (!motorista.equipe || motorista.equipe === '-')) {
         return { caminhao: 'F', turno: motorista.turno };
     }
@@ -31,7 +50,6 @@ window.getEscalaDiaComputada = function(motorista, dateKey) {
 
     const conjunto = conjuntos.find(c => c.id === motorista.conjuntoId);
     
-    // MODIFICAÇÃO: Se for dia de trabalho e não tiver conjunto, exibe TRAB (Trabalho)
     if (!conjunto || !conjunto.caminhoes) return { caminhao: 'TRAB', turno: motorista.turno, status: 'auto' };
 
     let placa1 = conjunto.caminhoes.length > 0 ? (typeof conjunto.caminhoes[0] === 'string' ? conjunto.caminhoes[0] : conjunto.caminhoes[0].placa) : 'F';
@@ -65,6 +83,9 @@ window.renderizarEscala = function() {
     const container = document.getElementById('escalaContainer');
     const filtroSelectEl = document.getElementById('filtroConjuntoEscala');
     
+    // Atualiza o select de busca de motoristas com os cadastrados no banco
+    window.popularSelectMotoristas();
+
     if (filtroSelectEl) {
         const valAtual = filtroSelectEl.value;
         let optHtml = '<option value="todos">Todos</option>';
@@ -239,6 +260,76 @@ window.renderizarEscala = function() {
     container.innerHTML = html;
     document.querySelectorAll('.select-escala-excel').forEach(select => select.addEventListener('change', handleEscalaChange));
     if(typeof atualizarStats === 'function') atualizarStats();
+    
+    // Reaplica o destaque caso algum motorista já esteja selecionado no dropdown e a tela for recarregada/mudança de data
+    if (document.getElementById('buscaMotoristaEscala') && document.getElementById('buscaMotoristaEscala').value.trim() !== '') {
+        window.buscarMotoristaEscala();
+    }
+}
+
+// Limpa todas as marcações amarelas
+window.limparDestaqueMotorista = function() {
+    const linhas = document.querySelectorAll('#escalaContainer tbody tr');
+    linhas.forEach(tr => {
+        Array.from(tr.children).forEach(td => {
+            td.style.removeProperty('background-color');
+            td.style.removeProperty('color');
+            const select = td.querySelector('select.select-escala-excel');
+            if (select) {
+                select.style.removeProperty('color');
+            }
+        });
+    });
+};
+
+// Reseta o filtro para a opção "Selecione..." e limpa a tabela
+window.limparBuscaMotorista = function() {
+    const selectBusca = document.getElementById('buscaMotoristaEscala');
+    if(selectBusca) selectBusca.value = '';
+    window.limparDestaqueMotorista();
+};
+
+// Nova Lógica da busca via Select (Menu Suspenso) com destaque amarelo
+window.buscarMotoristaEscala = function() {
+    const selectBusca = document.getElementById('buscaMotoristaEscala');
+    if (!selectBusca) return;
+    
+    const termo = selectBusca.value.trim().toLowerCase();
+    
+    // Remove destaques de procuras anteriores primeiro
+    window.limparDestaqueMotorista();
+
+    if (termo === '') return;
+
+    let encontrou = false;
+    const linhas = document.querySelectorAll('#escalaContainer tbody tr');
+    
+    linhas.forEach(tr => {
+        const tdNome = tr.querySelector('.td-name');
+        if (tdNome) {
+            const nomeText = tdNome.textContent.toLowerCase();
+            
+            // Como é um select exato, a busca se torna mais precisa
+            if (nomeText.includes(termo)) {
+                // Pinta todas as TDs desta linha de amarelo forte (#fef08a)
+                Array.from(tr.children).forEach(td => {
+                    td.style.setProperty('background-color', '#fef08a', 'important');
+                    td.style.setProperty('color', '#000', 'important');
+                    
+                    const select = td.querySelector('select.select-escala-excel');
+                    if (select) {
+                        select.style.setProperty('color', '#000', 'important');
+                    }
+                });
+                
+                // Rola suavemente a tela até a linha encontrada
+                if (!encontrou) {
+                    tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    encontrou = true;
+                }
+            }
+        }
+    });
 }
 
 function handleEscalaChange(e) {
@@ -866,33 +957,26 @@ window.imprimirRelatorioEscalaSemanal = function() {
 
 // ==================== EXPORTAÇÃO EXCEL (ESCALA MENSAL) ====================
 window.exportarEscalaMensalExcel = function() {
-    // 1. Definir o mês base a partir do input de data (ou usar o mês atual)
     const inputData = document.getElementById('dataInicioEscala');
     let dataBase = new Date();
     
     if (inputData && inputData.value) {
-        // Pega a data selecionada no input corrigindo o fuso horário (T00:00:00)
         dataBase = new Date(inputData.value + 'T00:00:00');
     }
 
     const ano = dataBase.getFullYear();
-    const mes = dataBase.getMonth(); // 0 a 11
+    const mes = dataBase.getMonth(); 
     
-    // Descobre quantos dias tem no mês selecionado
     const diasNoMes = new Date(ano, mes + 1, 0).getDate(); 
 
-    // 2. Construir o Cabeçalho do CSV (Excel)
-    // \uFEFF é um BOM para forçar o Excel a ler acentos/UTF-8 corretamente
     let csvContent = "\uFEFF"; 
     csvContent += "Motorista;Conjunto;Equipe;Horário (Turno)";
     
-    // Adiciona as colunas dos dias do mês (Ex: 01/10, 02/10...)
     for (let dia = 1; dia <= diasNoMes; dia++) {
         csvContent += `;${dia.toString().padStart(2, '0')}/${(mes + 1).toString().padStart(2, '0')}`;
     }
     csvContent += "\n";
 
-    // 3. Ordenar os motoristas (Por Conjunto e depois por Nome)
     let motoristasOrdenados = [...motoristas].sort((a, b) => {
         const conjA = a.conjuntoId || 999999;
         const conjB = b.conjuntoId || 999999;
@@ -900,17 +984,12 @@ window.exportarEscalaMensalExcel = function() {
         return a.nome.localeCompare(b.nome);
     });
 
-    // 4. Preencher os dados linha por linha
     motoristasOrdenados.forEach(m => {
-        // Informações básicas do motorista
         let linha = `${m.nome};${m.conjuntoId ? 'Conjunto ' + m.conjuntoId : 'Sem Frota'};${m.equipe || '-'};${m.turno || '-'}`;
 
-        // Varre cada dia do mês para esse motorista
         for (let dia = 1; dia <= diasNoMes; dia++) {
-            // Formata a data atual do loop no padrão YYYY-MM-DD
             const dataAtualStr = `${ano}-${(mes + 1).toString().padStart(2, '0')}-${dia.toString().padStart(2, '0')}`;
             
-            // Usa o seu próprio motor de inteligência já pronto no sistema
             const escalaDia = window.getEscalaDiaComputada(m, dataAtualStr);
             
             let statusCelula = escalaDia.caminhao;
@@ -918,19 +997,16 @@ window.exportarEscalaMensalExcel = function() {
             if (statusCelula === 'F') {
                 statusCelula = 'FOLGA';
             }
-            // Anexa na linha (colunas separadas por ponto-e-vírgula)
             linha += `;${statusCelula}`;
         }
         
         csvContent += linha + "\n";
     });
 
-    // 5. Gerar e baixar o arquivo Excel (.csv)
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     
-    // Nome do arquivo (Ex: Escala_Mensal_10_2025.csv)
     const nomeArquivo = `Escala_Mensal_${(mes + 1).toString().padStart(2, '0')}_${ano}.csv`;
     
     link.setAttribute("href", url);
