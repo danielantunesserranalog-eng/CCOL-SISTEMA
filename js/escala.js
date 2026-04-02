@@ -22,23 +22,26 @@ window.popularSelectMotoristas = function() {
     }
 };
 
+// CORREÇÃO DE FUSO HORÁRIO E ARREDONDAMENTO
 window.getStatusMotorista = function(m, dDate) {
     if (!m || !m.data_ancora) return 'F';
     
-    // Correção: Uso do UTC e Math.round para não ter erro de fuso horário e milissegundos
+    // Evita strings de data inválidas
     const strAncora = m.data_ancora.split('T')[0];
     const dataAncora = new Date(strAncora + 'T00:00:00');
     
+    // Uso do UTC para garantir matemática exata sem perda de horas por fuso
     const utcAncora = Date.UTC(dataAncora.getFullYear(), dataAncora.getMonth(), dataAncora.getDate());
     const utcAtual = Date.UTC(dDate.getFullYear(), dDate.getMonth(), dDate.getDate());
     
     const diffDays = Math.round((utcAtual - utcAncora) / (1000 * 60 * 60 * 24));
     
+    // Ciclo 4x2
     const cicloDia = ((diffDays % 6) + 6) % 6;
     return cicloDia < 4 ? 'TRAB' : 'F';
 }
 
-// MOTOR MATEMÁTICO PURO (Serve apenas para gerar os dias no banco)
+// MOTOR MATEMÁTICO PURO (Lê direto do banco caso não haja escala gerada)
 window.calcularEscalaMatematica = function(motorista, dateKey) {
     if (!motorista.data_ancora || motorista.masterDrive === 'Não' || motorista.destra === 'Não') {
         return { caminhao: 'F', turno: motorista.turno, status: 'fallback' };
@@ -83,14 +86,11 @@ window.calcularEscalaMatematica = function(motorista, dateKey) {
     return { caminhao: statusCaminhao, turno: motorista.turno, status: 'fallback' };
 }
 
-// A VISUALIZAÇÃO AGORA LÊ DO BANCO. SE NÃO TIVER, RODA A MATEMÁTICA.
+// A VISUALIZAÇÃO LÊ DO BANCO. SE ALGUÉM INPUTOU SQL, ELE RODA A MATEMÁTICA AUTOMATICAMENTE.
 window.getEscalaDiaComputada = function(motorista, dateKey) {
-    // 1. Prioriza 100% o que está salvo no Banco de Dados (Auto ou Manual)
     if (escalas[motorista.id] && escalas[motorista.id][dateKey]) {
         return escalas[motorista.id][dateKey];
     }
-    
-    // 2. Fallback caso alguém tenha esquecido de gerar a escala do mês
     return window.calcularEscalaMatematica(motorista, dateKey);
 }
 
@@ -443,27 +443,32 @@ function updateAlocacao(e) {
     renderizarAlocacao();
 }
 
+// O BOTÃO DE ZERAR AGORA APAGA COMPLETAMENTE DO BANCO DE DADOS (DATA ÂNCORA E ESCALAS)
 window.resetarCicloConjunto = async function(conjuntoId) {
     if(currentUser.role !== 'Admin') { alert('⛔ Acesso Negado: Apenas Administradores podem zerar o ciclo de um conjunto.'); return; }
-    if (!confirm(`Deseja ZERAR as datas e as edições da escala do Conjunto ${conjuntoId}?`)) return;
+    if (!confirm(`Deseja ZERAR as datas e as edições da escala do Conjunto ${conjuntoId} do Banco de Dados?`)) return;
 
     let promisesExclusao = [];
 
     motoristas.forEach(m => {
         if (m.conjuntoId === conjuntoId) {
+            // 1. Zera a data_ancora na base
             if (m.data_ancora) {
                 m.data_ancora = null;
                 db.updateMotorista(m.id, { data_ancora: null });
             }
+            // 2. Limpa da Memória Local
             if (escalas[m.id]) {
                 escalas[m.id] = {};
             }
+            // 3. Deleta do Banco de Dados (Supabase)
             if (typeof db.deleteEscalasPorMotorista === 'function') {
                 promisesExclusao.push(db.deleteEscalasPorMotorista(m.id));
             }
         }
     });
 
+    // Aguarda o banco concluir todas as exclusões
     await Promise.all(promisesExclusao);
 
     await db.addLog('Reset de Ciclo', `Datas âncora e escalas removidas para o Conjunto ${conjuntoId}.`);
@@ -472,7 +477,7 @@ window.resetarCicloConjunto = async function(conjuntoId) {
     salvarBackupLocal();
     renderizarAlocacao();
     window.renderizarEscala();
-    alert(`O ciclo e a escala do Conjunto ${conjuntoId} foram zerados com sucesso!`);
+    alert(`O ciclo e a escala do Conjunto ${conjuntoId} foram completamente zerados do banco de dados!`);
 };
 
 window.abrirModalEscalaManual = function(id) {
@@ -534,13 +539,13 @@ window.atualizarPreviewManual = function() {
     container.innerHTML = html;
 }
 
-// CORREÇÃO: Gerador individual de 30 dias após reset da âncora
 window.salvarEscalaManual = async function() {
     const id = parseInt(document.getElementById('manualMotId').value);
-    const dataEscolhida = document.getElementById('manualDataInicio').value;
+    const dataEscolhida = document.getElementById('manualDataInicio').value; // Data do Passado (Âncora)
     const m = motoristas.find(mot => mot.id === id);
     
     if (m && dataEscolhida) {
+        // 1. Grava no banco a data matriz/âncora
         m.data_ancora = dataEscolhida;
         db.updateMotorista(id, { data_ancora: dataEscolhida });
         
@@ -552,14 +557,22 @@ window.salvarEscalaManual = async function() {
             await db.deleteEscalasPorMotorista(id);
         }
 
-        // Gera 30 dias imediatamente para ele e joga pro banco
+        // 2. Olha para a data de Hoje (na tela) para projetar os 30 dias para frente
+        const inputDataTela = document.getElementById('dataInicioEscala');
+        const dataBaseParaGerarStr = inputDataTela && inputDataTela.value ? inputDataTela.value : new Date().toISOString().split('T')[0];
+        const dataBaseParaGerar = new Date(dataBaseParaGerarStr + 'T00:00:00');
+        
         let novasEscalasLote = [];
-        const dataBase = new Date(dataEscolhida + 'T00:00:00');
         
         for (let i = 0; i < 30; i++) {
-            let d = new Date(dataBase);
+            let d = new Date(dataBaseParaGerar);
             d.setDate(d.getDate() + i);
-            let dataAtualStr = d.toISOString().split('T')[0];
+            
+            // Formatação blindada
+            const ano = d.getFullYear();
+            const mes = String(d.getMonth() + 1).padStart(2, '0');
+            const dia = String(d.getDate()).padStart(2, '0');
+            let dataAtualStr = `${ano}-${mes}-${dia}`;
 
             const calc = window.calcularEscalaMatematica(m, dataAtualStr);
 
@@ -573,7 +586,7 @@ window.salvarEscalaManual = async function() {
             };
 
             novasEscalasLote.push(novaEscala);
-            escalas[m.id][dataAtualStr] = novaEscala; // Atualiza a RAM
+            escalas[m.id][dataAtualStr] = novaEscala; 
         }
 
         if(typeof db.upsertEscalasLote === 'function') {
@@ -587,7 +600,6 @@ window.salvarEscalaManual = async function() {
     }
 }
 
-// CORREÇÃO: Gerador global em massa para 30 dias
 window.gerarEscala4x2 = async function(silencioso = false) {
     if(currentUser.role !== 'Admin') { alert('⛔ Acesso Negado.'); return; }
     if (!silencioso && !confirm("Atenção: Isso irá gerar a escala automática dos próximos 30 dias para TODOS os motoristas com base na data âncora. Edições manuais poderão ser sobrescritas. Confirmar?")) return;
@@ -604,7 +616,11 @@ window.gerarEscala4x2 = async function(silencioso = false) {
         for (let i = 0; i < 30; i++) {
             let d = new Date(dataBase);
             d.setDate(d.getDate() + i);
-            let dataAtualStr = d.toISOString().split('T')[0];
+            
+            const ano = d.getFullYear();
+            const mes = String(d.getMonth() + 1).padStart(2, '0');
+            const dia = String(d.getDate()).padStart(2, '0');
+            let dataAtualStr = `${ano}-${mes}-${dia}`;
 
             const calc = window.calcularEscalaMatematica(m, dataAtualStr);
 
@@ -622,7 +638,6 @@ window.gerarEscala4x2 = async function(silencioso = false) {
         }
     }
 
-    // Quebra em lotes de 500 pra não gargalar a internet
     const chunkSize = 500;
     for (let i = 0; i < novasEscalasLote.length; i += chunkSize) {
         const chunk = novasEscalasLote.slice(i, i + chunkSize);
