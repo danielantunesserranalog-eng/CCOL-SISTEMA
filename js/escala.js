@@ -1,7 +1,7 @@
 // ==================== MÓDULO: ESCALA & ALOCAÇÃO ====================
 
 const getEq = (m) => m && m.equipe ? m.equipe.trim().toUpperCase() : '-';
-const pesoEquipe = (eq) => ({'A': 1, 'B': 2, 'C': 3, 'D': 1, 'E': 2, 'F': 3}[eq] || 99);
+const pesoEquipe = (eq) => ({'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5, 'F': 6}[eq] || 99);
 
 window.popularSelectMotoristas = function() {
     const select = document.getElementById('buscaMotoristaEscala');
@@ -49,7 +49,8 @@ window.calcularEscalaMatematica = function(motorista, dateKey) {
 
     if (statusMot === 'F') return { caminhao: 'F', turno: motorista.turno, status: 'fallback' };
 
-    const conjunto = conjuntos.find(c => c.id === motorista.conjuntoId);
+    // Correção: Força comparação numérica
+    const conjunto = conjuntos.find(c => Number(c.id) === Number(motorista.conjuntoId));
     if (!conjunto || !conjunto.caminhoes) return { caminhao: 'TRAB', turno: motorista.turno, status: 'fallback' };
 
     let placa1 = conjunto.caminhoes.length > 0 ? (typeof conjunto.caminhoes[0] === 'string' ? conjunto.caminhoes[0] : conjunto.caminhoes[0].placa) : 'F';
@@ -59,8 +60,8 @@ window.calcularEscalaMatematica = function(motorista, dateKey) {
     if (eq === 'A' || eq === 'D') statusCaminhao = placa1;
     else if (eq === 'B' || eq === 'E') statusCaminhao = placa2;
     else if (eq === 'C') { 
-        const fixoA = motoristas.find(mot => mot.conjuntoId === motorista.conjuntoId && getEq(mot) === 'A');
-        const fixoB = motoristas.find(mot => mot.conjuntoId === motorista.conjuntoId && getEq(mot) === 'B');
+        const fixoA = motoristas.find(mot => Number(mot.conjuntoId) === Number(motorista.conjuntoId) && getEq(mot) === 'A');
+        const fixoB = motoristas.find(mot => Number(mot.conjuntoId) === Number(motorista.conjuntoId) && getEq(mot) === 'B');
         const statusA = fixoA ? window.getStatusMotorista(fixoA, dDate) : 'F';
         const statusB = fixoB ? window.getStatusMotorista(fixoB, dDate) : 'F';
         if (statusA === 'F') statusCaminhao = placa1;
@@ -68,8 +69,8 @@ window.calcularEscalaMatematica = function(motorista, dateKey) {
         else statusCaminhao = placa1; 
     } 
     else if (eq === 'F') {
-        const fixoD = motoristas.find(mot => mot.conjuntoId === motorista.conjuntoId && getEq(mot) === 'D');
-        const fixoE = motoristas.find(mot => mot.conjuntoId === motorista.conjuntoId && getEq(mot) === 'E');
+        const fixoD = motoristas.find(mot => Number(mot.conjuntoId) === Number(motorista.conjuntoId) && getEq(mot) === 'D');
+        const fixoE = motoristas.find(mot => Number(mot.conjuntoId) === Number(motorista.conjuntoId) && getEq(mot) === 'E');
         const statusD = fixoD ? window.getStatusMotorista(fixoD, dDate) : 'F';
         const statusE = fixoE ? window.getStatusMotorista(fixoE, dDate) : 'F';
         if (statusD === 'F') statusCaminhao = placa1;
@@ -94,10 +95,10 @@ window.renderizarEscala = function() {
     if (filtroSelectEl) {
         const valAtual = filtroSelectEl.value;
         let optHtml = '<option value="todos">Todos</option>';
-        conjuntos.forEach(c => optHtml += `<option value="${c.id}">Conjunto ${c.id}</option>`);
+        conjuntos.forEach(c => optHtml += `<option value="${c.id}">Conjunto ${String(c.id).padStart(2, '0')}</option>`);
         if (filtroSelectEl.innerHTML !== optHtml) {
             filtroSelectEl.innerHTML = optHtml;
-            if (conjuntos.some(c => c.id.toString() === valAtual)) filtroSelectEl.value = valAtual;
+            if (conjuntos.some(c => String(c.id) === String(valAtual))) filtroSelectEl.value = valAtual;
             else filtroSelectEl.value = 'todos';
         }
     }
@@ -130,7 +131,7 @@ window.renderizarEscala = function() {
     window.currentDatas = diasRender;
 
     const filtroSelec = filtroSelectEl ? filtroSelectEl.value : 'todos';
-    let conjuntosRender = filtroSelec !== 'todos' ? conjuntos.filter(c => c.id.toString() === filtroSelec.toString()) : [...conjuntos];
+    let conjuntosRender = filtroSelec !== 'todos' ? conjuntos.filter(c => String(c.id) === String(filtroSelec)) : [...conjuntos];
 
     if (filtroSelec === 'todos') {
         if (motoristas.some(m => !m.conjuntoId)) {
@@ -141,13 +142,16 @@ window.renderizarEscala = function() {
     conjuntosRender.sort((a, b) => {
         if (a.isSemFrota) return 1; 
         if (b.isSemFrota) return -1;
-        return parseInt(a.id) - parseInt(b.id);
+        return Number(a.id) - Number(b.id);
     });
 
     let html = '';
 
     conjuntosRender.forEach(conj => {
-        let motoristasDoConjunto = conj.isSemFrota ? motoristas.filter(m => !m.conjuntoId) : motoristas.filter(m => m.conjuntoId === conj.id);
+        // Correção: Força comparação numérica de conjuntoId vs conj.id
+        let motoristasDoConjunto = conj.isSemFrota 
+            ? motoristas.filter(m => !m.conjuntoId) 
+            : motoristas.filter(m => Number(m.conjuntoId) === Number(conj.id));
 
         if (motoristasDoConjunto.length === 0) return;
 
@@ -303,27 +307,27 @@ window.buscarMotoristaEscala = function() {
     });
 }
 
-// AQUI é o único lugar que salva na tabela de escalas agora (as edições manuais)
+// Alteração de Escala Manual (Forçando string IDs para segurança)
 async function handleEscalaChange(e) {
     const select = e.target;
-    const motoristaId = parseInt(select.dataset.motorista);
+    const motoristaId = String(select.dataset.motorista);
     const data = select.dataset.data;
     const novoCaminhao = select.value;
     
-    const m = motoristas.find(mot => mot.id === motoristaId);
+    const m = motoristas.find(mot => String(mot.id) === String(motoristaId));
     if(m) {
         try {
             await db.upsertEscala({ 
                 id: String(`${motoristaId}_${data}`), 
-                motorista_id: motoristaId, 
+                motorista_id: Number(motoristaId), 
                 data: data, 
                 turno: m.turno, 
                 caminhao: novoCaminhao, 
                 status: 'manual' 
             });
 
-            if (!escalas[motoristaId]) escalas[motoristaId] = {};
-            escalas[motoristaId][data] = { turno: m.turno, caminhao: novoCaminhao, status: 'manual' };
+            if (!escalas[m.id]) escalas[m.id] = {};
+            escalas[m.id][data] = { turno: m.turno, caminhao: novoCaminhao, status: 'manual' };
             
             let isFolga = novoCaminhao === 'F';
             let tdParent = select.closest('td');
@@ -350,16 +354,14 @@ function renderizarAlocacao() {
         return;
     }
 
-    const pesoAlocacao = (eq) => ({'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5, 'F': 6}[eq] || 99);
-
     const motoristasOrdenados = [...motoristas].sort((a, b) => {
-        const conjA = a.conjuntoId || 999999;
-        const conjB = b.conjuntoId || 999999;
+        const conjA = a.conjuntoId ? Number(a.conjuntoId) : 999999;
+        const conjB = b.conjuntoId ? Number(b.conjuntoId) : 999999;
         if (conjA !== conjB) return conjA - conjB; 
         
         const eqA = getEq(a);
         const eqB = getEq(b);
-        if (pesoAlocacao(eqA) !== pesoAlocacao(eqB)) return pesoAlocacao(eqA) - pesoAlocacao(eqB);
+        if (pesoEquipe(eqA) !== pesoEquipe(eqB)) return pesoEquipe(eqA) - pesoEquipe(eqB);
         
         return a.nome.localeCompare(b.nome);
     });
@@ -369,7 +371,7 @@ function renderizarAlocacao() {
     
     motoristasOrdenados.forEach(m => {
         const isBlocked = m.masterDrive === 'Não' || m.destra === 'Não';
-        const currentConjunto = m.conjuntoId || 'sem_conjunto';
+        const currentConjunto = m.conjuntoId ? Number(m.conjuntoId) : 'sem_conjunto';
         let eq = getEq(m);
 
         if (currentConjunto !== lastConjunto) {
@@ -417,7 +419,7 @@ function renderizarAlocacao() {
         
         let conjuntoSelect = `<select class="select-aloc-conjunto select-turno" data-id="${m.id}" ${isBlocked ? 'disabled' : ''} style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 6px;">
             <option value="">Não Alocado</option>
-            ${isBlocked ? '' : conjuntos.map(c => `<option value="${c.id}" ${m.conjuntoId === c.id ? 'selected' : ''}>Trinca ${String(c.id).padStart(2, '0')}</option>`).join('')}
+            ${isBlocked ? '' : conjuntos.map(c => `<option value="${c.id}" ${Number(m.conjuntoId) === Number(c.id) ? 'selected' : ''}>Trinca ${String(c.id).padStart(2, '0')}</option>`).join('')}
         </select>`;
         
         let botaoManual = '';
@@ -452,8 +454,8 @@ function renderizarAlocacao() {
 }
 
 async function updateAlocacao(e) {
-    const id = parseInt(e.target.dataset.id);
-    const motorista = motoristas.find(m => m.id === id);
+    const idStr = String(e.target.dataset.id);
+    const motorista = motoristas.find(m => String(m.id) === idStr);
     const tr = e.target.closest('tr');
     
     const oldEquipe = motorista.equipe;
@@ -463,10 +465,10 @@ async function updateAlocacao(e) {
     const novaEquipe = tr.querySelector('.select-aloc-equipe').value;
     const novoTurno = tr.querySelector('.select-aloc-turno').value;
     const conjVal = tr.querySelector('.select-aloc-conjunto').value;
-    const novoConjuntoId = conjVal ? parseInt(conjVal) : null;
+    const novoConjuntoId = conjVal ? Number(conjVal) : null;
     
     try {
-        await db.updateMotorista(id, { equipe: novaEquipe, turno: novoTurno, conjuntoId: novoConjuntoId });
+        await db.updateMotorista(Number(idStr), { equipe: novaEquipe, turno: novoTurno, conjuntoId: novoConjuntoId });
         
         motorista.equipe = novaEquipe;
         motorista.turno = novoTurno;
@@ -490,7 +492,7 @@ window.resetarCicloConjunto = async function(conjuntoId) {
 
     let promisesExclusao = [];
     motoristas.forEach(m => {
-        if (m.conjuntoId === conjuntoId) {
+        if (Number(m.conjuntoId) === Number(conjuntoId)) {
             if (m.data_ancora) { m.data_ancora = null; db.updateMotorista(m.id, { data_ancora: null }); }
             if (escalas[m.id]) escalas[m.id] = {};
             if (typeof db.deleteEscalasPorMotorista === 'function') promisesExclusao.push(db.deleteEscalasPorMotorista(m.id));
@@ -506,7 +508,8 @@ window.resetarCicloConjunto = async function(conjuntoId) {
 };
 
 window.abrirModalEscalaManual = function(id) {
-    const m = motoristas.find(mot => mot.id === id);
+    const idStr = String(id);
+    const m = motoristas.find(mot => String(mot.id) === idStr);
     if (!m) return;
     let eq = getEq(m);
     if (m.conjuntoId && eq === '-') { 
@@ -556,23 +559,21 @@ window.atualizarPreviewManual = function() {
     container.innerHTML = html;
 }
 
-// ATUALIZADO: Agora apenas salva a data_ancora. O cálculo de 30 dias sumiu.
 window.salvarEscalaManual = async function() {
-    const id = parseInt(document.getElementById('manualMotId').value);
+    const idStr = String(document.getElementById('manualMotId').value);
     const dataEscolhida = document.getElementById('manualDataInicio').value; 
-    const m = motoristas.find(mot => mot.id === id);
+    const m = motoristas.find(mot => String(mot.id) === idStr);
     
     if (m && dataEscolhida) {
         m.data_ancora = dataEscolhida;
         try {
-            await db.updateMotorista(id, { data_ancora: dataEscolhida });
+            await db.updateMotorista(Number(idStr), { data_ancora: dataEscolhida });
         } catch(e) {
             return; 
         }
         
-        // Remove alterações manuais anteriores daquele motorista, pois o ciclo começou de novo
-        if (escalas[id]) escalas[id] = {};
-        if (typeof db.deleteEscalasPorMotorista === 'function') await db.deleteEscalasPorMotorista(id);
+        if (escalas[m.id]) escalas[m.id] = {};
+        if (typeof db.deleteEscalasPorMotorista === 'function') await db.deleteEscalasPorMotorista(Number(idStr));
 
         salvarBackupLocal();
         fecharModalManual();
@@ -581,7 +582,6 @@ window.salvarEscalaManual = async function() {
     }
 }
 
-// ATUALIZADO: O botão "4x2 Auto" não salva mais nada no banco. O sistema já renderiza na hora!
 window.gerarEscala4x2 = async function(silencioso = false) {
     if(currentUser.role !== 'Admin') { alert('⛔ Acesso Negado.'); return; }
     if (!silencioso) {
@@ -618,7 +618,7 @@ window.imprimirRelatorioEscalaSemanal = function() {
     }
     const filtroSelectEl = document.getElementById('filtroConjuntoEscala');
     const filtroSelec = filtroSelectEl ? filtroSelectEl.value : 'todos';
-    let conjuntosRender = filtroSelec !== 'todos' ? conjuntos.filter(c => c.id.toString() === filtroSelec.toString()) : [...conjuntos];
+    let conjuntosRender = filtroSelec !== 'todos' ? conjuntos.filter(c => String(c.id) === String(filtroSelec)) : [...conjuntos];
     if (conjuntosRender.length === 0) { alert("Nenhum dado para imprimir."); return; }
 
     let html = `
@@ -649,7 +649,7 @@ window.imprimirRelatorioEscalaSemanal = function() {
     `;
 
     conjuntosRender.forEach(conj => {
-        let motoristasDoConjunto = motoristas.filter(m => m.conjuntoId === conj.id);
+        let motoristasDoConjunto = motoristas.filter(m => Number(m.conjuntoId) === Number(conj.id));
         if (motoristasDoConjunto.length === 0) return;
 
         const gDia = motoristasDoConjunto.filter(m => ['A', 'B', 'C'].includes(getEq(m))).sort((a,b) => pesoEquipe(getEq(a)) - pesoEquipe(getEq(b)));
@@ -708,7 +708,11 @@ window.exportarEscalaMensalExcel = function() {
     for (let dia = 1; dia <= diasNoMes; dia++) csvContent += `;${dia.toString().padStart(2, '0')}/${(mes + 1).toString().padStart(2, '0')}`;
     csvContent += "\n";
 
-    let mOrdenados = [...motoristas].sort((a, b) => (a.conjuntoId || 999) - (b.conjuntoId || 999) || pesoEquipe(getEq(a)) - pesoEquipe(getEq(b)));
+    let mOrdenados = [...motoristas].sort((a, b) => {
+        const conjA = a.conjuntoId ? Number(a.conjuntoId) : 999999;
+        const conjB = b.conjuntoId ? Number(b.conjuntoId) : 999999;
+        return conjA - conjB || pesoEquipe(getEq(a)) - pesoEquipe(getEq(b));
+    });
 
     mOrdenados.forEach(m => {
         let eq = getEq(m);
