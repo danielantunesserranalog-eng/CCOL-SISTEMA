@@ -49,7 +49,6 @@ window.calcularEscalaMatematica = function(motorista, dateKey) {
 
     if (statusMot === 'F') return { caminhao: 'F', turno: motorista.turno, status: 'fallback' };
 
-    // Comparação blindada com String para nunca falhar se for "4" vs 4
     const conjunto = conjuntos.find(c => String(c.id) === String(motorista.conjuntoId));
     if (!conjunto || !conjunto.caminhoes) return { caminhao: 'TRAB', turno: motorista.turno, status: 'fallback' };
 
@@ -309,7 +308,7 @@ window.buscarMotoristaEscala = function() {
 // Alteração visual da escala (T e F editáveis) com segurança de dados
 async function handleEscalaChange(e) {
     const select = e.target;
-    const motoristaIdStr = String(select.dataset.motorista); // Proteção garantida como texto
+    const motoristaIdStr = String(select.dataset.motorista); 
     const data = select.dataset.data;
     const novoCaminhao = select.value;
     
@@ -318,7 +317,7 @@ async function handleEscalaChange(e) {
         try {
             await db.upsertEscala({ 
                 id: String(`${m.id}_${data}`), 
-                motorista_id: m.id,  // Envia com o tipo original da base de dados
+                motorista_id: m.id,  
                 data: data, 
                 turno: m.turno, 
                 caminhao: novoCaminhao, 
@@ -452,7 +451,7 @@ function renderizarAlocacao() {
     document.querySelectorAll('.select-aloc-equipe, .select-aloc-turno, .select-aloc-conjunto').forEach(el => el.addEventListener('change', updateAlocacao));
 }
 
-// O salvamento da alocação agora é 100% blindado contra tipos errados
+// O salvamento da alocação agora é 100% blindado contra tipos errados e Falsos Sucessos
 async function updateAlocacao(e) {
     const idStr = String(e.target.dataset.id);
     const motorista = motoristas.find(m => String(m.id) === idStr);
@@ -460,23 +459,32 @@ async function updateAlocacao(e) {
     
     if (!motorista) return;
 
+    // Salva cópia de segurança
     const oldEquipe = motorista.equipe;
     const oldTurno = motorista.turno;
     const oldConjuntoId = motorista.conjuntoId;
 
-    const novaEquipe = tr.querySelector('.select-aloc-equipe').value;
-    const novoTurno = tr.querySelector('.select-aloc-turno').value;
-    
+    let novaEquipe = tr.querySelector('.select-aloc-equipe').value;
+    let novoTurno = tr.querySelector('.select-aloc-turno').value;
     let conjVal = tr.querySelector('.select-aloc-conjunto').value;
-    let novoConjuntoId = conjVal ? conjVal : null;
     
-    if (novoConjuntoId) {
-        const conjuntoOriginal = conjuntos.find(c => String(c.id) === String(novoConjuntoId));
-        if (conjuntoOriginal) novoConjuntoId = conjuntoOriginal.id;
+    // Tratamento impecável: Nunca manda texto vazio ou "-" para o banco. Envia null.
+    novaEquipe = (novaEquipe && novaEquipe !== '-') ? novaEquipe : null;
+    novoTurno = (novoTurno && novoTurno !== '-') ? novoTurno : null;
+
+    let novoConjuntoId = null;
+    if (conjVal && conjVal !== "") {
+        // Encontra o formato original da Trinca para enviar igualzinho e não ser rejeitado
+        const conjuntoOriginal = conjuntos.find(c => String(c.id) === String(conjVal));
+        novoConjuntoId = conjuntoOriginal ? conjuntoOriginal.id : Number(conjVal);
     }
     
     try {
-        await db.updateMotorista(motorista.id, { equipe: novaEquipe, turno: novoTurno, conjuntoId: novoConjuntoId });
+        await db.updateMotorista(motorista.id, { 
+            equipe: novaEquipe, 
+            turno: novoTurno, 
+            conjuntoId: novoConjuntoId 
+        });
         
         motorista.equipe = novaEquipe;
         motorista.turno = novoTurno;
@@ -488,9 +496,10 @@ async function updateAlocacao(e) {
         renderizarAlocacao();
         
     } catch (error) {
+        // O Supabase rejeitou, o navegador desfaz a alteração para você saber que não salvou.
         tr.querySelector('.select-aloc-equipe').value = oldEquipe || '-';
         tr.querySelector('.select-aloc-turno').value = oldTurno || '-';
-        tr.querySelector('.select-aloc-conjunto').value = oldConjuntoId !== null && oldConjuntoId !== undefined ? String(oldConjuntoId) : '';
+        tr.querySelector('.select-aloc-conjunto').value = (oldConjuntoId !== null && oldConjuntoId !== undefined) ? String(oldConjuntoId) : '';
     }
 }
 
@@ -573,9 +582,9 @@ window.salvarEscalaManual = async function() {
     const m = motoristas.find(mot => String(mot.id) === idStr);
     
     if (m && dataEscolhida) {
-        m.data_ancora = dataEscolhida;
         try {
             await db.updateMotorista(m.id, { data_ancora: dataEscolhida });
+            m.data_ancora = dataEscolhida; 
         } catch(e) {
             return; 
         }

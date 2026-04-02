@@ -61,11 +61,26 @@ const db = {
         await supabaseClient.from('motoristas').insert([motorista]);
     },
     async updateMotorista(id, updates) {
-        const { error } = await supabaseClient.from('motoristas').update(updates).eq('id', id);
+        // Limpa chaves não preenchidas para não quebrar o Supabase
+        Object.keys(updates).forEach(k => updates[k] === undefined && delete updates[k]);
+
+        // O comando .select() no final OBRIGA o Supabase a devolver a linha que foi alterada
+        const { data, error } = await supabaseClient.from('motoristas')
+            .update(updates)
+            .eq('id', id)
+            .select();
+            
         if (error) {
             console.error("⛔ ERRO SUPABASE MOTORISTA:", error);
-            alert("ERRO NO BANCO (Motorista): A alteração não foi salva para os outros usuários!\nMotivo: " + error.message);
+            alert("ERRO NO BANCO (Motorista): A alteração foi rejeitada pelo servidor!\nMotivo: " + error.message);
             throw error;
+        }
+
+        // Se o Supabase não devolveu nada, significa que ocorreu um Falso Sucesso (ele ignorou a edição)
+        if (!data || data.length === 0) {
+            console.error("⚠️ Falha Invisível: Nenhuma linha afetada para o ID", id);
+            alert("⚠️ ALERTA DE SINCRONIZAÇÃO: O Supabase falhou ao tentar salvar o motorista. Verifique o tipo de dado.");
+            throw new Error("Zero rows updated in Supabase");
         }
     },
     async deleteMotorista(id) {
