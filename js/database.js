@@ -61,12 +61,26 @@ const db = {
         await supabaseClient.from('motoristas').insert([motorista]);
     },
     async updateMotorista(id, updates) {
+        // Limpa chaves não preenchidas para não quebrar o Supabase
         Object.keys(updates).forEach(k => updates[k] === undefined && delete updates[k]);
-        const { error } = await supabaseClient.from('motoristas').update(updates).eq('id', id);
+
+        // O comando .select() no final OBRIGA o Supabase a devolver a linha que foi alterada
+        const { data, error } = await supabaseClient.from('motoristas')
+            .update(updates)
+            .eq('id', id)
+            .select();
+            
         if (error) {
-            console.error("⛔ ERRO BASE DE DADOS MOTORISTA:", error);
-            alert("Erro ao gravar na base de dados!\nMotivo: " + error.message);
+            console.error("⛔ ERRO SUPABASE MOTORISTA:", error);
+            alert("ERRO NA BASE DE DADOS (Motorista): A alteração foi rejeitada pelo servidor!\nMotivo: " + error.message);
             throw error;
+        }
+
+        // Se o Supabase não devolveu nada, significa que ocorreu um Falso Sucesso (ele ignorou a edição)
+        if (!data || data.length === 0) {
+            console.error("⚠️ Falha Invisível: Nenhuma linha afetada para o ID", id);
+            alert("⚠️ ALERTA DE SINCRONIZAÇÃO: O Supabase falhou ao tentar guardar o motorista. Verifique o tipo de dado.");
+            throw new Error("Zero rows updated in Supabase");
         }
     },
     async deleteMotorista(id) {
@@ -76,14 +90,14 @@ const db = {
     // --- EXCEÇÕES DA ESCALA (Ajustes Manuais) ---
     async getEscalas() {
         const { data, error } = await supabaseClient.from('escalas').select('*');
-        if (error) console.error("Erro puxar exceções escala:", error);
+        if (error) console.error("Erro a extrair exceções da escala:", error);
         return data || [];
     },
     async upsertEscala(escala) {
         const { error } = await supabaseClient.from('escalas').upsert([escala]);
         if (error) {
             console.error("⛔ ERRO EXCEÇÃO ESCALA:", error);
-            alert("Erro ao salvar o ajuste desta escala!\nMotivo: " + error.message);
+            alert("Erro ao guardar o ajuste desta escala!\nMotivo: " + error.message);
             throw error;
         }
     },
@@ -119,21 +133,31 @@ const db = {
     },
     async upsertTreinamento(treinamento) {
         const { error } = await supabaseClient.from('treinamentos').upsert([treinamento]);
-        if (error) throw error;
+        if (error) {
+            console.error("⛔ ERRO SUPABASE TREINAMENTOS:", error);
+            alert("ERRO NA BASE DE DADOS (Treinamentos): A alteração não foi guardada!\nMotivo: " + error.message);
+            throw error;
+        }
     },
     async deleteTreinamento(id) {
         await supabaseClient.from('treinamentos').delete().eq('id', id);
     },
 
-    // --- PERMISSÕES ---
+    // --- PERMISSÕES DE ACESSO ---
     async getPermissoesDB() {
         const { data, error } = await supabaseClient.from('permissoes_perfis').select('*');
         if (error || !data) return {};
         const permissoesObj = {};
-        data.forEach(item => { permissoesObj[item.perfil] = item.menus; });
+        data.forEach(item => {
+            permissoesObj[item.perfil] = item.menus;
+        });
         return permissoesObj;
     },
     async updatePermissoesDB(perfil, menus) {
-        await supabaseClient.from('permissoes_perfis').upsert([{ perfil: perfil, menus: menus }]);
+        const { error } = await supabaseClient.from('permissoes_perfis').upsert([{ perfil: perfil, menus: menus }]);
+        if (error) {
+            console.error("Erro ao guardar permissões:", error);
+            alert("Erro ao guardar permissões na base de dados. Motivo: " + error.message);
+        }
     }
 };
