@@ -75,6 +75,14 @@ const db = {
     async upsertEscala(escala) {
         await supabaseClient.from('escalas').upsert([escala]);
     },
+    // NOVO: Função para inserir múltiplos dias no banco de uma só vez (otimização de performance)
+    async upsertEscalasLote(escalasArray) {
+        if (!escalasArray || escalasArray.length === 0) return;
+        const { error } = await supabaseClient.from('escalas').upsert(escalasArray);
+        if (error) {
+            console.error("Erro no upsert em lote de escalas:", error);
+        }
+    },
     async deleteEscalasPorMotorista(motorista_id) {
         await supabaseClient.from('escalas').delete().eq('motorista_id', motorista_id);
     },
@@ -110,7 +118,7 @@ const db = {
         if (error) console.error("Erro ao limpar escalas:", error);
     },
 
-    // --- PERMISSÕES DE ACESSO (NOVO) ---
+    // --- PERMISSÕES DE ACESSO ---
     async getPermissoesDB() {
         const { data, error } = await supabaseClient.from('permissoes_perfis').select('*');
         if (error || !data) return {};
