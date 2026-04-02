@@ -52,7 +52,7 @@ const db = {
         await supabaseClient.from('conjuntos').update({ caminhoes }).eq('id', id);
     },
 
-    // --- MOTORISTAS (O Coração do Novo Sistema) ---
+    // --- MOTORISTAS ---
     async getMotoristas() {
         const { data } = await supabaseClient.from('motoristas').select('*');
         return data || [];
@@ -61,13 +61,8 @@ const db = {
         await supabaseClient.from('motoristas').insert([motorista]);
     },
     async updateMotorista(id, updates) {
-        // Limpa chaves vazias
         Object.keys(updates).forEach(k => updates[k] === undefined && delete updates[k]);
-
-        const { error } = await supabaseClient.from('motoristas')
-            .update(updates)
-            .eq('id', id);
-            
+        const { error } = await supabaseClient.from('motoristas').update(updates).eq('id', id);
         if (error) {
             console.error("⛔ ERRO BASE DE DADOS MOTORISTA:", error);
             alert("Erro ao gravar na base de dados!\nMotivo: " + error.message);
@@ -78,12 +73,32 @@ const db = {
         await supabaseClient.from('motoristas').delete().eq('id', id);
     },
 
-    // --- ESCALAS (Desativadas do DB - Agora 100% Automático pelo JS) ---
-    async getEscalas() { return []; },
-    async upsertEscala(escala) { return; },
-    async upsertEscalasLote(escalasArray) { return; },
-    async deleteEscalasPorMotorista(motorista_id) { return; },
-    async limparApenasEscalas() { return; },
+    // --- EXCEÇÕES DA ESCALA (Ajustes Manuais) ---
+    async getEscalas() {
+        const { data, error } = await supabaseClient.from('escalas').select('*');
+        if (error) console.error("Erro puxar exceções escala:", error);
+        return data || [];
+    },
+    async upsertEscala(escala) {
+        const { error } = await supabaseClient.from('escalas').upsert([escala]);
+        if (error) {
+            console.error("⛔ ERRO EXCEÇÃO ESCALA:", error);
+            alert("Erro ao salvar o ajuste desta escala!\nMotivo: " + error.message);
+            throw error;
+        }
+    },
+    async deleteEscalaDia(id) {
+        // Apaga a exceção para o sistema voltar a calcular no automático
+        const { error } = await supabaseClient.from('escalas').delete().eq('id', id);
+        if (error) throw error;
+    },
+    async deleteEscalasPorMotorista(motorista_id) {
+        await supabaseClient.from('escalas').delete().eq('motorista_id', motorista_id);
+    },
+    async limparApenasEscalas() {
+        const { error } = await supabaseClient.from('escalas').delete().neq('id', '0');
+        if (error) console.error("Erro ao limpar exceções:", error);
+    },
     
     // --- TREINAMENTOS ---
     async getInstrutores() {
@@ -110,7 +125,7 @@ const db = {
         await supabaseClient.from('treinamentos').delete().eq('id', id);
     },
 
-    // --- PERMISSÕES DE ACESSO ---
+    // --- PERMISSÕES ---
     async getPermissoesDB() {
         const { data, error } = await supabaseClient.from('permissoes_perfis').select('*');
         if (error || !data) return {};

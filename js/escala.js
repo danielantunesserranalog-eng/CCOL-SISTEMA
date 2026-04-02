@@ -75,11 +75,15 @@ window.calcularEscalaMatematica = function(motorista, dateKey) {
     }
     
     if (statusCaminhao === 'TRAB') statusCaminhao = 'T';
-    return { caminhao: statusCaminhao, turno: motorista.turno, status: 'fallback' };
+    return { caminhao: statusCaminhao, turno: motorista.turno, status: 'auto' };
 }
 
 window.getEscalaDiaComputada = function(motorista, dateKey) {
-    // 100% Automático - Não lê mais dados do objeto "escalas" local.
+    // 1. CHECA EXCEÇÕES MANUAIS: Verifica se você salvou um ajuste manual para este dia específico no banco
+    if (escalas[motorista.id] && escalas[motorista.id][dateKey] && escalas[motorista.id][dateKey].status === 'manual') {
+        return escalas[motorista.id][dateKey];
+    }
+    // 2. SE NÃO TEM AJUSTE: Calcula infinitamente a matemática padrão
     return window.calcularEscalaMatematica(motorista, dateKey);
 }
 
@@ -171,7 +175,7 @@ window.renderizarEscala = function() {
                     <tr style="background-color: rgba(30, 41, 59, 0.9); color: #94a3b8; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px;">
                         <th style="padding: 12px 8px; border: 1px solid rgba(255,255,255,0.05); width: 12%;">Horário</th>
                         <th style="padding: 12px 8px; border: 1px solid rgba(255,255,255,0.05); width: 10%;">GO/Placa</th>
-                        <th style="padding: 12px 8px; border: 1px solid rgba(255,255,255,0.05); width: 6%;">Equipa</th>
+                        <th style="padding: 12px 8px; border: 1px solid rgba(255,255,255,0.05); width: 6%;">Equipe</th>
                         <th style="padding: 12px 8px; border: 1px solid rgba(255,255,255,0.05); width: 10%;">Posição</th>
                         <th style="padding: 12px 15px; border: 1px solid rgba(255,255,255,0.05); text-align: left; width: 22%;">Colaborador</th>
                         ${diasRender.map(d => `<th style="padding: 10px 5px; border: 1px solid rgba(255,255,255,0.05); width: 5.7%; color: #cbd5e1;">${d.diaTexto}<br><span style="font-size:0.85rem; font-weight:800; color: #fff;">${d.diaNum}</span></th>`).join('')}
@@ -218,18 +222,37 @@ window.renderizarEscala = function() {
                 diasRender.forEach(d => {
                     const escala = window.getEscalaDiaComputada(m, d.dateKey);
                     const isFolga = escala.caminhao === 'F';
+                    const isManual = escala.status === 'manual'; // Identifica se é uma exceção gravada
                     
                     let bgCell = isFolga ? 'rgba(249, 115, 22, 0.15)' : 'rgba(59, 130, 246, 0.15)';
                     let colorCell = isFolga ? '#fb923c' : '#93c5fd';
                     let borderSide = isFolga ? '1px solid rgba(249, 115, 22, 0.3)' : '1px solid rgba(59, 130, 246, 0.3)';
                     
-                    let textoRender = isBlocked ? 'Bloq' : (isFolga ? 'F' : escala.caminhao);
+                    if (isManual) {
+                        bgCell = 'rgba(168, 85, 247, 0.15)'; // Fundo roxo suave para indicar ajuste manual
+                        borderSide = '1px solid rgba(168, 85, 247, 0.5)';
+                    }
+                    
+                    let opcoes = `<option value="F" ${isFolga ? 'selected' : ''} style="background: #1e293b; color: #fff;">F</option>`;
+                    if (!isFolga || isManual) {
+                        opcoes += `<option value="T" ${escala.caminhao === 'T' || escala.caminhao === 'TRAB' ? 'selected' : ''} style="background: #1e293b; color: #fff;">T</option>`;
+                        if (!conj.isSemFrota) {
+                            conj.caminhoes?.forEach(cam => {
+                                const placa = typeof cam === 'string' ? cam : cam.placa;
+                                opcoes += `<option value="${placa}" ${escala.caminhao === placa ? 'selected' : ''} style="background: #1e293b; color: #fff;">${placa}</option>`;
+                            });
+                        }
+                    }
+                    
+                    // Se estiver num ajuste manual, dá a opção de limpar e voltar para a matemática original
+                    if (isManual) {
+                        opcoes += `<option value="AUTO" style="background: #0f172a; color: #fbbf24; font-weight: bold;">🔄 Voltar pro Auto</option>`;
+                    }
 
-                    // Renderização como TEXTO PURO (Grelha Read-Only Automática)
-                    rowsHtml += `<td style="padding: 10px 4px; border: 1px solid rgba(255,255,255,0.05); border-left: ${borderSide}; border-right: ${borderSide}; background-color: ${bgCell}; text-align: center; vertical-align: middle;">
-                        <div style="width: 100%; color: ${colorCell}; font-weight: 800; font-size: 0.9rem; text-align: center;">
-                            ${textoRender}
-                        </div>
+                    rowsHtml += `<td style="padding: 4px; border: 1px solid rgba(255,255,255,0.05); border-left: ${borderSide}; border-right: ${borderSide}; background-color: ${bgCell}; text-align: center; vertical-align: middle;">
+                        <select class="select-escala-excel" data-motorista="${m.id}" data-data="${d.dateKey}" ${isBlocked ? 'disabled' : ''} style="width: 100%; padding: 6px 0; background: transparent; border: none; color: ${colorCell}; font-weight: 800; font-size: 0.9rem; text-align: center; appearance: none; cursor: pointer; outline: none; text-align-last: center;">
+                            ${isBlocked ? '<option value="F">Bloq</option>' : opcoes}
+                        </select>
                     </td>`;
                 });
                 rowsHtml += `</tr>`;
@@ -245,6 +268,7 @@ window.renderizarEscala = function() {
     });
 
     container.innerHTML = html;
+    document.querySelectorAll('.select-escala-excel').forEach(select => select.addEventListener('change', handleEscalaChange));
     if(typeof atualizarStats === 'function') atualizarStats();
     
     if (document.getElementById('buscaMotoristaEscala') && document.getElementById('buscaMotoristaEscala').value.trim() !== '') {
@@ -257,8 +281,8 @@ window.limparDestaqueMotorista = function() {
     linhas.forEach(tr => {
         Array.from(tr.children).forEach(td => {
             td.style.removeProperty('background-color');
-            const innerDiv = td.querySelector('div');
-            if (innerDiv) innerDiv.style.removeProperty('color');
+            const select = td.querySelector('select');
+            if (select) select.style.removeProperty('color');
         });
     });
 };
@@ -282,8 +306,8 @@ window.buscarMotoristaEscala = function() {
         if (tdNome && tdNome.textContent.toLowerCase().includes(termo)) {
             Array.from(tr.children).forEach(td => {
                 td.style.setProperty('background-color', 'rgba(253, 224, 71, 0.8)', 'important');
-                const innerDiv = td.querySelector('div');
-                if (innerDiv) innerDiv.style.setProperty('color', '#000', 'important');
+                const select = td.querySelector('select');
+                if (select) select.style.setProperty('color', '#000', 'important');
             });
             if (!encontrou) {
                 tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -291,6 +315,52 @@ window.buscarMotoristaEscala = function() {
             }
         }
     });
+}
+
+// LÓGICA DE EXCEÇÕES: Grava APENAS se houver ajuste, e APAGA se pedir "AUTO"
+async function handleEscalaChange(e) {
+    const select = e.target;
+    const motoristaIdStr = String(select.dataset.motorista); 
+    const data = select.dataset.data;
+    const novoCaminhao = select.value;
+    
+    const m = motoristas.find(mot => String(mot.id) === motoristaIdStr);
+    if(m) {
+        const idExcecao = String(`${m.id}_${data}`);
+        
+        // Se o usuário selecionou para voltar pro automático:
+        if (novoCaminhao === 'AUTO') {
+            try {
+                await db.deleteEscalaDia(idExcecao);
+                if (escalas[m.id]) delete escalas[m.id][data];
+                window.renderizarEscala(); 
+            } catch (err) {
+                console.error(err);
+            }
+            return;
+        }
+
+        // Se for um ajuste manual (T, F, ou Placa), manda pro banco
+        try {
+            await db.upsertEscala({ 
+                id: idExcecao, 
+                motorista_id: m.id,  
+                data: data, 
+                turno: m.turno, 
+                caminhao: novoCaminhao, 
+                status: 'manual' 
+            });
+
+            if (!escalas[m.id]) escalas[m.id] = {};
+            escalas[m.id][data] = { turno: m.turno, caminhao: novoCaminhao, status: 'manual' };
+            
+            window.renderizarEscala(); 
+            if(typeof atualizarStats === 'function') atualizarStats();
+        } catch (error) {
+            // Se falhar o banco, a tela recarrega desfazendo o select
+            window.renderizarEscala(); 
+        }
+    }
 }
 
 function renderizarAlocacao() {
@@ -351,7 +421,7 @@ function renderizarAlocacao() {
             <div style="display: flex; align-items: center; justify-content: flex-start;">
                 ${posicaoTag}
                 <select class="select-aloc-equipe select-turno" data-id="${m.id}" ${isBlocked ? 'disabled' : ''} style="width: 140px; font-weight: bold; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 6px;">
-                    <option value="-" ${eq === '-' ? 'selected' : ''}>Sem Equipa</option>
+                    <option value="-" ${eq === '-' ? 'selected' : ''}>Sem Equipe</option>
                     <option value="A" ${eq === 'A' ? 'selected' : ''}>A (Dia)</option>
                     <option value="B" ${eq === 'B' ? 'selected' : ''}>B (Dia)</option>
                     <option value="C" ${eq === 'C' ? 'selected' : ''}>C (Dia)</option>
@@ -456,6 +526,8 @@ window.resetarCicloConjunto = async function(conjuntoId) {
     motoristas.forEach(m => {
         if (String(m.conjuntoId) === String(conjuntoId)) {
             if (m.data_ancora) { m.data_ancora = null; db.updateMotorista(m.id, { data_ancora: null }); }
+            if (escalas[m.id]) escalas[m.id] = {};
+            if (typeof db.deleteEscalasPorMotorista === 'function') promisesExclusao.push(db.deleteEscalasPorMotorista(m.id));
         }
     });
 
@@ -473,7 +545,7 @@ window.abrirModalEscalaManual = function(id) {
     if (!m) return;
     let eq = getEq(m);
     if (m.conjuntoId && eq === '-') { 
-        alert("O motorista precisa ter uma equipa (A-F) antes de configurar a data do ciclo!"); 
+        alert("O motorista precisa ter uma equipe (A-F) antes de configurar a data do ciclo!"); 
         return; 
     }
 
@@ -548,7 +620,16 @@ window.gerarEscala4x2 = async function(silencioso = false) {
 
 window.zerarEscala = async function() {
     if(currentUser.role !== 'Admin') { alert('⛔ Acesso Negado.'); return; }
-    alert("✔️ A escala agora funciona de forma 100% dinâmica com base no Início do Ciclo do motorista. Não existem edições diárias para apagar!");
+    if (!confirm("Isso apagará TODAS as exceções manuais gravadas e a escala voltará para o ciclo automático perfeito. Continuar?")) return;
+    try {
+        await db.limparApenasEscalas();
+        escalas = {}; 
+        salvarBackupLocal();
+        window.renderizarEscala();
+        alert("✔️ Exceções removidas. Escala 100% no automático!");
+    } catch (e) {
+        console.error(e);
+    }
 }
 
 window.renderizarTrocaTurno = function() { /* Mantido p/ dashboard */ };
@@ -632,8 +713,8 @@ window.imprimirRelatorioEscalaSemanal = function() {
 
         html += `<div class="trinca-box"><div class="trinca-num">TRINCA ${String(conj.id).padStart(2, '0')}</div>`;
         html += `<table><thead><tr><th style="width:10%;">HORÁRIO</th><th style="width:12%;">GO/PLACA</th><th style="width:6%;">EQ</th><th style="width:12%;">POSIÇÃO</th><th style="text-align:left;">COLABORADOR</th>${window.currentDatas.map(d => `<th style="width:6%;">${d.diaTexto}<br>${d.diaNum}</th>`).join('')}</tr></thead><tbody>`;
-        html += renderTable(gDia, '☀️ TURNO DO DIA (EQUIPAS A, B, C)', 'dia-bg');
-        html += renderTable(gNoite, '🌙 TURNO DA NOITE (EQUIPAS D, E, F)', 'noite-bg');
+        html += renderTable(gDia, '☀️ TURNO DO DIA (EQUIPES A, B, C)', 'dia-bg');
+        html += renderTable(gNoite, '🌙 TURNO DA NOITE (EQUIPES D, E, F)', 'noite-bg');
         html += `</tbody></table></div>`;
     });
 
@@ -651,7 +732,7 @@ window.exportarEscalaMensalExcel = function() {
     const mes = dataBase.getMonth(); 
     const diasNoMes = new Date(ano, mes + 1, 0).getDate(); 
 
-    let csvContent = "\uFEFFHorário;GO/Placa;Equipa;Posição;Colaborador";
+    let csvContent = "\uFEFFHorário;GO/Placa;Equipe;Posição;Colaborador";
     for (let dia = 1; dia <= diasNoMes; dia++) csvContent += `;${dia.toString().padStart(2, '0')}/${(mes + 1).toString().padStart(2, '0')}`;
     csvContent += "\n";
 
