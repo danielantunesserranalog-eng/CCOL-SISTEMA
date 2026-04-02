@@ -631,13 +631,12 @@ window.zerarEscala = async function() {
     }
 }
 
-window.renderizarTrocaTurno = function() { /* Mantido p/ dashboard */ };
 window.abrirModalImpressao = function() {
     document.getElementById('printData').value = new Date().toISOString().split('T')[0];
     document.getElementById('modalImpressaoDiaria').classList.add('show');
 }
+
 window.fecharModalImpressao = function() { document.getElementById('modalImpressaoDiaria').classList.remove('show'); }
-window.gerarRelatorioImpressao = function() { /* Mantido */ };
 
 window.imprimirRelatorioEscalaSemanal = function() {
     if (!window.currentDatas || window.currentDatas.length === 0) {
@@ -765,4 +764,164 @@ window.exportarEscalaMensalExcel = function() {
     link.setAttribute("href", URL.createObjectURL(blob));
     link.setAttribute("download", `Escala_Mensal_${(mes + 1).toString().padStart(2, '0')}_${ano}.csv`);
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
+};
+
+// ==================== RESTAURAÇÃO DAS FUNÇÕES DO PAINEL DE TROCA ====================
+
+window.renderizarTrocaTurno = function() {
+    const tbodyProximos = document.getElementById('listaProximosTroca');
+    const tbodyPlantao = document.getElementById('listaPlantaoSemCaminhao');
+    const tbodyFolga = document.getElementById('listaFolga');
+
+    if (!tbodyProximos || !tbodyPlantao || !tbodyFolga) return;
+
+    const hojeStr = new Date().toISOString().split('T')[0];
+
+    let htmlProximos = '';
+    let htmlPlantao = '';
+    let htmlFolga = '';
+
+    const motoristasOrd = [...motoristas].sort((a, b) => a.nome.localeCompare(b.nome));
+
+    motoristasOrd.forEach(m => {
+        const eq = getEq(m);
+        const escala = window.getEscalaDiaComputada(m, hojeStr);
+        const cidade = m.cidade || '-';
+        const turno = m.turno || '-';
+
+        let conjuntoDisplay = m.conjuntoId ? `Trinca ${String(m.conjuntoId).padStart(2, '0')}` : 'S/ Trinca';
+        if (escala.caminhao !== 'F' && escala.caminhao !== 'T' && escala.caminhao !== 'TRAB') {
+            conjuntoDisplay += ` (${escala.caminhao})`;
+        }
+
+        if (escala.caminhao === 'F') {
+            htmlFolga += `<tr>
+                <td style="font-weight: bold; color: #fff;">${m.nome}</td>
+                <td style="font-weight: bold; color: #f8fafc;">${eq}</td>
+                <td style="color: #fb923c; font-weight: bold;">Em Folga</td>
+                <td style="color: #94a3b8;">${cidade}</td>
+            </tr>`;
+        } else if (escala.caminhao === 'T' || escala.caminhao === 'TRAB') {
+            htmlPlantao += `<tr>
+                <td style="font-weight: bold; color: #fff;">${m.nome}</td>
+                <td style="font-weight: bold; color: #f8fafc;">${eq}</td>
+                <td>${turno}</td>
+                <td style="color: #94a3b8;">${cidade}</td>
+            </tr>`;
+        } else {
+            htmlProximos += `<tr>
+                <td style="font-weight: bold; color: #fff;">${m.nome}</td>
+                <td style="color: #93c5fd; font-weight: bold;">${conjuntoDisplay}</td>
+                <td>${turno}</td>
+                <td style="color: #94a3b8;">${cidade}</td>
+            </tr>`;
+        }
+    });
+
+    tbodyProximos.innerHTML = htmlProximos || '<tr><td colspan="4" style="text-align:center;">Nenhum motorista ativo no momento</td></tr>';
+    tbodyPlantao.innerHTML = htmlPlantao || '<tr><td colspan="4" style="text-align:center;">Nenhum motorista de plantão</td></tr>';
+    tbodyFolga.innerHTML = htmlFolga || '<tr><td colspan="4" style="text-align:center;">Nenhum motorista em folga</td></tr>';
+};
+
+window.gerarRelatorioImpressao = function() {
+    const dataStr = document.getElementById('printData').value;
+    const turnoFiltro = document.getElementById('printTurno').value; 
+
+    if (!dataStr) {
+        alert('Selecione uma data para impressão.');
+        return;
+    }
+
+    const partesData = dataStr.split('-');
+    const dataFormatada = `${partesData[2]}/${partesData[1]}/${partesData[0]}`;
+
+    let html = `
+    <html>
+    <head>
+        <title>Escala Diária - ${dataFormatada}</title>
+        <style>
+            @page { size: A4 portrait; margin: 15mm; }
+            body { font-family: Arial, sans-serif; margin: 0; color: #000; font-size: 12px; }
+            .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+            h1 { margin: 0; font-size: 20px; text-transform: uppercase; }
+            table { width: 100%; border-collapse: collapse; text-align: center; margin-bottom: 20px; }
+            th, td { border: 1px solid #000; padding: 6px; font-size: 11px; }
+            th { background-color: #d1d5db; text-transform: uppercase; }
+            .trab { background-color: #d4edda; font-weight: bold; }
+            .folga { background-color: #f8d7da; color: #721c24; }
+            .section-title { font-size: 14px; font-weight: bold; margin-bottom: 10px; background: #eee; padding: 5px; border: 1px solid #000; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>Serrana Florestal - Escala Diária</h1>
+            <p><strong>Data: ${dataFormatada} | Turno: ${turnoFiltro}</strong></p>
+        </div>
+    `;
+
+    const motoristasOrd = [...motoristas].sort((a, b) => {
+        const conjA = a.conjuntoId ? Number(a.conjuntoId) : 9999;
+        const conjB = b.conjuntoId ? Number(b.conjuntoId) : 9999;
+        return conjA - conjB || getEq(a).localeCompare(getEq(b)) || a.nome.localeCompare(b.nome);
+    });
+
+    let motoristasFiltrados = motoristasOrd;
+    if (turnoFiltro === 'Dia') {
+        motoristasFiltrados = motoristasOrd.filter(m => ['A', 'B', 'C'].includes(getEq(m)));
+    } else if (turnoFiltro === 'Noite') {
+        motoristasFiltrados = motoristasOrd.filter(m => ['D', 'E', 'F'].includes(getEq(m)));
+    }
+
+    const trabs = [];
+    const folgas = [];
+
+    motoristasFiltrados.forEach(m => {
+        const eq = getEq(m);
+        const escala = window.getEscalaDiaComputada(m, dataStr);
+        const trinca = m.conjuntoId ? String(m.conjuntoId).padStart(2, '0') : 'S/F';
+
+        const linha = { nome: m.nome, trinca: trinca, eq: eq, turno: m.turno || '-', caminhao: escala.caminhao };
+        
+        if (escala.caminhao === 'F') {
+            folgas.push(linha);
+        } else {
+            trabs.push(linha);
+        }
+    });
+
+    const renderTabela = (lista, titulo) => {
+        if (lista.length === 0) return '';
+        let tHtml = `<div class="section-title">${titulo} (${lista.length} motoristas)</div>`;
+        tHtml += `<table><thead><tr><th>TRINCA</th><th>MOTORISTA</th><th>EQUIPA</th><th>HORÁRIO</th><th>STATUS / CAMINHÃO</th></tr></thead><tbody>`;
+        lista.forEach(l => {
+            const classe = l.caminhao === 'F' ? 'folga' : 'trab';
+            const statusStr = l.caminhao === 'F' ? 'FOLGA' : (l.caminhao === 'T' || l.caminhao === 'TRAB' ? 'TRABALHO (SEM CAMINHÃO)' : l.caminhao);
+            tHtml += `<tr>
+                <td>${l.trinca}</td>
+                <td style="text-align:left; font-weight:bold;">${l.nome}</td>
+                <td>${l.eq}</td>
+                <td>${l.turno}</td>
+                <td class="${classe}">${statusStr}</td>
+            </tr>`;
+        });
+        tHtml += `</tbody></table>`;
+        return tHtml;
+    };
+
+    html += renderTabela(trabs, '🚛 EM SERVIÇO / ESCALADOS');
+    html += renderTabela(folgas, '🛋️ EM FOLGA');
+
+    html += `
+        <div style="margin-top: 30px; text-align: center; font-size: 10px; color: #555;">
+            Relatório gerado pelo sistema CCOL em ${new Date().toLocaleString('pt-BR')}
+        </div>
+        <script>window.onload = function() { window.print(); }</script>
+    </body>
+    </html>
+    `;
+
+    const w = window.open('', '', 'width=900,height=700');
+    w.document.write(html);
+    w.document.close();
+    window.fecharModalImpressao();
 };
