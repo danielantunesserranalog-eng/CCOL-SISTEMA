@@ -49,8 +49,8 @@ window.calcularEscalaMatematica = function(motorista, dateKey) {
 
     if (statusMot === 'F') return { caminhao: 'F', turno: motorista.turno, status: 'fallback' };
 
-    // Correção: Força comparação numérica
-    const conjunto = conjuntos.find(c => Number(c.id) === Number(motorista.conjuntoId));
+    // Comparação blindada com String para nunca falhar se for "4" vs 4
+    const conjunto = conjuntos.find(c => String(c.id) === String(motorista.conjuntoId));
     if (!conjunto || !conjunto.caminhoes) return { caminhao: 'TRAB', turno: motorista.turno, status: 'fallback' };
 
     let placa1 = conjunto.caminhoes.length > 0 ? (typeof conjunto.caminhoes[0] === 'string' ? conjunto.caminhoes[0] : conjunto.caminhoes[0].placa) : 'F';
@@ -60,8 +60,8 @@ window.calcularEscalaMatematica = function(motorista, dateKey) {
     if (eq === 'A' || eq === 'D') statusCaminhao = placa1;
     else if (eq === 'B' || eq === 'E') statusCaminhao = placa2;
     else if (eq === 'C') { 
-        const fixoA = motoristas.find(mot => Number(mot.conjuntoId) === Number(motorista.conjuntoId) && getEq(mot) === 'A');
-        const fixoB = motoristas.find(mot => Number(mot.conjuntoId) === Number(motorista.conjuntoId) && getEq(mot) === 'B');
+        const fixoA = motoristas.find(mot => String(mot.conjuntoId) === String(motorista.conjuntoId) && getEq(mot) === 'A');
+        const fixoB = motoristas.find(mot => String(mot.conjuntoId) === String(motorista.conjuntoId) && getEq(mot) === 'B');
         const statusA = fixoA ? window.getStatusMotorista(fixoA, dDate) : 'F';
         const statusB = fixoB ? window.getStatusMotorista(fixoB, dDate) : 'F';
         if (statusA === 'F') statusCaminhao = placa1;
@@ -69,8 +69,8 @@ window.calcularEscalaMatematica = function(motorista, dateKey) {
         else statusCaminhao = placa1; 
     } 
     else if (eq === 'F') {
-        const fixoD = motoristas.find(mot => Number(mot.conjuntoId) === Number(motorista.conjuntoId) && getEq(mot) === 'D');
-        const fixoE = motoristas.find(mot => Number(mot.conjuntoId) === Number(motorista.conjuntoId) && getEq(mot) === 'E');
+        const fixoD = motoristas.find(mot => String(mot.conjuntoId) === String(motorista.conjuntoId) && getEq(mot) === 'D');
+        const fixoE = motoristas.find(mot => String(mot.conjuntoId) === String(motorista.conjuntoId) && getEq(mot) === 'E');
         const statusD = fixoD ? window.getStatusMotorista(fixoD, dDate) : 'F';
         const statusE = fixoE ? window.getStatusMotorista(fixoE, dDate) : 'F';
         if (statusD === 'F') statusCaminhao = placa1;
@@ -148,10 +148,9 @@ window.renderizarEscala = function() {
     let html = '';
 
     conjuntosRender.forEach(conj => {
-        // Correção: Força comparação numérica de conjuntoId vs conj.id
         let motoristasDoConjunto = conj.isSemFrota 
             ? motoristas.filter(m => !m.conjuntoId) 
-            : motoristas.filter(m => Number(m.conjuntoId) === Number(conj.id));
+            : motoristas.filter(m => String(m.conjuntoId) === String(conj.id));
 
         if (motoristasDoConjunto.length === 0) return;
 
@@ -307,19 +306,19 @@ window.buscarMotoristaEscala = function() {
     });
 }
 
-// Alteração de Escala Manual (Forçando string IDs para segurança)
+// Alteração visual da escala (T e F editáveis) com segurança de dados
 async function handleEscalaChange(e) {
     const select = e.target;
-    const motoristaId = String(select.dataset.motorista);
+    const motoristaIdStr = String(select.dataset.motorista); // Proteção garantida como texto
     const data = select.dataset.data;
     const novoCaminhao = select.value;
     
-    const m = motoristas.find(mot => String(mot.id) === String(motoristaId));
+    const m = motoristas.find(mot => String(mot.id) === motoristaIdStr);
     if(m) {
         try {
             await db.upsertEscala({ 
-                id: String(`${motoristaId}_${data}`), 
-                motorista_id: Number(motoristaId), 
+                id: String(`${m.id}_${data}`), 
+                motorista_id: m.id,  // Envia com o tipo original da base de dados
                 data: data, 
                 turno: m.turno, 
                 caminhao: novoCaminhao, 
@@ -419,16 +418,16 @@ function renderizarAlocacao() {
         
         let conjuntoSelect = `<select class="select-aloc-conjunto select-turno" data-id="${m.id}" ${isBlocked ? 'disabled' : ''} style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 6px;">
             <option value="">Não Alocado</option>
-            ${isBlocked ? '' : conjuntos.map(c => `<option value="${c.id}" ${Number(m.conjuntoId) === Number(c.id) ? 'selected' : ''}>Trinca ${String(c.id).padStart(2, '0')}</option>`).join('')}
+            ${isBlocked ? '' : conjuntos.map(c => `<option value="${c.id}" ${String(m.conjuntoId) === String(c.id) ? 'selected' : ''}>Trinca ${String(c.id).padStart(2, '0')}</option>`).join('')}
         </select>`;
         
         let botaoManual = '';
         if (m.data_ancora) {
             const partesData = m.data_ancora.split('-'); 
             const dataFormatada = partesData.length === 3 ? `${partesData[2]}/${partesData[1]}` : 'Ajustado';
-            botaoManual = `<button class="btn-primary-green" style="width: 100%; padding: 7px; font-size: 0.75rem; font-weight: bold; border-radius: 4px;" onclick="abrirModalEscalaManual(${m.id})" ${isBlocked ? 'disabled' : ''}>✅ Ciclo (${dataFormatada})</button>`;
+            botaoManual = `<button class="btn-primary-green" style="width: 100%; padding: 7px; font-size: 0.75rem; font-weight: bold; border-radius: 4px;" onclick="abrirModalEscalaManual('${m.id}')" ${isBlocked ? 'disabled' : ''}>✅ Ciclo (${dataFormatada})</button>`;
         } else {
-            botaoManual = `<button class="btn-primary-blue" style="width: 100%; padding: 7px; font-size: 0.75rem; font-weight: bold; border-radius: 4px;" onclick="abrirModalEscalaManual(${m.id})" ${isBlocked ? 'disabled' : ''}>⚙️ Ajustar Ciclo</button>`;
+            botaoManual = `<button class="btn-primary-blue" style="width: 100%; padding: 7px; font-size: 0.75rem; font-weight: bold; border-radius: 4px;" onclick="abrirModalEscalaManual('${m.id}')" ${isBlocked ? 'disabled' : ''}>⚙️ Ajustar Ciclo</button>`;
         }
         
         let bgRow = 'transparent';
@@ -453,22 +452,31 @@ function renderizarAlocacao() {
     document.querySelectorAll('.select-aloc-equipe, .select-aloc-turno, .select-aloc-conjunto').forEach(el => el.addEventListener('change', updateAlocacao));
 }
 
+// O salvamento da alocação agora é 100% blindado contra tipos errados
 async function updateAlocacao(e) {
     const idStr = String(e.target.dataset.id);
     const motorista = motoristas.find(m => String(m.id) === idStr);
     const tr = e.target.closest('tr');
     
+    if (!motorista) return;
+
     const oldEquipe = motorista.equipe;
     const oldTurno = motorista.turno;
     const oldConjuntoId = motorista.conjuntoId;
 
     const novaEquipe = tr.querySelector('.select-aloc-equipe').value;
     const novoTurno = tr.querySelector('.select-aloc-turno').value;
-    const conjVal = tr.querySelector('.select-aloc-conjunto').value;
-    const novoConjuntoId = conjVal ? Number(conjVal) : null;
+    
+    let conjVal = tr.querySelector('.select-aloc-conjunto').value;
+    let novoConjuntoId = conjVal ? conjVal : null;
+    
+    if (novoConjuntoId) {
+        const conjuntoOriginal = conjuntos.find(c => String(c.id) === String(novoConjuntoId));
+        if (conjuntoOriginal) novoConjuntoId = conjuntoOriginal.id;
+    }
     
     try {
-        await db.updateMotorista(Number(idStr), { equipe: novaEquipe, turno: novoTurno, conjuntoId: novoConjuntoId });
+        await db.updateMotorista(motorista.id, { equipe: novaEquipe, turno: novoTurno, conjuntoId: novoConjuntoId });
         
         motorista.equipe = novaEquipe;
         motorista.turno = novoTurno;
@@ -482,7 +490,7 @@ async function updateAlocacao(e) {
     } catch (error) {
         tr.querySelector('.select-aloc-equipe').value = oldEquipe || '-';
         tr.querySelector('.select-aloc-turno').value = oldTurno || '-';
-        tr.querySelector('.select-aloc-conjunto').value = oldConjuntoId || '';
+        tr.querySelector('.select-aloc-conjunto').value = oldConjuntoId !== null && oldConjuntoId !== undefined ? String(oldConjuntoId) : '';
     }
 }
 
@@ -492,7 +500,7 @@ window.resetarCicloConjunto = async function(conjuntoId) {
 
     let promisesExclusao = [];
     motoristas.forEach(m => {
-        if (Number(m.conjuntoId) === Number(conjuntoId)) {
+        if (String(m.conjuntoId) === String(conjuntoId)) {
             if (m.data_ancora) { m.data_ancora = null; db.updateMotorista(m.id, { data_ancora: null }); }
             if (escalas[m.id]) escalas[m.id] = {};
             if (typeof db.deleteEscalasPorMotorista === 'function') promisesExclusao.push(db.deleteEscalasPorMotorista(m.id));
@@ -567,13 +575,13 @@ window.salvarEscalaManual = async function() {
     if (m && dataEscolhida) {
         m.data_ancora = dataEscolhida;
         try {
-            await db.updateMotorista(Number(idStr), { data_ancora: dataEscolhida });
+            await db.updateMotorista(m.id, { data_ancora: dataEscolhida });
         } catch(e) {
             return; 
         }
         
         if (escalas[m.id]) escalas[m.id] = {};
-        if (typeof db.deleteEscalasPorMotorista === 'function') await db.deleteEscalasPorMotorista(Number(idStr));
+        if (typeof db.deleteEscalasPorMotorista === 'function') await db.deleteEscalasPorMotorista(m.id);
 
         salvarBackupLocal();
         fecharModalManual();
@@ -649,7 +657,7 @@ window.imprimirRelatorioEscalaSemanal = function() {
     `;
 
     conjuntosRender.forEach(conj => {
-        let motoristasDoConjunto = motoristas.filter(m => Number(m.conjuntoId) === Number(conj.id));
+        let motoristasDoConjunto = motoristas.filter(m => String(m.conjuntoId) === String(conj.id));
         if (motoristasDoConjunto.length === 0) return;
 
         const gDia = motoristasDoConjunto.filter(m => ['A', 'B', 'C'].includes(getEq(m))).sort((a,b) => pesoEquipe(getEq(a)) - pesoEquipe(getEq(b)));
