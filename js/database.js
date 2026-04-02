@@ -37,7 +37,7 @@ const db = {
         await supabaseClient.from('logs_exclusao').insert([{ usuario: currentUser.username, acao, detalhes }]);
     },
 
-    // --- CONJUNTOS ---
+    // --- CONJUNTOS / TRINCAS ---
     async getConjuntos() {
         const { data } = await supabaseClient.from('conjuntos').select('*').order('id', { ascending: true });
         return data || [];
@@ -52,7 +52,7 @@ const db = {
         await supabaseClient.from('conjuntos').update({ caminhoes }).eq('id', id);
     },
 
-    // --- MOTORISTAS ---
+    // --- MOTORISTAS (O Coração do Novo Sistema) ---
     async getMotoristas() {
         const { data } = await supabaseClient.from('motoristas').select('*');
         return data || [];
@@ -61,57 +61,29 @@ const db = {
         await supabaseClient.from('motoristas').insert([motorista]);
     },
     async updateMotorista(id, updates) {
-        // Limpa chaves não preenchidas para não quebrar o Supabase
+        // Limpa chaves vazias
         Object.keys(updates).forEach(k => updates[k] === undefined && delete updates[k]);
 
-        // O comando .select() no final OBRIGA o Supabase a devolver a linha que foi alterada
-        const { data, error } = await supabaseClient.from('motoristas')
+        const { error } = await supabaseClient.from('motoristas')
             .update(updates)
-            .eq('id', id)
-            .select();
+            .eq('id', id);
             
         if (error) {
-            console.error("⛔ ERRO SUPABASE MOTORISTA:", error);
-            alert("ERRO NO BANCO (Motorista): A alteração foi rejeitada pelo servidor!\nMotivo: " + error.message);
+            console.error("⛔ ERRO BASE DE DADOS MOTORISTA:", error);
+            alert("Erro ao gravar na base de dados!\nMotivo: " + error.message);
             throw error;
-        }
-
-        // Se o Supabase não devolveu nada, significa que ocorreu um Falso Sucesso (ele ignorou a edição)
-        if (!data || data.length === 0) {
-            console.error("⚠️ Falha Invisível: Nenhuma linha afetada para o ID", id);
-            alert("⚠️ ALERTA DE SINCRONIZAÇÃO: O Supabase falhou ao tentar salvar o motorista. Verifique o tipo de dado.");
-            throw new Error("Zero rows updated in Supabase");
         }
     },
     async deleteMotorista(id) {
         await supabaseClient.from('motoristas').delete().eq('id', id);
     },
 
-    // --- ESCALAS ---
-    async getEscalas() {
-        const { data } = await supabaseClient.from('escalas').select('*');
-        return data || [];
-    },
-    async upsertEscala(escala) {
-        const { error } = await supabaseClient.from('escalas').upsert([escala]);
-        if (error) {
-            console.error("⛔ ERRO SUPABASE ESCALA:", error);
-            alert("ERRO NO BANCO (Escala): Sua marcação de escala falhou!\nMotivo: " + error.message);
-            throw error;
-        }
-    },
-    async upsertEscalasLote(escalasArray) {
-        if (!escalasArray || escalasArray.length === 0) return;
-        const { error } = await supabaseClient.from('escalas').upsert(escalasArray);
-        if (error) {
-            console.error("⛔ ERRO SUPABASE LOTE ESCALAS:", error);
-            alert("ERRO NO BANCO (Lote Escalas): A gravação falhou!\nMotivo: " + error.message);
-            throw error;
-        }
-    },
-    async deleteEscalasPorMotorista(motorista_id) {
-        await supabaseClient.from('escalas').delete().eq('motorista_id', motorista_id);
-    },
+    // --- ESCALAS (Desativadas do DB - Agora 100% Automático pelo JS) ---
+    async getEscalas() { return []; },
+    async upsertEscala(escala) { return; },
+    async upsertEscalasLote(escalasArray) { return; },
+    async deleteEscalasPorMotorista(motorista_id) { return; },
+    async limparApenasEscalas() { return; },
     
     // --- TREINAMENTOS ---
     async getInstrutores() {
@@ -132,19 +104,10 @@ const db = {
     },
     async upsertTreinamento(treinamento) {
         const { error } = await supabaseClient.from('treinamentos').upsert([treinamento]);
-        if (error) {
-            console.error("⛔ ERRO SUPABASE TREINAMENTOS:", error);
-            alert("ERRO NO BANCO (Treinamentos): A alteração não foi salva!\nMotivo: " + error.message);
-            throw error;
-        }
+        if (error) throw error;
     },
     async deleteTreinamento(id) {
         await supabaseClient.from('treinamentos').delete().eq('id', id);
-    },
-
-    async limparApenasEscalas() {
-        const { error } = await supabaseClient.from('escalas').delete().neq('id', '0');
-        if (error) console.error("Erro ao limpar escalas:", error);
     },
 
     // --- PERMISSÕES DE ACESSO ---
@@ -152,16 +115,10 @@ const db = {
         const { data, error } = await supabaseClient.from('permissoes_perfis').select('*');
         if (error || !data) return {};
         const permissoesObj = {};
-        data.forEach(item => {
-            permissoesObj[item.perfil] = item.menus;
-        });
+        data.forEach(item => { permissoesObj[item.perfil] = item.menus; });
         return permissoesObj;
     },
     async updatePermissoesDB(perfil, menus) {
-        const { error } = await supabaseClient.from('permissoes_perfis').upsert([{ perfil: perfil, menus: menus }]);
-        if (error) {
-            console.error("Erro ao salvar permissões:", error);
-            alert("Erro ao salvar permissões no banco. Motivo: " + error.message);
-        }
+        await supabaseClient.from('permissoes_perfis').upsert([{ perfil: perfil, menus: menus }]);
     }
 };
