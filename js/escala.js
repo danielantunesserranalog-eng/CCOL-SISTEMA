@@ -305,7 +305,8 @@ window.buscarMotoristaEscala = function() {
     });
 }
 
-function handleEscalaChange(e) {
+// ATUALIZADO: Agora é ASYNC. Se o banco recusar, ele desfaz a pintura.
+async function handleEscalaChange(e) {
     const select = e.target;
     const motoristaId = parseInt(select.dataset.motorista);
     const data = select.dataset.data;
@@ -313,20 +314,35 @@ function handleEscalaChange(e) {
     
     const m = motoristas.find(mot => mot.id === motoristaId);
     if(m) {
-        if (!escalas[motoristaId]) escalas[motoristaId] = {};
-        escalas[motoristaId][data] = { turno: m.turno, caminhao: novoCaminhao, status: 'manual' };
-        
-        let isFolga = novoCaminhao === 'F';
-        let tdParent = select.closest('td');
-        
-        tdParent.style.backgroundColor = isFolga ? 'rgba(249, 115, 22, 0.15)' : 'rgba(59, 130, 246, 0.15)';
-        tdParent.style.borderLeft = isFolga ? '1px solid rgba(249, 115, 22, 0.3)' : '1px solid rgba(59, 130, 246, 0.3)';
-        tdParent.style.borderRight = isFolga ? '1px solid rgba(249, 115, 22, 0.3)' : '1px solid rgba(59, 130, 246, 0.3)';
-        select.style.color = isFolga ? '#fb923c' : '#93c5fd';
+        try {
+            // Manda pro banco primeiro
+            await db.upsertEscala({ 
+                id: String(`${motoristaId}_${data}`), 
+                motorista_id: motoristaId, 
+                data: data, 
+                turno: m.turno, 
+                caminhao: novoCaminhao, 
+                status: 'manual' 
+            });
 
-        db.upsertEscala({ id: `${motoristaId}_${data}`, motorista_id: motoristaId, data: data, turno: m.turno, caminhao: novoCaminhao, status: 'manual' });
-        salvarBackupLocal();
-        if(typeof atualizarStats === 'function') atualizarStats();
+            // Se o banco aceitou, aplica visual e salva localmente
+            if (!escalas[motoristaId]) escalas[motoristaId] = {};
+            escalas[motoristaId][data] = { turno: m.turno, caminhao: novoCaminhao, status: 'manual' };
+            
+            let isFolga = novoCaminhao === 'F';
+            let tdParent = select.closest('td');
+            
+            tdParent.style.backgroundColor = isFolga ? 'rgba(249, 115, 22, 0.15)' : 'rgba(59, 130, 246, 0.15)';
+            tdParent.style.borderLeft = isFolga ? '1px solid rgba(249, 115, 22, 0.3)' : '1px solid rgba(59, 130, 246, 0.3)';
+            tdParent.style.borderRight = isFolga ? '1px solid rgba(249, 115, 22, 0.3)' : '1px solid rgba(59, 130, 246, 0.3)';
+            select.style.color = isFolga ? '#fb923c' : '#93c5fd';
+
+            salvarBackupLocal();
+            if(typeof atualizarStats === 'function') atualizarStats();
+        } catch (error) {
+            // Devolve pro visual anterior em caso de erro no Supabase
+            window.renderizarEscala(); 
+        }
     }
 }
 
@@ -335,13 +351,21 @@ function renderizarAlocacao() {
     if (!tbody) return;
     
     if (motoristas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5">Nenhum motorista cadastrado</td></tr>'; return;
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">Nenhum motorista cadastrado</td></tr>'; 
+        return;
     }
+
+    const pesoAlocacao = (eq) => ({'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5, 'F': 6}[eq] || 99);
 
     const motoristasOrdenados = [...motoristas].sort((a, b) => {
         const conjA = a.conjuntoId || 999999;
         const conjB = b.conjuntoId || 999999;
         if (conjA !== conjB) return conjA - conjB; 
+        
+        const eqA = getEq(a);
+        const eqB = getEq(b);
+        if (pesoAlocacao(eqA) !== pesoAlocacao(eqB)) return pesoAlocacao(eqA) - pesoAlocacao(eqB);
+        
         return a.nome.localeCompare(b.nome);
     });
 
@@ -354,52 +378,77 @@ function renderizarAlocacao() {
         let eq = getEq(m);
 
         if (currentConjunto !== lastConjunto) {
-            const tituloConjunto = m.conjuntoId ? `🚛 TRINCA / CONJUNTO ${m.conjuntoId}` : `🚨 MOTORISTAS NÃO LIBERADOS / SEM FROTA`;
-            const btnReset = m.conjuntoId ? `<button onclick="resetarCicloConjunto(${m.conjuntoId})" style="float: right; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #ef4444; padding: 4px 12px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-weight: bold;">🔄 ZERAR CICLO</button>` : '';
+            const tituloConjunto = m.conjuntoId ? `🚛 TRINCA ${String(m.conjuntoId).padStart(2, '0')}` : `🚨 RESERVAS / SEM TRINCA`;
+            const btnReset = m.conjuntoId ? `<button onclick="resetarCicloConjunto(${m.conjuntoId})" style="float: right; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #ef4444; padding: 4px 12px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-weight: bold; transition: 0.2s;">🔄 ZERAR CICLO</button>` : '';
 
-            html += `<tr style="background-color: rgba(255, 255, 255, 0.05); border-top: 2px solid rgba(255,255,255,0.1); border-bottom: 1px solid rgba(255,255,255,0.1);">
-                        <td colspan="5" style="text-align: left; padding-left: 15px; font-weight: 800; color: #3b82f6; padding-top: 12px; padding-bottom: 12px; font-size: 0.95rem;">
-                            ${tituloConjunto}
-                            ${btnReset}
-                        </td>
-                    </tr>`;
+            html += `
+                <tr style="background-color: #0f172a; border-top: 2px solid #3b82f6;">
+                    <td colspan="5" style="text-align: left; padding: 12px 15px; font-weight: 800; color: #fff; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1px;">
+                        ${tituloConjunto}
+                        ${btnReset}
+                    </td>
+                </tr>
+            `;
             lastConjunto = currentConjunto;
         }
         
-        let equipeSelect = `<select class="select-aloc-equipe select-turno" data-id="${m.id}" ${isBlocked ? 'disabled' : ''}>
-            <option value="-" ${eq === '-' ? 'selected' : ''}>Sem Equipe</option>
-            <option value="A" ${eq === 'A' ? 'selected' : ''}>A (Dia - Frota 1)</option>
-            <option value="B" ${eq === 'B' ? 'selected' : ''}>B (Dia - Frota 2)</option>
-            <option value="C" ${eq === 'C' ? 'selected' : ''}>C (Dia - FOLGUISTA)</option>
-            <option value="D" ${eq === 'D' ? 'selected' : ''}>D (Noite - Frota 1)</option>
-            <option value="E" ${eq === 'E' ? 'selected' : ''}>E (Noite - Frota 2)</option>
-            <option value="F" ${eq === 'F' ? 'selected' : ''}>F (Noite - FOLGUISTA)</option>
-        </select>`;
+        let posicaoTag = '';
+        if (eq === 'A' || eq === 'D') posicaoTag = '<span style="display:inline-block; width: 75px; font-size: 0.65rem; background: #2563eb; color: #fff; padding: 3px; border-radius: 4px; text-align: center; font-weight: bold; margin-right: 8px;">FROTA 1</span>';
+        else if (eq === 'B' || eq === 'E') posicaoTag = '<span style="display:inline-block; width: 75px; font-size: 0.65rem; background: #7c3aed; color: #fff; padding: 3px; border-radius: 4px; text-align: center; font-weight: bold; margin-right: 8px;">FROTA 2</span>';
+        else if (eq === 'C' || eq === 'F') posicaoTag = '<span style="display:inline-block; width: 75px; font-size: 0.65rem; background: #ea580c; color: #fff; padding: 3px; border-radius: 4px; text-align: center; font-weight: bold; margin-right: 8px;">FOLGUISTA</span>';
+        else posicaoTag = '<span style="display:inline-block; width: 75px; font-size: 0.65rem; background: #475569; color: #fff; padding: 3px; border-radius: 4px; text-align: center; font-weight: bold; margin-right: 8px;">RESERVA</span>';
+
+        let turnoDisplay = '';
+        if (['A', 'B', 'C'].includes(eq)) turnoDisplay = '<span style="color: #fbbf24; font-size: 0.75rem;">☀️ Turno Dia</span>';
+        else if (['D', 'E', 'F'].includes(eq)) turnoDisplay = '<span style="color: #93c5fd; font-size: 0.75rem;">🌙 Turno Noite</span>';
+
+        let equipeSelect = `
+            <div style="display: flex; align-items: center; justify-content: flex-start;">
+                ${posicaoTag}
+                <select class="select-aloc-equipe select-turno" data-id="${m.id}" ${isBlocked ? 'disabled' : ''} style="width: 140px; font-weight: bold; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 6px;">
+                    <option value="-" ${eq === '-' ? 'selected' : ''}>Sem Equipe</option>
+                    <option value="A" ${eq === 'A' ? 'selected' : ''}>A (Dia)</option>
+                    <option value="B" ${eq === 'B' ? 'selected' : ''}>B (Dia)</option>
+                    <option value="C" ${eq === 'C' ? 'selected' : ''}>C (Dia)</option>
+                    <option value="D" ${eq === 'D' ? 'selected' : ''}>D (Noite)</option>
+                    <option value="E" ${eq === 'E' ? 'selected' : ''}>E (Noite)</option>
+                    <option value="F" ${eq === 'F' ? 'selected' : ''}>F (Noite)</option>
+                </select>
+            </div>`;
         
-        let turnoSelect = `<select class="select-aloc-turno select-turno" data-id="${m.id}" ${isBlocked ? 'disabled' : ''}>
+        let turnoSelect = `<select class="select-aloc-turno select-turno" data-id="${m.id}" ${isBlocked ? 'disabled' : ''} style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 6px;">
             ${isBlocked ? '<option value="-">-</option>' : TURNOS.map(t => `<option value="${t.periodo}" ${m.turno === t.periodo ? 'selected' : ''}>${t.periodo}</option>`).join('')}
         </select>`;
         
-        let conjuntoSelect = `<select class="select-aloc-conjunto select-turno" data-id="${m.id}" ${isBlocked ? 'disabled' : ''}>
+        let conjuntoSelect = `<select class="select-aloc-conjunto select-turno" data-id="${m.id}" ${isBlocked ? 'disabled' : ''} style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 6px;">
             <option value="">Não Alocado</option>
-            ${isBlocked ? '' : conjuntos.map(c => `<option value="${c.id}" ${m.conjuntoId === c.id ? 'selected' : ''}>Conjunto ${c.id}</option>`).join('')}
+            ${isBlocked ? '' : conjuntos.map(c => `<option value="${c.id}" ${m.conjuntoId === c.id ? 'selected' : ''}>Trinca ${String(c.id).padStart(2, '0')}</option>`).join('')}
         </select>`;
         
         let botaoManual = '';
         if (m.data_ancora) {
             const partesData = m.data_ancora.split('-'); 
             const dataFormatada = partesData.length === 3 ? `${partesData[2]}/${partesData[1]}` : 'Ajustado';
-            botaoManual = `<button class="btn-primary-green" style="padding: 8px 12px; font-size: 0.8rem; font-weight: bold;" onclick="abrirModalEscalaManual(${m.id})" ${isBlocked ? 'disabled' : ''}>✅ Ciclo (${dataFormatada})</button>`;
+            botaoManual = `<button class="btn-primary-green" style="width: 100%; padding: 7px; font-size: 0.75rem; font-weight: bold; border-radius: 4px;" onclick="abrirModalEscalaManual(${m.id})" ${isBlocked ? 'disabled' : ''}>✅ Ciclo (${dataFormatada})</button>`;
         } else {
-            botaoManual = `<button class="btn-primary-blue" style="padding: 8px 12px; font-size: 0.8rem;" onclick="abrirModalEscalaManual(${m.id})" ${isBlocked ? 'disabled' : ''}>⚙️ Ajustar Ciclo</button>`;
+            botaoManual = `<button class="btn-primary-blue" style="width: 100%; padding: 7px; font-size: 0.75rem; font-weight: bold; border-radius: 4px;" onclick="abrirModalEscalaManual(${m.id})" ${isBlocked ? 'disabled' : ''}>⚙️ Ajustar Ciclo</button>`;
         }
         
-        html += `<tr style="${isBlocked ? 'background-color: rgba(239, 68, 68, 0.1);' : ''}">
-            <td style="${isBlocked ? 'color: #ef4444;' : ''}"><strong>${m.nome}</strong></td>
-            <td>${equipeSelect}</td>
-            <td>${turnoSelect}</td>
-            <td>${conjuntoSelect}</td>
-            <td>${botaoManual}</td>
+        let bgRow = 'transparent';
+        if (!isBlocked) {
+            if (['A', 'B', 'C'].includes(eq)) bgRow = 'rgba(253, 230, 138, 0.05)';
+            else if (['D', 'E', 'F'].includes(eq)) bgRow = 'rgba(191, 219, 254, 0.05)';
+        }
+
+        html += `<tr style="${isBlocked ? 'background-color: rgba(239, 68, 68, 0.1);' : `background-color: ${bgRow};`} border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <td style="padding: 12px 15px; vertical-align: middle; width: 25%;">
+                <div style="${isBlocked ? 'color: #ef4444;' : 'color: #f8fafc;'} font-weight: 800; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${m.nome}</div>
+                ${turnoDisplay}
+            </td>
+            <td style="padding: 10px; vertical-align: middle; width: 32%;">${equipeSelect}</td>
+            <td style="padding: 10px; vertical-align: middle; width: 15%;">${turnoSelect}</td>
+            <td style="padding: 10px; vertical-align: middle; width: 13%;">${conjuntoSelect}</td>
+            <td style="padding: 10px; vertical-align: middle; width: 15%;">${botaoManual}</td>
         </tr>`;
     });
 
@@ -407,21 +456,40 @@ function renderizarAlocacao() {
     document.querySelectorAll('.select-aloc-equipe, .select-aloc-turno, .select-aloc-conjunto').forEach(el => el.addEventListener('change', updateAlocacao));
 }
 
-function updateAlocacao(e) {
+// ATUALIZADO: Agora é ASYNC. Desfaz a ação visual se o banco recursar a gravação.
+async function updateAlocacao(e) {
     const id = parseInt(e.target.dataset.id);
     const motorista = motoristas.find(m => m.id === id);
     const tr = e.target.closest('tr');
     
-    motorista.equipe = tr.querySelector('.select-aloc-equipe').value;
-    motorista.turno = tr.querySelector('.select-aloc-turno').value;
+    // Guarda backups para reverter caso dê erro no servidor
+    const oldEquipe = motorista.equipe;
+    const oldTurno = motorista.turno;
+    const oldConjuntoId = motorista.conjuntoId;
+
+    const novaEquipe = tr.querySelector('.select-aloc-equipe').value;
+    const novoTurno = tr.querySelector('.select-aloc-turno').value;
     const conjVal = tr.querySelector('.select-aloc-conjunto').value;
-    motorista.conjuntoId = conjVal ? parseInt(conjVal) : null;
+    const novoConjuntoId = conjVal ? parseInt(conjVal) : null;
     
-    db.updateMotorista(id, { equipe: motorista.equipe, turno: motorista.turno, conjuntoId: motorista.conjuntoId });
-    salvarBackupLocal();
-    window.renderizarEscala(); 
-    if(typeof atualizarStats === 'function') atualizarStats();
-    renderizarAlocacao();
+    try {
+        await db.updateMotorista(id, { equipe: novaEquipe, turno: novoTurno, conjuntoId: novoConjuntoId });
+        
+        motorista.equipe = novaEquipe;
+        motorista.turno = novoTurno;
+        motorista.conjuntoId = novoConjuntoId;
+        
+        salvarBackupLocal();
+        window.renderizarEscala(); 
+        if(typeof atualizarStats === 'function') atualizarStats();
+        renderizarAlocacao();
+        
+    } catch (error) {
+        console.warn("Alteração revertida porque o banco de dados recusou.");
+        tr.querySelector('.select-aloc-equipe').value = oldEquipe || '-';
+        tr.querySelector('.select-aloc-turno').value = oldTurno || '-';
+        tr.querySelector('.select-aloc-conjunto').value = oldConjuntoId || '';
+    }
 }
 
 window.resetarCicloConjunto = async function(conjuntoId) {
@@ -503,7 +571,12 @@ window.salvarEscalaManual = async function() {
     
     if (m && dataEscolhida) {
         m.data_ancora = dataEscolhida;
-        db.updateMotorista(id, { data_ancora: dataEscolhida });
+        try {
+            await db.updateMotorista(id, { data_ancora: dataEscolhida });
+        } catch(e) {
+            return; // Impede prosseguir se o banco falhar
+        }
+        
         if (escalas[id]) escalas[id] = {};
         if (typeof db.deleteEscalasPorMotorista === 'function') await db.deleteEscalasPorMotorista(id);
 
@@ -518,7 +591,7 @@ window.salvarEscalaManual = async function() {
             let dataAtualStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             const calc = window.calcularEscalaMatematica(m, dataAtualStr);
 
-            const novaEscala = { id: `${m.id}_${dataAtualStr}`, motorista_id: m.id, data: dataAtualStr, turno: calc.turno, caminhao: calc.caminhao, status: 'auto' };
+            const novaEscala = { id: String(`${m.id}_${dataAtualStr}`), motorista_id: m.id, data: dataAtualStr, turno: calc.turno, caminhao: calc.caminhao, status: 'auto' };
             novasEscalasLote.push(novaEscala);
             escalas[m.id][dataAtualStr] = novaEscala; 
         }
@@ -548,21 +621,24 @@ window.gerarEscala4x2 = async function(silencioso = false) {
             let dataAtualStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             const calc = window.calcularEscalaMatematica(m, dataAtualStr);
 
-            const novaEscala = { id: `${m.id}_${dataAtualStr}`, motorista_id: m.id, data: dataAtualStr, turno: calc.turno, caminhao: calc.caminhao, status: 'auto' };
+            const novaEscala = { id: String(`${m.id}_${dataAtualStr}`), motorista_id: m.id, data: dataAtualStr, turno: calc.turno, caminhao: calc.caminhao, status: 'auto' };
             novasEscalasLote.push(novaEscala);
             escalas[m.id][dataAtualStr] = novaEscala;
         }
     }
 
     const chunkSize = 500;
-    for (let i = 0; i < novasEscalasLote.length; i += chunkSize) {
-        if(typeof db.upsertEscalasLote === 'function') await db.upsertEscalasLote(novasEscalasLote.slice(i, i + chunkSize));
+    try {
+        for (let i = 0; i < novasEscalasLote.length; i += chunkSize) {
+            if(typeof db.upsertEscalasLote === 'function') await db.upsertEscalasLote(novasEscalasLote.slice(i, i + chunkSize));
+        }
+        await db.addLog('Escala', 'Geração em lote de 30 dias disparada para todos.');
+        salvarBackupLocal();
+        window.renderizarEscala(); 
+        if (!silencioso) alert(`Sucesso! Banco de dados preenchido (30 dias)!`);
+    } catch(e) {
+        // Alerta de erro já foi disparado no database.js
     }
-
-    await db.addLog('Escala', 'Geração em lote de 30 dias disparada para todos.');
-    salvarBackupLocal();
-    window.renderizarEscala(); 
-    if (!silencioso) alert(`Sucesso! Banco de dados preenchido (30 dias)!`);
 }
 
 window.zerarEscala = async function() {
@@ -652,7 +728,7 @@ window.imprimirRelatorioEscalaSemanal = function() {
             return tHtml;
         };
 
-        html += `<div class="trinca-box"><div class="trinca-num">TRINCA ${conj.id}</div>`;
+        html += `<div class="trinca-box"><div class="trinca-num">TRINCA ${String(conj.id).padStart(2, '0')}</div>`;
         html += `<table><thead><tr><th style="width:10%;">HORÁRIO</th><th style="width:12%;">GO/PLACA</th><th style="width:6%;">EQ</th><th style="width:12%;">POSIÇÃO</th><th style="text-align:left;">COLABORADOR</th>${window.currentDatas.map(d => `<th style="width:6%;">${d.diaTexto}<br>${d.diaNum}</th>`).join('')}</tr></thead><tbody>`;
         html += renderTable(gDia, '☀️ TURNO DO DIA (EQUIPES A, B, C)', 'dia-bg');
         html += renderTable(gNoite, '🌙 TURNO DA NOITE (EQUIPES D, E, F)', 'noite-bg');
