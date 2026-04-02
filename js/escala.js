@@ -1,5 +1,9 @@
 // ==================== MÓDULO: ESCALA & ALOCAÇÃO ====================
 
+// --- FUNÇÕES DE LIMPEZA E ORDENAÇÃO BLINDADAS ---
+const getEq = (m) => m && m.equipe ? m.equipe.trim().toUpperCase() : '-';
+const pesoEquipe = (eq) => ({'A': 1, 'B': 2, 'C': 3, 'D': 1, 'E': 2, 'F': 3}[eq] || 99);
+
 window.popularSelectMotoristas = function() {
     const select = document.getElementById('buscaMotoristaEscala');
     if (!select) return;
@@ -36,7 +40,8 @@ window.calcularEscalaMatematica = function(motorista, dateKey) {
     if (!motorista.data_ancora || motorista.masterDrive === 'Não' || motorista.destra === 'Não') {
         return { caminhao: 'F', turno: motorista.turno, status: 'fallback' };
     }
-    if (motorista.conjuntoId && (!motorista.equipe || motorista.equipe === '-')) {
+    const eq = getEq(motorista);
+    if (motorista.conjuntoId && eq === '-') {
         return { caminhao: 'F', turno: motorista.turno, status: 'fallback' };
     }
 
@@ -52,20 +57,20 @@ window.calcularEscalaMatematica = function(motorista, dateKey) {
     let placa2 = conjunto.caminhoes.length > 1 ? (typeof conjunto.caminhoes[1] === 'string' ? conjunto.caminhoes[1] : conjunto.caminhoes[1].placa) : placa1;
     let statusCaminhao = 'F';
 
-    if (motorista.equipe === 'A' || motorista.equipe === 'D') statusCaminhao = placa1;
-    else if (motorista.equipe === 'B' || motorista.equipe === 'E') statusCaminhao = placa2;
-    else if (motorista.equipe === 'C') { 
-        const fixoA = motoristas.find(mot => mot.conjuntoId === motorista.conjuntoId && mot.equipe === 'A');
-        const fixoB = motoristas.find(mot => mot.conjuntoId === motorista.conjuntoId && mot.equipe === 'B');
+    if (eq === 'A' || eq === 'D') statusCaminhao = placa1;
+    else if (eq === 'B' || eq === 'E') statusCaminhao = placa2;
+    else if (eq === 'C') { 
+        const fixoA = motoristas.find(mot => mot.conjuntoId === motorista.conjuntoId && getEq(mot) === 'A');
+        const fixoB = motoristas.find(mot => mot.conjuntoId === motorista.conjuntoId && getEq(mot) === 'B');
         const statusA = fixoA ? window.getStatusMotorista(fixoA, dDate) : 'F';
         const statusB = fixoB ? window.getStatusMotorista(fixoB, dDate) : 'F';
         if (statusA === 'F') statusCaminhao = placa1;
         else if (statusB === 'F') statusCaminhao = placa2;
         else statusCaminhao = placa1; 
     } 
-    else if (motorista.equipe === 'F') {
-        const fixoD = motoristas.find(mot => mot.conjuntoId === motorista.conjuntoId && mot.equipe === 'D');
-        const fixoE = motoristas.find(mot => mot.conjuntoId === motorista.conjuntoId && mot.equipe === 'E');
+    else if (eq === 'F') {
+        const fixoD = motoristas.find(mot => mot.conjuntoId === motorista.conjuntoId && getEq(mot) === 'D');
+        const fixoE = motoristas.find(mot => mot.conjuntoId === motorista.conjuntoId && getEq(mot) === 'E');
         const statusD = fixoD ? window.getStatusMotorista(fixoD, dDate) : 'F';
         const statusE = fixoE ? window.getStatusMotorista(fixoE, dDate) : 'F';
         if (statusD === 'F') statusCaminhao = placa1;
@@ -109,7 +114,6 @@ window.renderizarEscala = function() {
     let dataBaseStr = inputData && inputData.value ? inputData.value : new Date().toISOString().split('T')[0];
     let dataBase = new Date(dataBaseStr + 'T00:00:00');
     
-    // Gerar 7 dias
     let diasRender = [];
     const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
     for(let i = 0; i < 7; i++) {
@@ -150,23 +154,22 @@ window.renderizarEscala = function() {
 
         let numeroDisplay = conj.isSemFrota ? 'SEM FROTA / RESERVAS' : `TRINCA ${String(conj.id).padStart(2, '0')}`;
 
-        const grupoDia = motoristasDoConjunto.filter(m => ['A', 'B', 'C'].includes(m.equipe)).sort((a, b) => a.equipe.localeCompare(b.equipe));
-        const grupoNoite = motoristasDoConjunto.filter(m => ['D', 'E', 'F'].includes(m.equipe)).sort((a, b) => a.equipe.localeCompare(b.equipe));
-        const outros = motoristasDoConjunto.filter(m => !['A', 'B', 'C', 'D', 'E', 'F'].includes(m.equipe));
+        // Ordenação BLINDADA
+        const grupoDia = motoristasDoConjunto.filter(m => ['A', 'B', 'C'].includes(getEq(m)))
+            .sort((a, b) => pesoEquipe(getEq(a)) - pesoEquipe(getEq(b)) || a.nome.localeCompare(b.nome));
+            
+        const grupoNoite = motoristasDoConjunto.filter(m => ['D', 'E', 'F'].includes(getEq(m)))
+            .sort((a, b) => pesoEquipe(getEq(a)) - pesoEquipe(getEq(b)) || a.nome.localeCompare(b.nome));
+            
+        const outros = motoristasDoConjunto.filter(m => !['A', 'B', 'C', 'D', 'E', 'F'].includes(getEq(m)))
+            .sort((a, b) => a.nome.localeCompare(b.nome));
 
-        // CONTAINER DA TRINCA
         html += `<div style="background: rgba(15, 23, 42, 0.4); border-radius: 8px; margin-bottom: 30px; border: 1px solid rgba(255,255,255,0.1); overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">`;
-        
-        // TÍTULO DA TRINCA (TOPO)
         html += `<div style="background: #0f172a; padding: 12px 20px; font-size: 1.1rem; font-weight: 800; color: #fff; border-bottom: 2px solid #3b82f6; text-align: left; letter-spacing: 1px;">
                     🚛 ${numeroDisplay}
                  </div>`;
-
-        // TABELA UNIFICADA (Para alinhar perfeitamente as colunas)
         html += `<div style="overflow-x: auto; width: 100%;">`;
         html += `<table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 0.85rem; min-width: 950px;">`;
-        
-        // CABEÇALHO DA TABELA
         html += `<thead>
                     <tr style="background-color: rgba(30, 41, 59, 0.9); color: #94a3b8; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px;">
                         <th style="padding: 12px 8px; border: 1px solid rgba(255,255,255,0.05); width: 12%;">Horário</th>
@@ -176,16 +179,11 @@ window.renderizarEscala = function() {
                         <th style="padding: 12px 15px; border: 1px solid rgba(255,255,255,0.05); text-align: left; width: 22%;">Colaborador</th>
                         ${diasRender.map(d => `<th style="padding: 10px 5px; border: 1px solid rgba(255,255,255,0.05); width: 5.7%; color: #cbd5e1;">${d.diaTexto}<br><span style="font-size:0.85rem; font-weight:800; color: #fff;">${d.diaNum}</span></th>`).join('')}
                     </tr>
-                 </thead>`;
-        
-        html += `<tbody>`;
+                 </thead><tbody>`;
 
         const renderRows = (grupo, tituloGrupo) => {
             if (grupo.length === 0) return '';
-            let rowsHtml = '';
-            
-            // LINHA SEPARADORA DO TURNO
-            rowsHtml += `<tr style="background-color: rgba(0,0,0,0.6);">
+            let rowsHtml = `<tr style="background-color: rgba(0,0,0,0.6);">
                             <td colspan="${5 + diasRender.length}" style="padding: 8px 15px; font-weight: 800; font-size: 0.8rem; color: #e2e8f0; text-align: left; border: 1px solid rgba(255,255,255,0.05);">
                                 ${tituloGrupo}
                             </td>
@@ -193,6 +191,7 @@ window.renderizarEscala = function() {
 
             grupo.forEach(m => {
                 const isBlocked = m.masterDrive === 'Não' || m.destra === 'Não';
+                let eq = getEq(m);
                 
                 let goStr = '-';
                 if (conj.caminhoes && conj.caminhoes.length > 0) {
@@ -201,21 +200,21 @@ window.renderizarEscala = function() {
                     let go1 = (typeof cam1 === 'string' || !cam1.go) ? '-' : cam1.go;
                     let go2 = (typeof cam2 === 'string' || !cam2.go) ? '-' : cam2.go;
 
-                    if (m.equipe === 'A' || m.equipe === 'D') goStr = go1;
-                    else if (m.equipe === 'B' || m.equipe === 'E') goStr = go2;
-                    else if (m.equipe === 'C' || m.equipe === 'F') goStr = (go1 !== '-' && go2 !== '-' && go1 !== go2) ? `${go1} / ${go2}` : (go1 !== '-' ? go1 : go2);
+                    if (eq === 'A' || eq === 'D') goStr = go1;
+                    else if (eq === 'B' || eq === 'E') goStr = go2;
+                    else if (eq === 'C' || eq === 'F') goStr = (go1 !== '-' && go2 !== '-' && go1 !== go2) ? `${go1} / ${go2}` : (go1 !== '-' ? go1 : go2);
                     else goStr = go1 !== '-' ? go1 : '-';
                 }
                 
                 let posicaoStr = '-';
-                if (m.equipe === 'A' || m.equipe === 'D') posicaoStr = 'FROTA 1';
-                else if (m.equipe === 'B' || m.equipe === 'E') posicaoStr = 'FROTA 2';
-                else if (m.equipe === 'C' || m.equipe === 'F') posicaoStr = 'FOLGUISTA';
+                if (eq === 'A' || eq === 'D') posicaoStr = 'FROTA 1';
+                else if (eq === 'B' || eq === 'E') posicaoStr = 'FROTA 2';
+                else if (eq === 'C' || eq === 'F') posicaoStr = 'FOLGUISTA';
 
                 rowsHtml += `<tr style="background-color: transparent; border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;">`;
                 rowsHtml += `<td style="padding: 8px; border: 1px solid rgba(255,255,255,0.05);">${m.turno || '-'}</td>`;
                 rowsHtml += `<td style="padding: 8px; border: 1px solid rgba(255,255,255,0.05); font-weight: bold; color: #93c5fd;">${goStr}</td>`;
-                rowsHtml += `<td style="padding: 8px; border: 1px solid rgba(255,255,255,0.05); font-weight: 800; color: #f8fafc;">${m.equipe && m.equipe !== '-' ? m.equipe : ''}</td>`;
+                rowsHtml += `<td style="padding: 8px; border: 1px solid rgba(255,255,255,0.05); font-weight: 800; color: #f8fafc;">${eq !== '-' ? eq : ''}</td>`;
                 rowsHtml += `<td style="padding: 8px; border: 1px solid rgba(255,255,255,0.05); font-weight: 600; color: #cbd5e1;">${posicaoStr}</td>`;
                 rowsHtml += `<td class="td-name" style="padding: 8px 15px; border: 1px solid rgba(255,255,255,0.05); text-align: left; ${isBlocked ? 'color: #f87171;' : 'color: #fff;'} font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${m.nome}</td>`;
 
@@ -223,7 +222,6 @@ window.renderizarEscala = function() {
                     const escala = window.getEscalaDiaComputada(m, d.dateKey);
                     const isFolga = escala.caminhao === 'F';
                     
-                    // Cores CCOL: Azul para Trabalho (T), Laranja para Folga (F)
                     let bgCell = isFolga ? 'rgba(249, 115, 22, 0.15)' : 'rgba(59, 130, 246, 0.15)';
                     let colorCell = isFolga ? '#fb923c' : '#93c5fd';
                     let borderSide = isFolga ? '1px solid rgba(249, 115, 22, 0.3)' : '1px solid rgba(59, 130, 246, 0.3)';
@@ -295,7 +293,7 @@ window.buscarMotoristaEscala = function() {
         const tdNome = tr.querySelector('.td-name');
         if (tdNome && tdNome.textContent.toLowerCase().includes(termo)) {
             Array.from(tr.children).forEach(td => {
-                td.style.setProperty('background-color', 'rgba(253, 224, 71, 0.8)', 'important'); // Amarelo destaque
+                td.style.setProperty('background-color', 'rgba(253, 224, 71, 0.8)', 'important');
                 const select = td.querySelector('select');
                 if (select) select.style.setProperty('color', '#000', 'important');
             });
@@ -353,30 +351,29 @@ function renderizarAlocacao() {
     motoristasOrdenados.forEach(m => {
         const isBlocked = m.masterDrive === 'Não' || m.destra === 'Não';
         const currentConjunto = m.conjuntoId || 'sem_conjunto';
+        let eq = getEq(m);
 
         if (currentConjunto !== lastConjunto) {
             const tituloConjunto = m.conjuntoId ? `🚛 TRINCA / CONJUNTO ${m.conjuntoId}` : `🚨 MOTORISTAS NÃO LIBERADOS / SEM FROTA`;
             const btnReset = m.conjuntoId ? `<button onclick="resetarCicloConjunto(${m.conjuntoId})" style="float: right; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #ef4444; padding: 4px 12px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-weight: bold;">🔄 ZERAR CICLO</button>` : '';
 
-            html += `
-                <tr style="background-color: rgba(255, 255, 255, 0.05); border-top: 2px solid rgba(255,255,255,0.1); border-bottom: 1px solid rgba(255,255,255,0.1);">
-                    <td colspan="5" style="text-align: left; padding-left: 15px; font-weight: 800; color: #3b82f6; padding-top: 12px; padding-bottom: 12px; font-size: 0.95rem;">
-                        ${tituloConjunto}
-                        ${btnReset}
-                    </td>
-                </tr>
-            `;
+            html += `<tr style="background-color: rgba(255, 255, 255, 0.05); border-top: 2px solid rgba(255,255,255,0.1); border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <td colspan="5" style="text-align: left; padding-left: 15px; font-weight: 800; color: #3b82f6; padding-top: 12px; padding-bottom: 12px; font-size: 0.95rem;">
+                            ${tituloConjunto}
+                            ${btnReset}
+                        </td>
+                    </tr>`;
             lastConjunto = currentConjunto;
         }
         
         let equipeSelect = `<select class="select-aloc-equipe select-turno" data-id="${m.id}" ${isBlocked ? 'disabled' : ''}>
-            <option value="-" ${m.equipe === '-' || !m.equipe ? 'selected' : ''}>Sem Equipe</option>
-            <option value="A" ${m.equipe === 'A' ? 'selected' : ''}>A (Dia - Frota 1)</option>
-            <option value="B" ${m.equipe === 'B' ? 'selected' : ''}>B (Dia - Frota 2)</option>
-            <option value="C" ${m.equipe === 'C' ? 'selected' : ''}>C (Dia - FOLGUISTA)</option>
-            <option value="D" ${m.equipe === 'D' ? 'selected' : ''}>D (Noite - Frota 1)</option>
-            <option value="E" ${m.equipe === 'E' ? 'selected' : ''}>E (Noite - Frota 2)</option>
-            <option value="F" ${m.equipe === 'F' ? 'selected' : ''}>F (Noite - FOLGUISTA)</option>
+            <option value="-" ${eq === '-' ? 'selected' : ''}>Sem Equipe</option>
+            <option value="A" ${eq === 'A' ? 'selected' : ''}>A (Dia - Frota 1)</option>
+            <option value="B" ${eq === 'B' ? 'selected' : ''}>B (Dia - Frota 2)</option>
+            <option value="C" ${eq === 'C' ? 'selected' : ''}>C (Dia - FOLGUISTA)</option>
+            <option value="D" ${eq === 'D' ? 'selected' : ''}>D (Noite - Frota 1)</option>
+            <option value="E" ${eq === 'E' ? 'selected' : ''}>E (Noite - Frota 2)</option>
+            <option value="F" ${eq === 'F' ? 'selected' : ''}>F (Noite - FOLGUISTA)</option>
         </select>`;
         
         let turnoSelect = `<select class="select-aloc-turno select-turno" data-id="${m.id}" ${isBlocked ? 'disabled' : ''}>
@@ -451,14 +448,15 @@ window.resetarCicloConjunto = async function(conjuntoId) {
 window.abrirModalEscalaManual = function(id) {
     const m = motoristas.find(mot => mot.id === id);
     if (!m) return;
-    if (m.conjuntoId && (!m.equipe || m.equipe === '-')) { 
+    let eq = getEq(m);
+    if (m.conjuntoId && eq === '-') { 
         alert("O motorista precisa ter uma equipe (A-F) antes de configurar a escala!"); 
         return; 
     }
 
     document.getElementById('manualMotId').value = m.id;
     document.getElementById('manualMotNome').innerText = m.nome;
-    document.getElementById('manualMotEquipe').innerText = m.equipe || "Sem Equipe";
+    document.getElementById('manualMotEquipe').innerText = eq;
     
     let dia1 = new Date();
     if (m.data_ancora) {
@@ -574,28 +572,22 @@ window.zerarEscala = async function() {
 }
 
 // ==================== PAINEL DE TROCA DE TURNO ====================
-window.renderizarTrocaTurno = function() {
-    /* Funcao mantida intocada conforme escopo original de app.js para nao quebrar dashboard */
-};
-
+window.renderizarTrocaTurno = function() { /* Mantido p/ dashboard */ };
 window.abrirModalImpressao = function() {
     document.getElementById('printData').value = new Date().toISOString().split('T')[0];
     document.getElementById('modalImpressaoDiaria').classList.add('show');
 }
 window.fecharModalImpressao = function() { document.getElementById('modalImpressaoDiaria').classList.remove('show'); }
-window.gerarRelatorioImpressao = function() { /* Mantido para uso diário se necessário */ };
+window.gerarRelatorioImpressao = function() { /* Mantido */ };
 
-// ==================== IMPRESSÃO DA ESCALA SEMANAL (NOVO LAYOUT) ====================
+// ==================== IMPRESSÃO DA ESCALA SEMANAL ====================
 window.imprimirRelatorioEscalaSemanal = function() {
     if (!window.currentDatas || window.currentDatas.length === 0) {
-        alert("Nenhuma semana renderizada. Selecione a data no painel primeiro.");
-        return;
+        alert("Nenhuma semana renderizada. Selecione a data no painel primeiro."); return;
     }
-    
     const filtroSelectEl = document.getElementById('filtroConjuntoEscala');
     const filtroSelec = filtroSelectEl ? filtroSelectEl.value : 'todos';
     let conjuntosRender = filtroSelec !== 'todos' ? conjuntos.filter(c => c.id.toString() === filtroSelec.toString()) : [...conjuntos];
-
     if (conjuntosRender.length === 0) { alert("Nenhum dado para imprimir."); return; }
 
     let html = `
@@ -629,28 +621,26 @@ window.imprimirRelatorioEscalaSemanal = function() {
         let motoristasDoConjunto = motoristas.filter(m => m.conjuntoId === conj.id);
         if (motoristasDoConjunto.length === 0) return;
 
-        const gDia = motoristasDoConjunto.filter(m => ['A', 'B', 'C'].includes(m.equipe)).sort((a,b)=>a.equipe.localeCompare(b.equipe));
-        const gNoite = motoristasDoConjunto.filter(m => ['D', 'E', 'F'].includes(m.equipe)).sort((a,b)=>a.equipe.localeCompare(b.equipe));
+        const gDia = motoristasDoConjunto.filter(m => ['A', 'B', 'C'].includes(getEq(m))).sort((a,b) => pesoEquipe(getEq(a)) - pesoEquipe(getEq(b)));
+        const gNoite = motoristasDoConjunto.filter(m => ['D', 'E', 'F'].includes(getEq(m))).sort((a,b) => pesoEquipe(getEq(a)) - pesoEquipe(getEq(b)));
 
         const renderTable = (grupo, titulo, classeTr) => {
             if (grupo.length === 0) return '';
-            let tHtml = `
-                <tr><td colspan="12" style="background: #e5e7eb; font-weight: bold; text-align: left; padding-left: 10px;">${titulo}</td></tr>
-            `;
+            let tHtml = `<tr><td colspan="12" style="background: #e5e7eb; font-weight: bold; text-align: left; padding-left: 10px;">${titulo}</td></tr>`;
             
             grupo.forEach(m => {
+                let eq = getEq(m);
                 let goStr = '-', posStr = '-';
                 if (conj.caminhoes && conj.caminhoes.length > 0) {
                     let cam1 = conj.caminhoes[0];
                     let cam2 = conj.caminhoes.length > 1 ? conj.caminhoes[1] : cam1;
                     let go1 = cam1.go || '-', go2 = cam2.go || '-';
-                    if (m.equipe === 'A' || m.equipe === 'D') { goStr = go1; posStr = 'FROTA 1'; }
-                    else if (m.equipe === 'B' || m.equipe === 'E') { goStr = go2; posStr = 'FROTA 2'; }
+                    if (eq === 'A' || eq === 'D') { goStr = go1; posStr = 'FROTA 1'; }
+                    else if (eq === 'B' || eq === 'E') { goStr = go2; posStr = 'FROTA 2'; }
                     else { goStr = (go1!=='-' && go2!=='-' && go1!==go2)?`${go1}/${go2}`:go1; posStr = 'FOLGUISTA'; }
                 }
                 
-                tHtml += `<tr class="${classeTr}">
-                    <td>${m.turno || '-'}</td><td>${goStr}</td><td>${m.equipe || '-'}</td><td>${posStr}</td><td style="text-align:left;"><b>${m.nome}</b></td>`;
+                tHtml += `<tr class="${classeTr}"><td>${m.turno || '-'}</td><td>${goStr}</td><td>${eq}</td><td>${posStr}</td><td style="text-align:left;"><b>${m.nome}</b></td>`;
                 
                 window.currentDatas.forEach(d => {
                     const esc = window.getEscalaDiaComputada(m, d.dateKey);
@@ -663,17 +653,7 @@ window.imprimirRelatorioEscalaSemanal = function() {
         };
 
         html += `<div class="trinca-box"><div class="trinca-num">TRINCA ${conj.id}</div>`;
-        html += `<table>
-                <thead>
-                    <tr>
-                        <th style="width:10%;">HORÁRIO</th>
-                        <th style="width:12%;">GO/PLACA</th>
-                        <th style="width:6%;">EQ</th>
-                        <th style="width:12%;">POSIÇÃO</th>
-                        <th style="text-align:left;">COLABORADOR</th>
-                        ${window.currentDatas.map(d => `<th style="width:6%;">${d.diaTexto}<br>${d.diaNum}</th>`).join('')}
-                    </tr>
-                </thead><tbody>`;
+        html += `<table><thead><tr><th style="width:10%;">HORÁRIO</th><th style="width:12%;">GO/PLACA</th><th style="width:6%;">EQ</th><th style="width:12%;">POSIÇÃO</th><th style="text-align:left;">COLABORADOR</th>${window.currentDatas.map(d => `<th style="width:6%;">${d.diaTexto}<br>${d.diaNum}</th>`).join('')}</tr></thead><tbody>`;
         html += renderTable(gDia, '☀️ TURNO DO DIA (EQUIPES A, B, C)', 'dia-bg');
         html += renderTable(gNoite, '🌙 TURNO DA NOITE (EQUIPES D, E, F)', 'noite-bg');
         html += `</tbody></table></div>`;
@@ -685,7 +665,7 @@ window.imprimirRelatorioEscalaSemanal = function() {
     w.document.close();
 }
 
-// ==================== EXPORTAÇÃO EXCEL (ESCALA MENSAL) ====================
+// ==================== EXPORTAÇÃO EXCEL ====================
 window.exportarEscalaMensalExcel = function() {
     const inputData = document.getElementById('dataInicioEscala');
     let dataBase = inputData && inputData.value ? new Date(inputData.value + 'T00:00:00') : new Date();
@@ -698,15 +678,16 @@ window.exportarEscalaMensalExcel = function() {
     for (let dia = 1; dia <= diasNoMes; dia++) csvContent += `;${dia.toString().padStart(2, '0')}/${(mes + 1).toString().padStart(2, '0')}`;
     csvContent += "\n";
 
-    let mOrdenados = [...motoristas].sort((a, b) => (a.conjuntoId || 999) - (b.conjuntoId || 999) || a.equipe.localeCompare(b.equipe));
+    let mOrdenados = [...motoristas].sort((a, b) => (a.conjuntoId || 999) - (b.conjuntoId || 999) || pesoEquipe(getEq(a)) - pesoEquipe(getEq(b)));
 
     mOrdenados.forEach(m => {
-        let posStr = '-', goStr = '-';
-        if (m.equipe === 'A' || m.equipe === 'D') posStr = 'FROTA 1';
-        else if (m.equipe === 'B' || m.equipe === 'E') posStr = 'FROTA 2';
-        else if (m.equipe === 'C' || m.equipe === 'F') posStr = 'FOLGUISTA';
+        let eq = getEq(m);
+        let posStr = '-';
+        if (eq === 'A' || eq === 'D') posStr = 'FROTA 1';
+        else if (eq === 'B' || eq === 'E') posStr = 'FROTA 2';
+        else if (eq === 'C' || eq === 'F') posStr = 'FOLGUISTA';
         
-        let linha = `${m.turno||'-'};-;${m.equipe||'-'};${posStr};${m.nome}`;
+        let linha = `${m.turno||'-'};-;${eq !== '-' ? eq : '-'};${posStr};${m.nome}`;
 
         for (let dia = 1; dia <= diasNoMes; dia++) {
             const dataAtualStr = `${ano}-${(mes + 1).toString().padStart(2, '0')}-${dia.toString().padStart(2, '0')}`;
