@@ -3,7 +3,7 @@
         
         <div style="display: flex; align-items: center; background: rgba(0, 0, 0, 0.25); border-radius: 6px; padding: 2px 10px; border: 1px solid #4b5563; transition: border-color 0.2s;">
             <span style="margin-right: 8px; font-size: 1rem; opacity: 0.8;">📅</span>
-            <input type="date" id="dataInicioEscala" title="Data de Início da Escala" style="background: transparent; border: none; color: #f8fafc; outline: none; font-family: inherit; font-size: 0.85rem; padding: 4px 0; cursor: pointer; color-scheme: dark;" onchange="window.renderizarEscala()">
+            <input type="date" id="dataInicioEscala" title="Data de Início da Escala (Semana)" style="background: transparent; border: none; color: #f8fafc; outline: none; font-family: inherit; font-size: 0.85rem; padding: 4px 0; cursor: pointer; color-scheme: dark;" onchange="window.renderizarEscala()">
         </div>
         
         <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.1); margin: 0 2px;"></div> <label for="filtroConjuntoEscala" style="font-size: 0.8rem; color: #9ca3af; font-weight: 600; text-transform: uppercase;">Conjunto:</label>
@@ -20,18 +20,18 @@
     </div>
     
     <div class="button-group" style="display: flex; align-items: center; gap: 8px; white-space: nowrap;">
-        <button id="btnGerarRelatorio" class="btn-primary-blue" style="padding: 4px 12px; font-size: 0.8rem; height: 30px; font-weight: bold;" onclick="window.imprimirRelatorioEscalaSemanal()">🖨️ Imprimir</button>
-        <button id="btnExportarExcel" class="btn-primary-green" style="background-color: #10b981; padding: 4px 12px; font-size: 0.8rem; height: 30px; font-weight: bold;" onclick="window.exportarEscalaMensalExcel()">📊 Excel</button>
-        <button id="btnGerarEscalaAuto" class="btn-primary-green" style="padding: 4px 12px; font-size: 0.8rem; height: 30px; font-weight: bold;" onclick="window.gerarEscala4x2()">⚡ 4x2 Auto</button>
-        <button id="btnZerarEscala" class="btn-danger-outline" style="padding: 4px 12px; font-size: 0.8rem; height: 30px; font-weight: bold;" onclick="window.zerarEscala()">🗑️ Zerar</button>
+        <button id="btnGerarRelatorio" class="btn-primary-blue" style="padding: 4px 12px; font-size: 0.8rem; height: 30px; font-weight: bold;" onclick="window.imprimirRelatorioEscalaSemanal()">🖨️ Imprimir Semanal</button>
+        <button id="btnExportarExcel" class="btn-primary-green" style="background-color: #10b981; padding: 4px 12px; font-size: 0.8rem; height: 30px; font-weight: bold;" onclick="window.exportarEscalaMensalExcel()">📊 Exportar Excel</button>
+        <button id="btnGerarEscalaAuto" class="btn-primary-green" style="padding: 4px 12px; font-size: 0.8rem; height: 30px; font-weight: bold;" onclick="window.gerarEscala4x2()">⚡ 4x2 Auto (30 Dias)</button>
+        <button id="btnZerarEscala" class="btn-danger-outline" style="padding: 4px 12px; font-size: 0.8rem; height: 30px; font-weight: bold;" onclick="window.zerarEscala()">🗑️ Recalcular Tudo</button>
     </div>
 </div>
 
-<div id="escalaContainer" class="escala-viz-container">
+<div id="escalaContainer" class="escala-viz-container" style="padding: 15px;">
     <p class="loading-text" style="padding: 20px; text-align: center; color: #fff;">Iniciando terminal CCOL...</p>
 </div>
 
 <div class="system-note">
     <span class="note-icon">💡</span>
-    <p>O sistema CCOL gera automaticamente escalas 4x2 baseadas na Equipe (A-F). Para melhor visualização, dias de Trabalho estão em <span class="viz-sample trabalho">Azul</span> e Folgas em <span class="viz-sample folga">Laranja</span>. Treinamentos agendados ficarão na cor <span style="background: #fde047; color: #000; padding: 2px 5px; border-radius: 3px; font-weight: bold;">Amarela</span>.</p>
+    <p>O sistema gera a semana exibindo os 7 dias exatos a partir da data informada. <strong>T</strong> representa Trabalho <span style="color:#60a5fa; font-weight:bold;">(Azul)</span> e <strong>F</strong> representa Folga <span style="color:#fb923c; font-weight:bold;">(Laranja)</span>.</p>
 </div>

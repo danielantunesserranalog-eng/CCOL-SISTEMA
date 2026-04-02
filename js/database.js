@@ -75,7 +75,6 @@ const db = {
     async upsertEscala(escala) {
         await supabaseClient.from('escalas').upsert([escala]);
     },
-    // NOVO: Função para inserir múltiplos dias no banco de uma só vez (otimização de performance)
     async upsertEscalasLote(escalasArray) {
         if (!escalasArray || escalasArray.length === 0) return;
         const { error } = await supabaseClient.from('escalas').upsert(escalasArray);
