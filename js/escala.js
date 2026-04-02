@@ -79,11 +79,9 @@ window.calcularEscalaMatematica = function(motorista, dateKey) {
 }
 
 window.getEscalaDiaComputada = function(motorista, dateKey) {
-    // 1. VERIFICA EXCEÇÕES MANUAIS: Verifica se guardou um ajuste manual para este dia específico na base de dados
     if (escalas[motorista.id] && escalas[motorista.id][dateKey] && escalas[motorista.id][dateKey].status === 'manual') {
         return escalas[motorista.id][dateKey];
     }
-    // 2. SE NÃO TEM AJUSTE: Calcula a matemática padrão infinitamente
     return window.calcularEscalaMatematica(motorista, dateKey);
 }
 
@@ -766,8 +764,6 @@ window.exportarEscalaMensalExcel = function() {
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
 };
 
-// ==================== RESTAURAÇÃO DAS FUNÇÕES DO PAINEL DE TROCA ====================
-
 window.renderizarTrocaTurno = function() {
     const tbodyProximos = document.getElementById('listaProximosTroca');
     const tbodyPlantao = document.getElementById('listaPlantaoSemCaminhao');
@@ -823,6 +819,7 @@ window.renderizarTrocaTurno = function() {
     tbodyFolga.innerHTML = htmlFolga || '<tr><td colspan="4" style="text-align:center;">Nenhum motorista em folga</td></tr>';
 };
 
+// ==================== IMPRESSÃO DIÁRIA MODIFICADA (SÓ TRABALHANDO & ORDENADO POR TURNO) ====================
 window.gerarRelatorioImpressao = function() {
     const dataStr = document.getElementById('printData').value;
     const turnoFiltro = document.getElementById('printTurno').value; 
@@ -848,7 +845,6 @@ window.gerarRelatorioImpressao = function() {
             th, td { border: 1px solid #000; padding: 6px; font-size: 11px; }
             th { background-color: #d1d5db; text-transform: uppercase; }
             .trab { background-color: #d4edda; font-weight: bold; }
-            .folga { background-color: #f8d7da; color: #721c24; }
             .section-title { font-size: 14px; font-weight: bold; margin-bottom: 10px; background: #eee; padding: 5px; border: 1px solid #000; }
         </style>
     </head>
@@ -859,12 +855,8 @@ window.gerarRelatorioImpressao = function() {
         </div>
     `;
 
-    const motoristasOrd = [...motoristas].sort((a, b) => {
-        const conjA = a.conjuntoId ? Number(a.conjuntoId) : 9999;
-        const conjB = b.conjuntoId ? Number(b.conjuntoId) : 9999;
-        return conjA - conjB || getEq(a).localeCompare(getEq(b)) || a.nome.localeCompare(b.nome);
-    });
-
+    // Filtra pelo select de turnos (Dia ou Noite ou Todos)
+    const motoristasOrd = [...motoristas];
     let motoristasFiltrados = motoristasOrd;
     if (turnoFiltro === 'Dia') {
         motoristasFiltrados = motoristasOrd.filter(m => ['A', 'B', 'C'].includes(getEq(m)));
@@ -873,8 +865,8 @@ window.gerarRelatorioImpressao = function() {
     }
 
     const trabs = [];
-    const folgas = [];
 
+    // Lógica para guardar apenas quem vai trabalhar
     motoristasFiltrados.forEach(m => {
         const eq = getEq(m);
         const escala = window.getEscalaDiaComputada(m, dataStr);
@@ -882,34 +874,48 @@ window.gerarRelatorioImpressao = function() {
 
         const linha = { nome: m.nome, trinca: trinca, eq: eq, turno: m.turno || '-', caminhao: escala.caminhao };
         
-        if (escala.caminhao === 'F') {
-            folgas.push(linha);
-        } else {
+        // Verifica se NÃO está de folga para colocar na lista de impressão
+        if (escala.caminhao !== 'F') {
             trabs.push(linha);
         }
     });
 
+    // Ordenação Crescente pelo Horário (turno), e desempatando pela trinca/nome
+    trabs.sort((a, b) => {
+        const turnoA = a.turno !== '-' && a.turno ? a.turno : '99:99';
+        const turnoB = b.turno !== '-' && b.turno ? b.turno : '99:99';
+        
+        if (turnoA !== turnoB) {
+            return turnoA.localeCompare(turnoB);
+        }
+        
+        const trincaA = a.trinca === 'S/F' ? 9999 : Number(a.trinca);
+        const trincaB = b.trinca === 'S/F' ? 9999 : Number(b.trinca);
+        
+        if (trincaA !== trincaB) return trincaA - trincaB;
+        return a.nome.localeCompare(b.nome);
+    });
+
     const renderTabela = (lista, titulo) => {
-        if (lista.length === 0) return '';
+        if (lista.length === 0) return '<p style="text-align:center;">Nenhum motorista escalado para trabalhar neste turno.</p>';
         let tHtml = `<div class="section-title">${titulo} (${lista.length} motoristas)</div>`;
-        tHtml += `<table><thead><tr><th>TRINCA</th><th>MOTORISTA</th><th>EQUIPA</th><th>HORÁRIO</th><th>STATUS / CAMINHÃO</th></tr></thead><tbody>`;
+        tHtml += `<table><thead><tr><th>HORÁRIO</th><th>TRINCA</th><th>MOTORISTA</th><th>EQUIPA</th><th>STATUS / CAMINHÃO</th></tr></thead><tbody>`;
+        
         lista.forEach(l => {
-            const classe = l.caminhao === 'F' ? 'folga' : 'trab';
-            const statusStr = l.caminhao === 'F' ? 'FOLGA' : (l.caminhao === 'T' || l.caminhao === 'TRAB' ? 'TRABALHO (SEM CAMINHÃO)' : l.caminhao);
+            const statusStr = (l.caminhao === 'T' || l.caminhao === 'TRAB') ? 'TRABALHO (SEM CAMINHÃO)' : l.caminhao;
             tHtml += `<tr>
+                <td style="font-weight:bold;">${l.turno}</td>
                 <td>${l.trinca}</td>
                 <td style="text-align:left; font-weight:bold;">${l.nome}</td>
                 <td>${l.eq}</td>
-                <td>${l.turno}</td>
-                <td class="${classe}">${statusStr}</td>
+                <td class="trab">${statusStr}</td>
             </tr>`;
         });
         tHtml += `</tbody></table>`;
         return tHtml;
     };
 
-    html += renderTabela(trabs, '🚛 EM SERVIÇO / ESCALADOS');
-    html += renderTabela(folgas, '🛋️ EM FOLGA');
+    html += renderTabela(trabs, '🚛 EM SERVIÇO / ESCALADOS (ORDENADO POR HORÁRIO)');
 
     html += `
         <div style="margin-top: 30px; text-align: center; font-size: 10px; color: #555;">
