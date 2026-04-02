@@ -24,33 +24,37 @@ window.popularSelectMotoristas = function() {
 
 window.getStatusMotorista = function(m, dDate) {
     if (!m || !m.data_ancora) return 'F';
-    const dataAncora = new Date(m.data_ancora + 'T00:00:00');
-    const diffDays = Math.floor((dDate - dataAncora) / (1000 * 60 * 60 * 24));
+    
+    // Correção: Uso do UTC e Math.round para não ter erro de fuso horário e milissegundos
+    const strAncora = m.data_ancora.split('T')[0];
+    const dataAncora = new Date(strAncora + 'T00:00:00');
+    
+    const utcAncora = Date.UTC(dataAncora.getFullYear(), dataAncora.getMonth(), dataAncora.getDate());
+    const utcAtual = Date.UTC(dDate.getFullYear(), dDate.getMonth(), dDate.getDate());
+    
+    const diffDays = Math.round((utcAtual - utcAncora) / (1000 * 60 * 60 * 24));
+    
     const cicloDia = ((diffDays % 6) + 6) % 6;
     return cicloDia < 4 ? 'TRAB' : 'F';
 }
 
-window.getEscalaDiaComputada = function(motorista, dateKey) {
-    if (escalas[motorista.id] && escalas[motorista.id][dateKey] && escalas[motorista.id][dateKey].status === 'manual') {
-        return escalas[motorista.id][dateKey];
-    }
-    
+// MOTOR MATEMÁTICO PURO (Serve apenas para gerar os dias no banco)
+window.calcularEscalaMatematica = function(motorista, dateKey) {
     if (!motorista.data_ancora || motorista.masterDrive === 'Não' || motorista.destra === 'Não') {
-        return { caminhao: 'F', turno: motorista.turno };
+        return { caminhao: 'F', turno: motorista.turno, status: 'fallback' };
     }
     
     if (motorista.conjuntoId && (!motorista.equipe || motorista.equipe === '-')) {
-        return { caminhao: 'F', turno: motorista.turno };
+        return { caminhao: 'F', turno: motorista.turno, status: 'fallback' };
     }
 
     const dDate = new Date(dateKey + 'T00:00:00');
     const statusMot = window.getStatusMotorista(motorista, dDate);
 
-    if (statusMot === 'F') return { caminhao: 'F', turno: motorista.turno };
+    if (statusMot === 'F') return { caminhao: 'F', turno: motorista.turno, status: 'fallback' };
 
     const conjunto = conjuntos.find(c => c.id === motorista.conjuntoId);
-    
-    if (!conjunto || !conjunto.caminhoes) return { caminhao: 'TRAB', turno: motorista.turno, status: 'auto' };
+    if (!conjunto || !conjunto.caminhoes) return { caminhao: 'TRAB', turno: motorista.turno, status: 'fallback' };
 
     let placa1 = conjunto.caminhoes.length > 0 ? (typeof conjunto.caminhoes[0] === 'string' ? conjunto.caminhoes[0] : conjunto.caminhoes[0].placa) : 'F';
     let placa2 = conjunto.caminhoes.length > 1 ? (typeof conjunto.caminhoes[1] === 'string' ? conjunto.caminhoes[1] : conjunto.caminhoes[1].placa) : placa1;
@@ -76,14 +80,24 @@ window.getEscalaDiaComputada = function(motorista, dateKey) {
         else if (statusE === 'F') statusCaminhao = placa2;
         else statusCaminhao = placa1;
     }
-    return { caminhao: statusCaminhao, turno: motorista.turno, status: 'auto' };
+    return { caminhao: statusCaminhao, turno: motorista.turno, status: 'fallback' };
+}
+
+// A VISUALIZAÇÃO AGORA LÊ DO BANCO. SE NÃO TIVER, RODA A MATEMÁTICA.
+window.getEscalaDiaComputada = function(motorista, dateKey) {
+    // 1. Prioriza 100% o que está salvo no Banco de Dados (Auto ou Manual)
+    if (escalas[motorista.id] && escalas[motorista.id][dateKey]) {
+        return escalas[motorista.id][dateKey];
+    }
+    
+    // 2. Fallback caso alguém tenha esquecido de gerar a escala do mês
+    return window.calcularEscalaMatematica(motorista, dateKey);
 }
 
 window.renderizarEscala = function() {
     const container = document.getElementById('escalaContainer');
     const filtroSelectEl = document.getElementById('filtroConjuntoEscala');
     
-    // Atualiza o select de busca de motoristas com os cadastrados no banco
     window.popularSelectMotoristas();
 
     if (filtroSelectEl) {
@@ -129,7 +143,6 @@ window.renderizarEscala = function() {
         }
     }
 
-    // Ordenação numérica dos conjuntos (1, 2, 3...)
     conjuntosRender.sort((a, b) => {
         if (a.isSemFrota) return 1; 
         if (b.isSemFrota) return -1;
@@ -179,7 +192,6 @@ window.renderizarEscala = function() {
                 const isBlocked = m.masterDrive === 'Não' || m.destra === 'Não';
                 const isFolguista = (m.equipe === 'C' || m.equipe === 'F');
                 
-                // --- LÓGICA DO GO ---
                 let goStr = '-';
                 if (conj.caminhoes && conj.caminhoes.length > 0) {
                     let cam1 = conj.caminhoes[0];
@@ -188,15 +200,10 @@ window.renderizarEscala = function() {
                     let go1 = (typeof cam1 === 'string' || !cam1.go) ? '-' : cam1.go;
                     let go2 = (typeof cam2 === 'string' || !cam2.go) ? '-' : cam2.go;
 
-                    if (m.equipe === 'A' || m.equipe === 'D') {
-                        goStr = go1;
-                    } else if (m.equipe === 'B' || m.equipe === 'E') {
-                        goStr = go2;
-                    } else if (isFolguista) {
-                        goStr = (go1 !== '-' && go2 !== '-' && go1 !== go2) ? `${go1} e ${go2}` : (go1 !== '-' ? go1 : go2);
-                    } else {
-                        goStr = go1 !== '-' ? go1 : '-';
-                    }
+                    if (m.equipe === 'A' || m.equipe === 'D') goStr = go1;
+                    else if (m.equipe === 'B' || m.equipe === 'E') goStr = go2;
+                    else if (isFolguista) goStr = (go1 !== '-' && go2 !== '-' && go1 !== go2) ? `${go1} e ${go2}` : (go1 !== '-' ? go1 : go2);
+                    else goStr = go1 !== '-' ? go1 : '-';
                 }
                 
                 const tagFolguista = isFolguista ? `<span style="background:#f97316; color:#fff; font-size:0.65rem; font-weight:bold; padding:2px 5px; border-radius:4px; margin-left:8px; vertical-align:middle;">FOLGUISTA</span>` : '';
@@ -229,7 +236,6 @@ window.renderizarEscala = function() {
 
                     let opcoes = `<option value="F">F</option>`;
                     
-                    // Adicionamos as opções TRAB e RESERVA para que apareçam sempre
                     opcoes += `<option value="TRAB" ${escala.caminhao === 'TRAB' ? 'selected' : ''}>TRAB</option>`;
                     opcoes += `<option value="RESERVA" ${escala.caminhao === 'RESERVA' ? 'selected' : ''}>RESERVA</option>`;
                     
@@ -260,13 +266,11 @@ window.renderizarEscala = function() {
     document.querySelectorAll('.select-escala-excel').forEach(select => select.addEventListener('change', handleEscalaChange));
     if(typeof atualizarStats === 'function') atualizarStats();
     
-    // Reaplica o destaque caso algum motorista já esteja selecionado no dropdown e a tela for recarregada/mudança de data
     if (document.getElementById('buscaMotoristaEscala') && document.getElementById('buscaMotoristaEscala').value.trim() !== '') {
         window.buscarMotoristaEscala();
     }
 }
 
-// Limpa todas as marcações amarelas
 window.limparDestaqueMotorista = function() {
     const linhas = document.querySelectorAll('#escalaContainer tbody tr');
     linhas.forEach(tr => {
@@ -281,21 +285,18 @@ window.limparDestaqueMotorista = function() {
     });
 };
 
-// Reseta o filtro para a opção "Selecione..." e limpa a tabela
 window.limparBuscaMotorista = function() {
     const selectBusca = document.getElementById('buscaMotoristaEscala');
     if(selectBusca) selectBusca.value = '';
     window.limparDestaqueMotorista();
 };
 
-// Nova Lógica da busca via Select (Menu Suspenso) com destaque amarelo
 window.buscarMotoristaEscala = function() {
     const selectBusca = document.getElementById('buscaMotoristaEscala');
     if (!selectBusca) return;
     
     const termo = selectBusca.value.trim().toLowerCase();
     
-    // Remove destaques de procuras anteriores primeiro
     window.limparDestaqueMotorista();
 
     if (termo === '') return;
@@ -308,9 +309,7 @@ window.buscarMotoristaEscala = function() {
         if (tdNome) {
             const nomeText = tdNome.textContent.toLowerCase();
             
-            // Como é um select exato, a busca se torna mais precisa
             if (nomeText.includes(termo)) {
-                // Pinta todas as TDs desta linha de amarelo forte (#fef08a)
                 Array.from(tr.children).forEach(td => {
                     td.style.setProperty('background-color', '#fef08a', 'important');
                     td.style.setProperty('color', '#000', 'important');
@@ -321,7 +320,6 @@ window.buscarMotoristaEscala = function() {
                     }
                 });
                 
-                // Rola suavemente a tela até a linha encontrada
                 if (!encontrou) {
                     tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     encontrou = true;
@@ -447,47 +445,40 @@ function updateAlocacao(e) {
 
 window.resetarCicloConjunto = async function(conjuntoId) {
     if(currentUser.role !== 'Admin') { alert('⛔ Acesso Negado: Apenas Administradores podem zerar o ciclo de um conjunto.'); return; }
-    if (!confirm(`Deseja ZERAR as datas e as edições manuais do Conjunto ${conjuntoId}?`)) return;
+    if (!confirm(`Deseja ZERAR as datas e as edições da escala do Conjunto ${conjuntoId}?`)) return;
 
-    let promisesExclusao = []; // Guarda as promessas para apagar do banco de dados
+    let promisesExclusao = [];
 
     motoristas.forEach(m => {
         if (m.conjuntoId === conjuntoId) {
-            // 1. Zera a data âncora
             if (m.data_ancora) {
                 m.data_ancora = null;
                 db.updateMotorista(m.id, { data_ancora: null });
             }
-            
-            // 2. Limpa a escala manual da memória
             if (escalas[m.id]) {
                 escalas[m.id] = {};
             }
-            
-            // 3. Remove as escalas do banco de dados (função já existe no seu database.js)
             if (typeof db.deleteEscalasPorMotorista === 'function') {
                 promisesExclusao.push(db.deleteEscalasPorMotorista(m.id));
             }
         }
     });
 
-    // Aguarda o banco de dados deletar todas as edições manuais
     await Promise.all(promisesExclusao);
 
-    await db.addLog('Reset de Ciclo', `Datas âncora e edições manuais removidas para todos do Conjunto ${conjuntoId}.`);
+    await db.addLog('Reset de Ciclo', `Datas âncora e escalas removidas para o Conjunto ${conjuntoId}.`);
     if(typeof renderizarLogs === 'function') renderizarLogs();
 
     salvarBackupLocal();
     renderizarAlocacao();
     window.renderizarEscala();
-    alert(`O ciclo e a escala manual do Conjunto ${conjuntoId} foram zerados com sucesso!`);
+    alert(`O ciclo e a escala do Conjunto ${conjuntoId} foram zerados com sucesso!`);
 };
 
 window.abrirModalEscalaManual = function(id) {
     const m = motoristas.find(mot => mot.id === id);
     if (!m) return;
     
-    // MODIFICAÇÃO: Só exigir equipe se ele tiver um Conjunto atribuído.
     if (m.conjuntoId && (!m.equipe || m.equipe === '-')) { 
         alert("O motorista precisa ter uma equipe (A-F) antes de configurar a escala neste conjunto!"); 
         return; 
@@ -503,7 +494,10 @@ window.abrirModalEscalaManual = function(id) {
     document.getElementById('manualMotEquipe').innerText = displayEquipe;
     
     let dia1 = new Date();
-    if (m.data_ancora) dia1 = new Date(m.data_ancora + 'T00:00:00');
+    if (m.data_ancora) {
+        const strAncora = m.data_ancora.split('T')[0];
+        dia1 = new Date(strAncora + 'T00:00:00');
+    }
     
     document.getElementById('manualDataInicio').value = dia1.toISOString().split('T')[0];
     window.atualizarPreviewManual();
@@ -540,7 +534,8 @@ window.atualizarPreviewManual = function() {
     container.innerHTML = html;
 }
 
-window.salvarEscalaManual = function() {
+// CORREÇÃO: Gerador individual de 30 dias após reset da âncora
+window.salvarEscalaManual = async function() {
     const id = parseInt(document.getElementById('manualMotId').value);
     const dataEscolhida = document.getElementById('manualDataInicio').value;
     const m = motoristas.find(mot => mot.id === id);
@@ -548,6 +543,43 @@ window.salvarEscalaManual = function() {
     if (m && dataEscolhida) {
         m.data_ancora = dataEscolhida;
         db.updateMotorista(id, { data_ancora: dataEscolhida });
+        
+        if (escalas[id]) {
+            escalas[id] = {};
+        }
+        
+        if (typeof db.deleteEscalasPorMotorista === 'function') {
+            await db.deleteEscalasPorMotorista(id);
+        }
+
+        // Gera 30 dias imediatamente para ele e joga pro banco
+        let novasEscalasLote = [];
+        const dataBase = new Date(dataEscolhida + 'T00:00:00');
+        
+        for (let i = 0; i < 30; i++) {
+            let d = new Date(dataBase);
+            d.setDate(d.getDate() + i);
+            let dataAtualStr = d.toISOString().split('T')[0];
+
+            const calc = window.calcularEscalaMatematica(m, dataAtualStr);
+
+            const novaEscala = {
+                id: `${m.id}_${dataAtualStr}`,
+                motorista_id: m.id,
+                data: dataAtualStr,
+                turno: calc.turno,
+                caminhao: calc.caminhao,
+                status: 'auto'
+            };
+
+            novasEscalasLote.push(novaEscala);
+            escalas[m.id][dataAtualStr] = novaEscala; // Atualiza a RAM
+        }
+
+        if(typeof db.upsertEscalasLote === 'function') {
+            await db.upsertEscalasLote(novasEscalasLote);
+        }
+
         salvarBackupLocal();
         fecharModalManual();
         window.renderizarEscala(); 
@@ -555,30 +587,65 @@ window.salvarEscalaManual = function() {
     }
 }
 
+// CORREÇÃO: Gerador global em massa para 30 dias
 window.gerarEscala4x2 = async function(silencioso = false) {
-    if(currentUser.role !== 'Admin') { alert('⛔ Acesso Negado: Apenas Administradores podem usar a Geração Automática.'); return; }
-    if (!silencioso && !confirm("Atenção: A inteligência do sistema agora limpa todos os resíduos do banco de dados e aplica a escala matemática baseada na data ajustada (âncora). Confirmar?")) return;
+    if(currentUser.role !== 'Admin') { alert('⛔ Acesso Negado.'); return; }
+    if (!silencioso && !confirm("Atenção: Isso irá gerar a escala automática dos próximos 30 dias para TODOS os motoristas com base na data âncora. Edições manuais poderão ser sobrescritas. Confirmar?")) return;
     
-    await db.limparApenasEscalas();
-    await db.addLog('Escala', 'Escala Automática 4x2 e limpeza de banco disparadas.');
+    const inputData = document.getElementById('dataInicioEscala');
+    const dataBaseStr = inputData && inputData.value ? inputData.value : new Date().toISOString().split('T')[0];
+    const dataBase = new Date(dataBaseStr + 'T00:00:00');
+
+    let novasEscalasLote = [];
+
+    for (let m of motoristas) {
+        if (!escalas[m.id]) escalas[m.id] = {};
+        
+        for (let i = 0; i < 30; i++) {
+            let d = new Date(dataBase);
+            d.setDate(d.getDate() + i);
+            let dataAtualStr = d.toISOString().split('T')[0];
+
+            const calc = window.calcularEscalaMatematica(m, dataAtualStr);
+
+            const novaEscala = {
+                id: `${m.id}_${dataAtualStr}`,
+                motorista_id: m.id,
+                data: dataAtualStr,
+                turno: calc.turno,
+                caminhao: calc.caminhao,
+                status: 'auto'
+            };
+
+            novasEscalasLote.push(novaEscala);
+            escalas[m.id][dataAtualStr] = novaEscala;
+        }
+    }
+
+    // Quebra em lotes de 500 pra não gargalar a internet
+    const chunkSize = 500;
+    for (let i = 0; i < novasEscalasLote.length; i += chunkSize) {
+        const chunk = novasEscalasLote.slice(i, i + chunkSize);
+        if(typeof db.upsertEscalasLote === 'function') {
+            await db.upsertEscalasLote(chunk);
+        }
+    }
+
+    await db.addLog('Escala', 'Geração em lote de 30 dias disparada para todos.');
     if(typeof renderizarLogs === 'function') renderizarLogs();
 
-    escalas = {};
-    motoristas.forEach(m => { escalas[m.id] = {}; });
     salvarBackupLocal();
-
     window.renderizarEscala(); 
-    if (!silencioso) alert(`Sucesso! Banco de dados limpo e escala perfeita reconstruída!`);
+    if (!silencioso) alert(`Sucesso! Banco de dados preenchido e escala dos próximos 30 dias garantida!`);
 }
 
 window.zerarEscala = async function() {
-    if(currentUser.role !== 'Admin') { alert('⛔ Acesso Negado: Apenas Administradores podem excluir a grade de Escalas.'); return; }
-    if (!confirm("Isso apagará todas as edições manuais que você fez diretamente na grade. Continuar?")) return;
+    if(currentUser.role !== 'Admin') { alert('⛔ Acesso Negado.'); return; }
+    if (!confirm("Isso reescreverá todas as edições manuais e calculará os próximos 30 dias de forma automática. Continuar?")) return;
     window.gerarEscala4x2(true);
 }
 
 // ==================== PAINEL DE TROCA DE TURNO ====================
-
 window.renderizarTrocaTurno = function() {
     const listaProximos = document.getElementById('listaProximosTroca');
     const listaSemCaminhao = document.getElementById('listaPlantaoSemCaminhao');
@@ -596,11 +663,12 @@ window.renderizarTrocaTurno = function() {
 
     motoristas.forEach(m => {
         const isBlocked = (m.masterDrive === 'Não' || m.destra === 'Não');
-        const dDate = new Date(hojeStr + 'T00:00:00');
-        const statusCiclo = window.getStatusMotorista(m, dDate); 
         const escalaHoje = window.getEscalaDiaComputada(m, hojeStr);
         const caminhaoHoje = escalaHoje ? escalaHoje.caminhao : 'F';
         const statusEscala = escalaHoje ? escalaHoje.status : 'auto';
+        
+        const dDate = new Date(hojeStr + 'T00:00:00');
+        const statusCiclo = window.getStatusMotorista(m, dDate); 
 
         let trabalhando = false, plantaoSemCaminhao = false, emFolga = false;
 
