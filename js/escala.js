@@ -1,6 +1,5 @@
 // ==================== MÓDULO: ESCALA & ALOCAÇÃO ====================
 
-// --- FUNÇÕES DE LIMPEZA E ORDENAÇÃO BLINDADAS ---
 const getEq = (m) => m && m.equipe ? m.equipe.trim().toUpperCase() : '-';
 const pesoEquipe = (eq) => ({'A': 1, 'B': 2, 'C': 3, 'D': 1, 'E': 2, 'F': 3}[eq] || 99);
 
@@ -154,7 +153,6 @@ window.renderizarEscala = function() {
 
         let numeroDisplay = conj.isSemFrota ? 'SEM FROTA / RESERVAS' : `TRINCA ${String(conj.id).padStart(2, '0')}`;
 
-        // Ordenação BLINDADA
         const grupoDia = motoristasDoConjunto.filter(m => ['A', 'B', 'C'].includes(getEq(m)))
             .sort((a, b) => pesoEquipe(getEq(a)) - pesoEquipe(getEq(b)) || a.nome.localeCompare(b.nome));
             
@@ -305,7 +303,7 @@ window.buscarMotoristaEscala = function() {
     });
 }
 
-// ATUALIZADO: Agora é ASYNC. Se o banco recusar, ele desfaz a pintura.
+// AQUI é o único lugar que salva na tabela de escalas agora (as edições manuais)
 async function handleEscalaChange(e) {
     const select = e.target;
     const motoristaId = parseInt(select.dataset.motorista);
@@ -315,7 +313,6 @@ async function handleEscalaChange(e) {
     const m = motoristas.find(mot => mot.id === motoristaId);
     if(m) {
         try {
-            // Manda pro banco primeiro
             await db.upsertEscala({ 
                 id: String(`${motoristaId}_${data}`), 
                 motorista_id: motoristaId, 
@@ -325,7 +322,6 @@ async function handleEscalaChange(e) {
                 status: 'manual' 
             });
 
-            // Se o banco aceitou, aplica visual e salva localmente
             if (!escalas[motoristaId]) escalas[motoristaId] = {};
             escalas[motoristaId][data] = { turno: m.turno, caminhao: novoCaminhao, status: 'manual' };
             
@@ -340,7 +336,6 @@ async function handleEscalaChange(e) {
             salvarBackupLocal();
             if(typeof atualizarStats === 'function') atualizarStats();
         } catch (error) {
-            // Devolve pro visual anterior em caso de erro no Supabase
             window.renderizarEscala(); 
         }
     }
@@ -456,13 +451,11 @@ function renderizarAlocacao() {
     document.querySelectorAll('.select-aloc-equipe, .select-aloc-turno, .select-aloc-conjunto').forEach(el => el.addEventListener('change', updateAlocacao));
 }
 
-// ATUALIZADO: Agora é ASYNC. Desfaz a ação visual se o banco recursar a gravação.
 async function updateAlocacao(e) {
     const id = parseInt(e.target.dataset.id);
     const motorista = motoristas.find(m => m.id === id);
     const tr = e.target.closest('tr');
     
-    // Guarda backups para reverter caso dê erro no servidor
     const oldEquipe = motorista.equipe;
     const oldTurno = motorista.turno;
     const oldConjuntoId = motorista.conjuntoId;
@@ -485,7 +478,6 @@ async function updateAlocacao(e) {
         renderizarAlocacao();
         
     } catch (error) {
-        console.warn("Alteração revertida porque o banco de dados recusou.");
         tr.querySelector('.select-aloc-equipe').value = oldEquipe || '-';
         tr.querySelector('.select-aloc-turno').value = oldTurno || '-';
         tr.querySelector('.select-aloc-conjunto').value = oldConjuntoId || '';
@@ -494,7 +486,7 @@ async function updateAlocacao(e) {
 
 window.resetarCicloConjunto = async function(conjuntoId) {
     if(currentUser.role !== 'Admin') { alert('⛔ Acesso Negado: Apenas Administradores podem zerar o ciclo.'); return; }
-    if (!confirm(`Deseja ZERAR as datas e as edições da escala da Trinca/Conjunto ${conjuntoId} do Banco de Dados?`)) return;
+    if (!confirm(`Deseja ZERAR as datas e as edições manuais da escala da Trinca ${conjuntoId}?`)) return;
 
     let promisesExclusao = [];
     motoristas.forEach(m => {
@@ -506,11 +498,11 @@ window.resetarCicloConjunto = async function(conjuntoId) {
     });
 
     await Promise.all(promisesExclusao);
-    await db.addLog('Reset de Ciclo', `Datas âncora e escalas removidas para o Conjunto ${conjuntoId}.`);
+    await db.addLog('Reset de Ciclo', `Datas âncora e escalas manuais removidas para a Trinca ${conjuntoId}.`);
     salvarBackupLocal();
     renderizarAlocacao();
     window.renderizarEscala();
-    alert(`O ciclo e a escala do Conjunto ${conjuntoId} foram completamente zerados!`);
+    alert(`O ciclo e a escala da Trinca ${conjuntoId} foram completamente zerados!`);
 };
 
 window.abrirModalEscalaManual = function(id) {
@@ -518,7 +510,7 @@ window.abrirModalEscalaManual = function(id) {
     if (!m) return;
     let eq = getEq(m);
     if (m.conjuntoId && eq === '-') { 
-        alert("O motorista precisa ter uma equipe (A-F) antes de configurar a escala!"); 
+        alert("O motorista precisa ter uma equipe (A-F) antes de configurar a data do ciclo!"); 
         return; 
     }
 
@@ -564,6 +556,7 @@ window.atualizarPreviewManual = function() {
     container.innerHTML = html;
 }
 
+// ATUALIZADO: Agora apenas salva a data_ancora. O cálculo de 30 dias sumiu.
 window.salvarEscalaManual = async function() {
     const id = parseInt(document.getElementById('manualMotId').value);
     const dataEscolhida = document.getElementById('manualDataInicio').value; 
@@ -574,29 +567,13 @@ window.salvarEscalaManual = async function() {
         try {
             await db.updateMotorista(id, { data_ancora: dataEscolhida });
         } catch(e) {
-            return; // Impede prosseguir se o banco falhar
+            return; 
         }
         
+        // Remove alterações manuais anteriores daquele motorista, pois o ciclo começou de novo
         if (escalas[id]) escalas[id] = {};
         if (typeof db.deleteEscalasPorMotorista === 'function') await db.deleteEscalasPorMotorista(id);
 
-        const inputDataTela = document.getElementById('dataInicioEscala');
-        const dataBaseParaGerarStr = inputDataTela && inputDataTela.value ? inputDataTela.value : new Date().toISOString().split('T')[0];
-        const dataBaseParaGerar = new Date(dataBaseParaGerarStr + 'T00:00:00');
-        
-        let novasEscalasLote = [];
-        for (let i = 0; i < 30; i++) {
-            let d = new Date(dataBaseParaGerar);
-            d.setDate(d.getDate() + i);
-            let dataAtualStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            const calc = window.calcularEscalaMatematica(m, dataAtualStr);
-
-            const novaEscala = { id: String(`${m.id}_${dataAtualStr}`), motorista_id: m.id, data: dataAtualStr, turno: calc.turno, caminhao: calc.caminhao, status: 'auto' };
-            novasEscalasLote.push(novaEscala);
-            escalas[m.id][dataAtualStr] = novaEscala; 
-        }
-
-        if(typeof db.upsertEscalasLote === 'function') await db.upsertEscalasLote(novasEscalasLote);
         salvarBackupLocal();
         fecharModalManual();
         window.renderizarEscala(); 
@@ -604,50 +581,29 @@ window.salvarEscalaManual = async function() {
     }
 }
 
+// ATUALIZADO: O botão "4x2 Auto" não salva mais nada no banco. O sistema já renderiza na hora!
 window.gerarEscala4x2 = async function(silencioso = false) {
     if(currentUser.role !== 'Admin') { alert('⛔ Acesso Negado.'); return; }
-    if (!silencioso && !confirm("Gerar a escala automática dos próximos 30 dias para TODOS os motoristas baseado nos ciclos?")) return;
-    
-    const inputData = document.getElementById('dataInicioEscala');
-    const dataBaseStr = inputData && inputData.value ? inputData.value : new Date().toISOString().split('T')[0];
-    const dataBase = new Date(dataBaseStr + 'T00:00:00');
-
-    let novasEscalasLote = [];
-    for (let m of motoristas) {
-        if (!escalas[m.id]) escalas[m.id] = {};
-        for (let i = 0; i < 30; i++) {
-            let d = new Date(dataBase);
-            d.setDate(d.getDate() + i);
-            let dataAtualStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            const calc = window.calcularEscalaMatematica(m, dataAtualStr);
-
-            const novaEscala = { id: String(`${m.id}_${dataAtualStr}`), motorista_id: m.id, data: dataAtualStr, turno: calc.turno, caminhao: calc.caminhao, status: 'auto' };
-            novasEscalasLote.push(novaEscala);
-            escalas[m.id][dataAtualStr] = novaEscala;
-        }
+    if (!silencioso) {
+        alert("✔️ A escala 4x2 automática já é calculada infinitamente pelo sistema a partir da data do ciclo!\nNão é mais necessário processar dados no servidor. O sistema agora é dinâmico e ultrarrápido.");
     }
-
-    const chunkSize = 500;
-    try {
-        for (let i = 0; i < novasEscalasLote.length; i += chunkSize) {
-            if(typeof db.upsertEscalasLote === 'function') await db.upsertEscalasLote(novasEscalasLote.slice(i, i + chunkSize));
-        }
-        await db.addLog('Escala', 'Geração em lote de 30 dias disparada para todos.');
-        salvarBackupLocal();
-        window.renderizarEscala(); 
-        if (!silencioso) alert(`Sucesso! Banco de dados preenchido (30 dias)!`);
-    } catch(e) {
-        // Alerta de erro já foi disparado no database.js
-    }
+    window.renderizarEscala(); 
 }
 
 window.zerarEscala = async function() {
     if(currentUser.role !== 'Admin') { alert('⛔ Acesso Negado.'); return; }
-    if (!confirm("Isso reescreverá todas as edições manuais e recalculará o ciclo 4x2 automático nos próximos 30 dias. Continuar?")) return;
-    window.gerarEscala4x2(true);
+    if (!confirm("Isso reescreverá TODAS as edições manuais, voltando todos os motoristas para o cálculo automático do ciclo 4x2 puro. Continuar?")) return;
+    try {
+        await db.limparApenasEscalas();
+        escalas = {}; // Limpa memória
+        salvarBackupLocal();
+        window.renderizarEscala();
+        alert("✔️ Todas as alterações manuais foram zeradas! A escala voltou ao formato automático perfeito.");
+    } catch (e) {
+        console.error(e);
+    }
 }
 
-// ==================== PAINEL DE TROCA DE TURNO ====================
 window.renderizarTrocaTurno = function() { /* Mantido p/ dashboard */ };
 window.abrirModalImpressao = function() {
     document.getElementById('printData').value = new Date().toISOString().split('T')[0];
@@ -656,7 +612,6 @@ window.abrirModalImpressao = function() {
 window.fecharModalImpressao = function() { document.getElementById('modalImpressaoDiaria').classList.remove('show'); }
 window.gerarRelatorioImpressao = function() { /* Mantido */ };
 
-// ==================== IMPRESSÃO DA ESCALA SEMANAL ====================
 window.imprimirRelatorioEscalaSemanal = function() {
     if (!window.currentDatas || window.currentDatas.length === 0) {
         alert("Nenhuma semana renderizada. Selecione a data no painel primeiro."); return;
@@ -741,7 +696,6 @@ window.imprimirRelatorioEscalaSemanal = function() {
     w.document.close();
 }
 
-// ==================== EXPORTAÇÃO EXCEL ====================
 window.exportarEscalaMensalExcel = function() {
     const inputData = document.getElementById('dataInicioEscala');
     let dataBase = inputData && inputData.value ? new Date(inputData.value + 'T00:00:00') : new Date();

@@ -1,4 +1,4 @@
-// Configuração do Supabase fornecida
+// Configuração do Supabase
 const supabaseUrl = 'https://ihgiyxzxdldqmrkziijl.supabase.co';
 const supabaseKey = 'sb_publishable_JpMZhW5ZrFKBr7m9KXBkoQ_cpxy1k3x';
 const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
@@ -62,11 +62,10 @@ const db = {
     },
     async updateMotorista(id, updates) {
         const { error } = await supabaseClient.from('motoristas').update(updates).eq('id', id);
-        // NOVO: Trava e avisa se o Supabase recusar a mudança do Motorista
         if (error) {
             console.error("⛔ ERRO SUPABASE MOTORISTA:", error);
             alert("ERRO NO BANCO (Motorista): A alteração não foi salva para os outros usuários!\nMotivo: " + error.message);
-            throw error; // Interrompe o processo
+            throw error;
         }
     },
     async deleteMotorista(id) {
@@ -80,10 +79,9 @@ const db = {
     },
     async upsertEscala(escala) {
         const { error } = await supabaseClient.from('escalas').upsert([escala]);
-        // NOVO: Trava e avisa se o Supabase recusar a mudança do T / F
         if (error) {
             console.error("⛔ ERRO SUPABASE ESCALA:", error);
-            alert("ERRO NO BANCO (Escala): Sua marcação de escala falhou e não vai aparecer para os outros!\nMotivo: " + error.message);
+            alert("ERRO NO BANCO (Escala): Sua marcação de escala falhou!\nMotivo: " + error.message);
             throw error;
         }
     },
@@ -92,7 +90,7 @@ const db = {
         const { error } = await supabaseClient.from('escalas').upsert(escalasArray);
         if (error) {
             console.error("⛔ ERRO SUPABASE LOTE ESCALAS:", error);
-            alert("ERRO NO BANCO (Lote Escalas): A geração dos 30 dias falhou!\nMotivo: " + error.message);
+            alert("ERRO NO BANCO (Lote Escalas): A gravação falhou!\nMotivo: " + error.message);
             throw error;
         }
     },
@@ -101,18 +99,54 @@ const db = {
     },
     
     // --- TREINAMENTOS ---
-    async getInstrutores() { /* ... igual ... */ },
-    async addInstrutor(instrutor) { /* ... igual ... */ },
-    async deleteInstrutor(nome) { /* ... igual ... */ },
-    async getTreinamentos() { /* ... igual ... */ },
-    async upsertTreinamento(treinamento) { /* ... igual ... */ },
-    async deleteTreinamento(id) { /* ... igual ... */ },
+    async getInstrutores() {
+        const { data, error } = await supabaseClient.from('instrutores').select('*');
+        if (error) console.error("Erro instrutores:", error);
+        return data || [];
+    },
+    async addInstrutor(instrutor) {
+        await supabaseClient.from('instrutores').insert([instrutor]);
+    },
+    async deleteInstrutor(nome) {
+        await supabaseClient.from('instrutores').delete().eq('nome', nome);
+    },
+    async getTreinamentos() {
+        const { data, error } = await supabaseClient.from('treinamentos').select('*');
+        if (error) console.error("Erro treinamentos:", error);
+        return data || [];
+    },
+    async upsertTreinamento(treinamento) {
+        const { error } = await supabaseClient.from('treinamentos').upsert([treinamento]);
+        if (error) {
+            console.error("⛔ ERRO SUPABASE TREINAMENTOS:", error);
+            alert("ERRO NO BANCO (Treinamentos): A alteração não foi salva!\nMotivo: " + error.message);
+            throw error;
+        }
+    },
+    async deleteTreinamento(id) {
+        await supabaseClient.from('treinamentos').delete().eq('id', id);
+    },
 
     async limparApenasEscalas() {
         const { error } = await supabaseClient.from('escalas').delete().neq('id', '0');
         if (error) console.error("Erro ao limpar escalas:", error);
     },
 
-    async getPermissoesDB() { /* ... igual ... */ },
-    async updatePermissoesDB(perfil, menus) { /* ... igual ... */ }
+    // --- PERMISSÕES DE ACESSO ---
+    async getPermissoesDB() {
+        const { data, error } = await supabaseClient.from('permissoes_perfis').select('*');
+        if (error || !data) return {};
+        const permissoesObj = {};
+        data.forEach(item => {
+            permissoesObj[item.perfil] = item.menus;
+        });
+        return permissoesObj;
+    },
+    async updatePermissoesDB(perfil, menus) {
+        const { error } = await supabaseClient.from('permissoes_perfis').upsert([{ perfil: perfil, menus: menus }]);
+        if (error) {
+            console.error("Erro ao salvar permissões:", error);
+            alert("Erro ao salvar permissões no banco. Motivo: " + error.message);
+        }
+    }
 };
