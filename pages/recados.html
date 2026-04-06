@@ -1,40 +1,164 @@
-<div class="container-recados">
-    <h2>Recados e Anotações da Operação</h2>
-
-    <div class="card-formulario">
-        <form id="form-recado">
-            <div class="form-group">
-                <label for="titulo-recado">Título da Tarefa</label>
-                <input type="text" id="titulo-recado" placeholder="Ex: Ligar para motorista" required>
-            </div>
-            <div class="form-group">
-                <label for="desc-recado">Descrição</label>
-                <textarea id="desc-recado" placeholder="Detalhes da anotação..." rows="3" required></textarea>
-            </div>
-            <div class="form-group">
-                <label for="data-recado">Agendar para:</label>
-                <input type="datetime-local" id="data-recado" required>
-            </div>
-            <button type="submit" class="btn-salvar">Agendar Recado</button>
-        </form>
+<div class="recados-dashboard">
+    <div class="recados-header">
+        <h2>📝 Mural de Recados e Anotações</h2>
+        <p>Agende tarefas rápidas, retornos de rádio e mantenha o controle do turno.</p>
     </div>
 
-    <div class="lista-recados" id="lista-recados">
+    <div class="recados-grid">
+        <div class="recados-form-panel">
+            <h3>Novo Recado</h3>
+            <form id="form-recado">
+                <div class="form-group-dark" style="margin-bottom: 12px;">
+                    <label for="titulo-recado" style="display: block; margin-bottom: 5px; color: #cbd5e1; font-size: 0.9rem;">Título da Tarefa</label>
+                    <input type="text" id="titulo-recado" class="dark-input" placeholder="Ex: Ligar para motorista..." required>
+                </div>
+                
+                <div class="form-group-dark" style="margin-bottom: 12px;">
+                    <label for="desc-recado" style="display: block; margin-bottom: 5px; color: #cbd5e1; font-size: 0.9rem;">Descrição detalhada</label>
+                    <textarea id="desc-recado" class="dark-input" placeholder="Detalhes da anotação..." rows="3" required></textarea>
+                </div>
+                
+                <div class="form-group-dark" style="margin-bottom: 20px;">
+                    <label for="data-recado" style="display: block; margin-bottom: 5px; color: #cbd5e1; font-size: 0.9rem;">Agendar para:</label>
+                    <input type="datetime-local" id="data-recado" class="dark-input" required>
+                </div>
+                
+                <button type="submit" class="btn-primary-green w-100">
+                    ➕ Agendar Recado
+                </button>
+            </form>
         </div>
+
+        <div class="recados-list-panel">
+            <h3>Tarefas Pendentes</h3>
+            <div id="lista-recados" class="recados-list-container">
+                </div>
+        </div>
+    </div>
 </div>
 
 <style>
-    .container-recados { max-width: 800px; margin: 0 auto; padding: 20px; }
-    .card-formulario { background: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    .form-group { margin-bottom: 15px; }
-    .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
-    .form-group input, .form-group textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
-    .btn-salvar { background-color: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; }
-    .btn-salvar:hover { background-color: #218838; }
+    /* Estilos Modernos Dark Mode para os Recados */
+    .recados-dashboard {
+        padding: 20px;
+        color: #f1f5f9;
+        max-width: 1200px;
+        margin: 0 auto;
+        animation: fadeIn 0.3s ease-in-out;
+    }
+
+    .recados-header {
+        margin-bottom: 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding-bottom: 15px;
+    }
+
+    .recados-header h2 { margin: 0; color: #38bdf8; font-size: 1.6rem; }
+    .recados-header p { margin: 5px 0 0 0; color: #94a3b8; font-size: 0.95rem; }
+
+    .recados-grid {
+        display: grid;
+        grid-template-columns: 1fr 2fr; /* Formulário menor, Lista maior */
+        gap: 20px;
+    }
+
+    @media (max-width: 768px) {
+        .recados-grid { grid-template-columns: 1fr; }
+    }
+
+    .recados-form-panel, .recados-list-panel {
+        background: rgba(30, 41, 59, 0.6); /* Fundo escuro do painel */
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 20px;
+    }
+
+    .recados-form-panel h3, .recados-list-panel h3 {
+        margin-top: 0; margin-bottom: 20px;
+        font-size: 1.1rem; color: #f8fafc;
+        border-left: 3px solid #10b981;
+        padding-left: 10px;
+    }
+
+    /* Inputs padronizados com o seu painel */
+    .dark-input {
+        width: 100%;
+        padding: 10px;
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+        color: #fff;
+        font-family: inherit;
+        box-sizing: border-box;
+    }
+
+    .dark-input:focus {
+        outline: none;
+        border-color: #10b981; /* Verde CCOL */
+        box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+    }
+
+    .w-100 { width: 100%; padding: 12px; font-weight: bold; font-size: 1rem;}
+
+    .recados-list-container {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        max-height: 60vh;
+        overflow-y: auto;
+        padding-right: 5px;
+    }
+
+    /* Scrollbar estilizada */
+    .recados-list-container::-webkit-scrollbar { width: 6px; }
+    .recados-list-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+
+    /* Card do Recado */
+    .card-recado-modern {
+        background: rgba(15, 23, 42, 0.9);
+        border-left: 4px solid #f59e0b; /* Borda laranja para chamar atenção */
+        border-radius: 6px;
+        padding: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: transform 0.2s;
+    }
+
+    .card-recado-modern:hover {
+        transform: translateX(4px);
+        border-left-color: #10b981; /* Fica verde ao passar o mouse */
+    }
+
+    .recado-info h4 { margin: 0 0 5px 0; color: #f8fafc; font-size: 1.1rem; }
+    .recado-info p { margin: 0 0 10px 0; color: #94a3b8; font-size: 0.9rem; line-height: 1.4; }
+
+    .recado-meta {
+        display: inline-block;
+        background: rgba(255,255,255,0.05);
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        color: #cbd5e1;
+    }
+
+    /* Botão de Concluir vazado (Outline) */
+    .btn-concluir-modern {
+        background: transparent;
+        color: #10b981;
+        border: 1px solid #10b981;
+        padding: 8px 15px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+        margin-left: 15px;
+    }
+
+    .btn-concluir-modern:hover {
+        background: #10b981;
+        color: #0f172a;
+    }
     
-    .card-recado { background: #fff; border-left: 5px solid #ffc107; padding: 15px; margin-bottom: 10px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
-    .recado-info h3 { margin: 0 0 5px 0; }
-    .recado-info p { margin: 0 0 10px 0; color: #555; }
-    .btn-concluir { background-color: #007bff; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; }
-    .btn-concluir:hover { background-color: #0056b3; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 </style>
