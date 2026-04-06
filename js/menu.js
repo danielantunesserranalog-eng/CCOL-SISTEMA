@@ -21,6 +21,9 @@ window.renderizarMenu = function() {
     if (meusMenus.includes('escala')) navHtml += `<button class="nav-item" onclick="navegarPara('escala', this)">📅 Escala Semanal</button>`;
     if (meusMenus.includes('alocacao')) navHtml += `<button class="nav-item" onclick="navegarPara('alocacao', this)">🔄 Alocação Geral</button>`;
     
+    // NOVO MENU: RECADOS E ANOTAÇÕES (Livre para todos verem)
+    navHtml += `<button class="nav-item" onclick="navegarPara('recados', this)">📝 Recados e Anotações</button>`;
+
     // Dropdown Cadastros
     if (meusMenus.includes('motoristas') || meusMenus.includes('caminhoes')) {
         navHtml += `<div class="nav-dropdown">
@@ -114,6 +117,9 @@ window.navegarPara = async function(pagina, elementoClicado) {
         
         // NOVO: SSMA
         if (pagina === 'ssma' && typeof window.renderizarSSMA === 'function') window.renderizarSSMA();
+
+        // NOVO: RECADOS
+        if (pagina === 'recados' && typeof window.carregarRecados === 'function') window.carregarRecados();
 
         if (pagina === 'jornada') {
             if (typeof window.initJornadaTab === 'function') window.initJornadaTab();
