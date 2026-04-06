@@ -30,7 +30,7 @@ window.renderizarSSMA = function() {
     const termoBusca = searchInput?.value.toLowerCase() || '';
     
     const funcFiltrados = motoristas
-        .filter(m => m.nome.toLowerCase().includes(termoBusca))
+        .filter(m => m.nome.toLowerCase().includes(termoBusca) || (m.cpf && m.cpf.includes(termoBusca)))
         .sort((a, b) => a.nome.localeCompare(b.nome));
 
     let html = '';
@@ -51,9 +51,18 @@ window.renderizarSSMA = function() {
             backgroundTr = 'background: rgba(245, 158, 11, 0.05);';
         }
 
+        // Formatação visual do CPF
+        let cpfFormatado = '-';
+        if (m.cpf && m.cpf.length === 11) {
+            cpfFormatado = m.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+        } else if (m.cpf) {
+            cpfFormatado = m.cpf;
+        }
+
         html += `
             <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); ${backgroundTr}">
                 <td><strong style="font-size: 1.05rem; color: var(--text-primary);">${m.nome}</strong></td>
+                <td><span style="color: var(--text-secondary);">${cpfFormatado}</span></td>
                 <td>
                     <span style="${cargasInfo.classe}">${cargasInfo.texto}</span><br>
                     <small style="color: var(--text-secondary);">${m.venc_cargas_indivisiveis ? m.venc_cargas_indivisiveis.split('-').reverse().join('/') : '-'}</small>
@@ -71,14 +80,14 @@ window.renderizarSSMA = function() {
                     <small style="color: var(--text-secondary);">${m.venc_integracao ? m.venc_integracao.split('-').reverse().join('/') : '-'}</small>
                 </td>
                 <td>
-                    <button onclick="abrirModalSSMA(${m.id})" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid #f59e0b; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold;">✏️ Editar Datas</button>
+                    <button onclick="abrirModalSSMA(${m.id})" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid #f59e0b; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold;">✏️ Editar</button>
                 </td>
             </tr>
         `;
     });
 
     if (funcFiltrados.length === 0) {
-        html = '<tr><td colspan="6" style="text-align: center; padding: 20px;">Nenhum funcionário encontrado.</td></tr>';
+        html = '<tr><td colspan="7" style="text-align: center; padding: 20px;">Nenhum funcionário encontrado.</td></tr>';
     }
 
     tbody.innerHTML = html;
@@ -92,6 +101,9 @@ window.abrirModalSSMA = function(id) {
 
     document.getElementById('editSsmaId').value = m.id;
     document.getElementById('editSsmaNome').innerText = m.nome;
+
+    const inputCpf = document.getElementById('editSsmaCPF');
+    if (inputCpf) inputCpf.value = m.cpf || '';
 
     document.getElementById('editSsmaVencCargas').value = m.venc_cargas_indivisiveis || '';
     document.getElementById('editSsmaVencCNH').value = m.venc_cnh || '';
@@ -110,12 +122,16 @@ window.salvarEdicaoSSMA = async function() {
     const m = motoristas.find(mot => mot.id === id);
     if (!m) return;
 
+    const inputCpf = document.getElementById('editSsmaCPF');
+    if (inputCpf) m.cpf = inputCpf.value || null;
+
     m.venc_cargas_indivisiveis = document.getElementById('editSsmaVencCargas').value || null;
     m.venc_cnh = document.getElementById('editSsmaVencCNH').value || null;
     m.venc_aso = document.getElementById('editSsmaVencASO').value || null;
     m.venc_integracao = document.getElementById('editSsmaVencIntegracao').value || null;
 
     await db.updateMotorista(id, {
+        cpf: m.cpf,
         venc_cargas_indivisiveis: m.venc_cargas_indivisiveis,
         venc_cnh: m.venc_cnh,
         venc_aso: m.venc_aso,
@@ -126,5 +142,5 @@ window.salvarEdicaoSSMA = async function() {
     window.fecharModalSSMA();
     window.renderizarSSMA();
     
-    alert('✅ Datas de SSMA atualizadas com sucesso!');
+    alert('✅ Dados e Datas de SSMA atualizados com sucesso!');
 };

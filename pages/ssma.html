@@ -2,7 +2,7 @@
     <div class="panel-header">
         <h3>⚠️ Painel de Vencimentos SSMA</h3>
         <div class="panel-controls">
-            <input type="text" id="searchSsma" placeholder="Buscar funcionário..." class="search-input-dark" onkeyup="renderizarSSMA()">
+            <input type="text" id="searchSsma" placeholder="Buscar funcionário ou CPF..." class="search-input-dark" onkeyup="renderizarSSMA()">
         </div>
     </div>
     
@@ -17,6 +17,7 @@
             <thead>
                 <tr>
                     <th>Funcionário</th>
+                    <th>CPF</th>
                     <th>Cargas Indivisíveis</th>
                     <th>CNH</th>
                     <th>ASO</th>
@@ -26,5 +27,41 @@
             </thead>
             <tbody id="ssmaList"></tbody>
         </table>
+    </div>
+</div>
+
+<div id="modalEdicaoSSMA" class="modal">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3>✏️ Editar SSMA - <span id="editSsmaNome"></span></h3>
+            <span class="close-btn" onclick="fecharModalSSMA()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editSsmaId">
+            <div class="form-group">
+                <label>CPF:</label>
+                <input type="text" id="editSsmaCPF" class="form-control-dark" placeholder="Apenas números">
+            </div>
+            <div class="form-group">
+                <label>Venc. Cargas Indivisíveis:</label>
+                <input type="date" id="editSsmaVencCargas" class="form-control-dark">
+            </div>
+            <div class="form-group">
+                <label>Venc. CNH:</label>
+                <input type="date" id="editSsmaVencCNH" class="form-control-dark">
+            </div>
+            <div class="form-group">
+                <label>Venc. ASO:</label>
+                <input type="date" id="editSsmaVencASO" class="form-control-dark">
+            </div>
+            <div class="form-group">
+                <label>Venc. Integração:</label>
+                <input type="date" id="editSsmaVencIntegracao" class="form-control-dark">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="fecharModalSSMA()">Cancelar</button>
+            <button class="btn-save" onclick="salvarEdicaoSSMA()">Salvar Dados</button>
+        </div>
     </div>
 </div>
