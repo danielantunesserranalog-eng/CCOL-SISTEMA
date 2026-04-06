@@ -30,38 +30,39 @@
     </div>
 </div>
 
-<div id="modalEdicaoSSMA" class="modal">
-    <div class="modal-content" style="max-width: 500px;">
+<div id="modalEdicaoSSMA" class="modal-overlay">
+    <div class="custom-modal" style="max-width: 500px;">
         <div class="modal-header">
             <h3>✏️ Editar SSMA - <span id="editSsmaNome"></span></h3>
-            <span class="close-btn" onclick="fecharModalSSMA()">&times;</span>
+            <span class="close-modal" onclick="fecharModalSSMA()">&times;</span>
         </div>
         <div class="modal-body">
             <input type="hidden" id="editSsmaId">
-            <div class="form-group">
+            
+            <div class="form-group-dark">
                 <label>CPF:</label>
-                <input type="text" id="editSsmaCPF" class="form-control-dark" placeholder="Apenas números">
+                <input type="text" id="editSsmaCPF" placeholder="Apenas números">
             </div>
-            <div class="form-group">
+            <div class="form-group-dark">
                 <label>Venc. Cargas Indivisíveis:</label>
-                <input type="date" id="editSsmaVencCargas" class="form-control-dark">
+                <input type="date" id="editSsmaVencCargas">
             </div>
-            <div class="form-group">
+            <div class="form-group-dark">
                 <label>Venc. CNH:</label>
-                <input type="date" id="editSsmaVencCNH" class="form-control-dark">
+                <input type="date" id="editSsmaVencCNH">
             </div>
-            <div class="form-group">
+            <div class="form-group-dark">
                 <label>Venc. ASO:</label>
-                <input type="date" id="editSsmaVencASO" class="form-control-dark">
+                <input type="date" id="editSsmaVencASO">
             </div>
-            <div class="form-group">
+            <div class="form-group-dark">
                 <label>Venc. Integração:</label>
-                <input type="date" id="editSsmaVencIntegracao" class="form-control-dark">
+                <input type="date" id="editSsmaVencIntegracao">
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn-cancel" onclick="fecharModalSSMA()">Cancelar</button>
-            <button class="btn-save" onclick="salvarEdicaoSSMA()">Salvar Dados</button>
+            <button class="btn-secondary-dark" onclick="fecharModalSSMA()">Cancelar</button>
+            <button class="btn-primary-green" onclick="salvarEdicaoSSMA()">Salvar Dados</button>
         </div>
     </div>
 </div>
