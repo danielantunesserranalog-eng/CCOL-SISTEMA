@@ -1,11 +1,17 @@
 // ==================== MÓDULO: RECADOS E ANOTAÇÕES ====================
 
+// DADOS FALSOS PARA TESTE VISUAL (Funciona na memória até recarregar a página)
+let recadosMock = [
+    { id: 1, titulo: "Verificar documentação", descricao: "Checar CNH do motorista da placa ABC-1234", data_agendamento: "2026-04-06T15:00" },
+    { id: 2, titulo: "Retorno via Rádio", descricao: "Avisar equipe de manutenção sobre o pneu do caminhão 05", data_agendamento: "2026-04-06T16:30" }
+];
+
 // Função principal chamada pelo menu.js quando a tela abre
 window.carregarRecados = function() {
     const container = document.getElementById('lista-recados');
-    if (!container) return; // Evita erro se a tela não estiver visível
+    if (!container) return; 
 
-    // 1. Configura o evento do formulário (Garante que só adiciona o evento uma vez)
+    // Configura o evento do formulário
     const formRecado = document.getElementById('form-recado');
     if (formRecado && !formRecado.hasAttribute('data-listener')) {
         formRecado.addEventListener('submit', async (e) => {
@@ -15,33 +21,34 @@ window.carregarRecados = function() {
         formRecado.setAttribute('data-listener', 'true');
     }
 
-    // 2. Chama a função para desenhar os cards na tela
+    // Chama a função para desenhar os cards na tela
     atualizarListaRecados();
 };
 
 // Função para salvar o recado
 async function salvarRecado() {
-    const recado = {
+    // Cria o recado na nossa memória temporária (Mock)
+    const novoRecado = {
+        id: Date.now(), // Gera um ID único falso baseado na hora
         titulo: document.getElementById('titulo-recado').value,
         descricao: document.getElementById('desc-recado').value,
         data_agendamento: document.getElementById('data-recado').value
     };
 
     try {
-        // ========== INTEGRAÇÃO BANCO DE DADOS ==========
-        // Descomente e ajuste esta parte quando for plugar no seu Node/Supabase
+        // ========== INTEGRAÇÃO BANCO DE DADOS (FUTURO) ==========
         /*
         await fetch('/api/recados', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(recado)
+            body: JSON.stringify(novoRecado)
         });
         */
         
-        // Simulação de sucesso
-        document.getElementById('form-recado').reset();
+        // Simulação de sucesso adicionando na lista temporária
+        recadosMock.push(novoRecado);
         
-        // Recarrega a lista para mostrar o novo recado inserido
+        document.getElementById('form-recado').reset();
         atualizarListaRecados(); 
     } catch (error) {
         console.error('Erro ao salvar recado:', error);
@@ -49,37 +56,35 @@ async function salvarRecado() {
     }
 }
 
-// Função para buscar recados do banco e renderizar no HTML
+// Função para renderizar no HTML
 async function atualizarListaRecados() {
     const container = document.getElementById('lista-recados');
-    container.innerHTML = '<p style="color: #94a3b8; text-align: center;">Carregando recados...</p>';
+    container.innerHTML = ''; // Limpa a tela
 
     try {
-        // ========== INTEGRAÇÃO BANCO DE DADOS ==========
-        // (Sua API deve retornar apenas recados WHERE status = 'pendente')
+        // ========== INTEGRAÇÃO BANCO DE DADOS (FUTURO) ==========
         /*
         const response = await fetch('/api/recados/pendentes');
-        const recados = await response.json();
+        recadosMock = await response.json();
         */
 
-        // DADOS FALSOS PARA TESTE VISUAL (Apague quando ligar o backend)
-        const recados = [
-            { id: 1, titulo: "Verificar documentação", descricao: "Checar CNH do motorista da placa ABC-1234", data_agendamento: "2026-04-06T15:00" },
-            { id: 2, titulo: "Retorno via Rádio", descricao: "Avisar equipe de manutenção sobre o pneu do caminhão 05", data_agendamento: "2026-04-06T16:30" }
-        ];
-
-        container.innerHTML = ''; // Limpa o texto de "Carregando"
-
-        if (recados.length === 0) {
-            container.innerHTML = '<p style="color: #10b981; text-align: center; padding: 20px;">Nenhum recado pendente no momento. Tudo limpo! ✅</p>';
+        if (recadosMock.length === 0) {
+            container.innerHTML = '<div style="background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; padding: 20px; border-radius: 8px; text-align: center;"><p style="color: #10b981; margin: 0; font-weight: bold;">🎉 Tudo limpo! Nenhum recado pendente.</p></div>';
             return;
         }
 
-        recados.forEach(recado => {
-            // Formata a data para ficar bonitinha (Ex: 06/04/2026 15:00)
-            const dataFormatada = new Date(recado.data_agendamento).toLocaleString('pt-BR', {
-                day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
-            });
+        // Ordena os recados por data (do mais antigo pro mais novo)
+        recadosMock.sort((a, b) => new Date(a.data_agendamento) - new Date(b.data_agendamento));
+
+        recadosMock.forEach(recado => {
+            let dataFormatada = '';
+            if(recado.data_agendamento) {
+                dataFormatada = new Date(recado.data_agendamento).toLocaleString('pt-BR', {
+                    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+                });
+            } else {
+                dataFormatada = 'Sem data';
+            }
             
             const div = document.createElement('div');
             div.className = 'card-recado-modern';
@@ -87,7 +92,7 @@ async function atualizarListaRecados() {
                 <div class="recado-info">
                     <h4>${recado.titulo}</h4>
                     <p>${recado.descricao}</p>
-                    <div class="recado-meta">🕒 Agendado para: <strong>${dataFormatada}</strong></div>
+                    <div class="recado-meta">🕒 Para: <strong>${dataFormatada}</strong></div>
                 </div>
                 <button class="btn-concluir-modern" onclick="concluirRecado(${recado.id})">✔ Concluir</button>
             `;
@@ -103,16 +108,15 @@ async function atualizarListaRecados() {
 window.concluirRecado = async function(id) {
     if(confirm('Deseja marcar esta tarefa como concluída? Ela sumirá do painel.')) {
         try {
-            // ========== INTEGRAÇÃO BANCO DE DADOS ==========
-            // (Fazer um UPDATE no banco mudando status para 'concluido')
+            // ========== INTEGRAÇÃO BANCO DE DADOS (FUTURO) ==========
             /*
-            await fetch(`/api/recados/${id}/concluir`, {
-                method: 'PUT'
-            });
+            await fetch(`/api/recados/${id}/concluir`, { method: 'PUT' });
             */
             
-            // Recarrega a lista após concluir
-            // Como o backend só traz os 'pendentes', ele vai sumir da tela automaticamente
+            // Remove o recado da nossa lista temporária filtrando o ID
+            recadosMock = recadosMock.filter(recado => recado.id !== id);
+            
+            // Atualiza a tela (agora sem a tarefa que você concluiu!)
             atualizarListaRecados(); 
         } catch (error) {
             console.error('Erro ao concluir recado:', error);
