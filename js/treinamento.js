@@ -1,4 +1,4 @@
-// ==================== MÓDULO: TREINAMENTO MASTER DRIVE ====================
+// ==================== MÓDULO: TREINAMENTO VIAGEM ASSISTIDA ====================
 
 // Função inteligente que identifica 1, 2, 3 ou mais viagens no texto
 function getViagensNecessarias(str) {
@@ -350,7 +350,6 @@ window.gerarTreinamentoAuto = async function() {
         totalViagensFaltantes += (necessarias - (realizadas + agendadas));
     });
 
-    // Aumentado o limite de segurança para suportar mais de 100 agendamentos sem parar na metade
     let limiteSeguranca = 0;
     while(totalViagensFaltantes > 0 && limiteSeguranca < 3000) {
         let diaSemana = dataAtual.getDay();
@@ -372,9 +371,8 @@ window.gerarTreinamentoAuto = async function() {
             for(let i = 0; i < alunosPendentes.length; i++) {
                 let reqPDF = alunosPendentes[i];
                 
-                // === SEGURANÇA: IMPEDE AGENDAR A MESMA PESSOA 2 VEZES NO MESMO DIA ===
                 let jaAgendadoHoje = cronogramaTreinamento.some(t => t.data === dataStr && strNormalize(t.motoristaNome) === strNormalize(reqPDF.nome));
-                if (jaAgendadoHoje) continue; // Pula esta pessoa e procura a próxima na fila
+                if (jaAgendadoHoje) continue; 
 
                 let motSistema = typeof motoristas !== 'undefined' ? motoristas.find(m => strNormalize(m.nome) === strNormalize(reqPDF.nome) || strNormalize(m.nome).includes(strNormalize(reqPDF.nome)) || strNormalize(reqPDF.nome).includes(strNormalize(m.nome))) : null;
                 
@@ -385,13 +383,11 @@ window.gerarTreinamentoAuto = async function() {
                     const isDia = ['A', 'B', 'C'].includes(equipeMot);
                     const isNoite = ['D', 'E', 'F'].includes(equipeMot);
 
-                    // 1. REGRA ABSOLUTA: Nunca agendar no dia de folga
                     let escalaDia = window.getEscalaDiaComputada ? window.getEscalaDiaComputada(motSistema, dataStr) : null;
                     if(escalaDia && (escalaDia.caminhao === 'F' || escalaDia.caminhao === 'FOLGA')) {
                         isElegivel = false;
                     }
 
-                    // 2. REGRA DE TURNO: Pode ser flexibilizada se o sistema travar (diasSemAgendarNinguem >= 5)
                     if (isElegivel && diasSemAgendarNinguem < 5) {
                         if (turnoSelecionado === 'Dia' && !isDia) isElegivel = false;
                         if (turnoSelecionado === 'Noite' && !isNoite) isElegivel = false;
@@ -405,19 +401,18 @@ window.gerarTreinamentoAuto = async function() {
                 if(isElegivel) {
                     alunoEscolhido = motSistema; 
                     infoPDF = reqPDF; 
-                    break; // Sai do loop de pessoas porque já achou alguém para este dia
+                    break; 
                 }
             }
         }
         
         if(infoPDF) {
-            // === CORREÇÃO DO ERRO DO BANCO: null no lugar de 'N/A' ===
             const novoTreino = {
                 id: Date.now() + Math.floor(Math.random() * 100000), 
                 data: dataStr, 
                 dataTexto: diaNum,
                 instrutor: instrutorSelecionado, 
-                motoristaId: alunoEscolhido ? alunoEscolhido.id : null, // AQUI: null evita erro tipo bigint
+                motoristaId: alunoEscolhido ? alunoEscolhido.id : null, 
                 motoristaNome: infoPDF.nome,
                 classificacao: infoPDF.class, 
                 viagens: infoPDF.viagens, 
@@ -448,7 +443,7 @@ window.gerarTreinamentoAuto = async function() {
             diasSemAgendarNinguem++;
         }
 
-        dataAtual.setDate(dataAtual.getDate() + 1); // Pula para o próximo dia
+        dataAtual.setDate(dataAtual.getDate() + 1); 
         limiteSeguranca++;
     }
     
@@ -462,7 +457,6 @@ window.gerarTreinamentoAuto = async function() {
     }
 }
 
-// === NOVA FUNÇÃO EXPORTAR PARA EXCEL (CSV) ===
 window.exportarCronogramaExcel = function() {
     if (cronogramaTreinamento.length === 0) {
         alert("⚠️ Não há treinamentos agendados para exportar!");
@@ -471,21 +465,19 @@ window.exportarCronogramaExcel = function() {
 
     let agendados = [...cronogramaTreinamento].sort((a, b) => a.data.localeCompare(b.data));
     
-    // Adiciona BOM (\uFEFF) para o Excel reconhecer os acentos do Brasil no CSV
     let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
     csvContent += "Data Prevista;Instrutor;Motorista;Classificacao;Situacao de Viagens\n";
 
     agendados.forEach(t => {
         let dataPt = t.data.split('-').reverse().join('/');
         let dataCompleta = `${dataPt} (${t.dataTexto})`;
-        // Aspas ajudam o excel a não quebrar as colunas em textos estranhos
         csvContent += `"${dataCompleta}";"${t.instrutor}";"${t.motoristaNome}";"${t.classificacao}";"${t.viagens}"\n`;
     });
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "Cronograma_Treinamento_MasterDrive.csv");
+    link.setAttribute("download", "Cronograma_Viagem_Assistida.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -504,7 +496,7 @@ window.imprimirCronogramaPDF = function() {
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Cronograma de Treinamento</title>
+            <title>Cronograma: Viagem Assistida</title>
             <style>
                 body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
                 h2 { text-align: center; color: #1e3a8a; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; }
@@ -516,7 +508,7 @@ window.imprimirCronogramaPDF = function() {
             </style>
         </head>
         <body>
-            <h2>Relatório de Cronograma: Master Drive</h2>
+            <h2>Relatório de Cronograma: Viagem Assistida</h2>
             <table>
                 <thead>
                     <tr>
