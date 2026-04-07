@@ -108,6 +108,31 @@ let treinamentosConcluidos = [];
 
 const strNormalize = (str) => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim() : '';
 
+// === FUNÇÃO DO DASHBOARD ===
+window.atualizarDashboardTreinamentos = function() {
+    const concluidos = treinamentosConcluidos ? treinamentosConcluidos.length : 0;
+    const agendados = cronogramaTreinamento ? cronogramaTreinamento.length : 0;
+    
+    let pendentes = 0;
+    if (typeof listaViagemAssistida !== 'undefined') {
+        const alunosPendentesList = listaViagemAssistida.filter(req => {
+            let necessarias = getViagensNecessarias(req.viagens);
+            let realizadas = treinamentosConcluidos.filter(c => strNormalize(c.motoristaNome) === strNormalize(req.nome)).length;
+            let agendadosLista = cronogramaTreinamento.filter(a => strNormalize(a.motoristaNome) === strNormalize(req.nome)).length;
+            return (realizadas + agendadosLista) < necessarias;
+        });
+        pendentes = alunosPendentesList.length;
+    }
+
+    const elConcluidos = document.getElementById('dashConcluidos');
+    const elAgendados = document.getElementById('dashAgendados');
+    const elPendentes = document.getElementById('dashPendentes');
+
+    if(elConcluidos) elConcluidos.innerText = concluidos;
+    if(elAgendados) elAgendados.innerText = agendados;
+    if(elPendentes) elPendentes.innerText = pendentes;
+};
+
 window.carregarDadosTreinamento = async function() {
     try {
         const instDb = await db.getInstrutores();
@@ -242,6 +267,11 @@ window.renderizarCronogramaTreinamento = function() {
                 <td><span style="background: #3ddc84; color: #000; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">CONCLUÍDO</span></td>
             </tr>
         `}).join('');
+    }
+
+    // Atualiza os painéis numéricos do Dashboard
+    if(typeof window.atualizarDashboardTreinamentos === 'function') {
+        window.atualizarDashboardTreinamentos();
     }
 }
 

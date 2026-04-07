@@ -1,30 +1,78 @@
-<div class="action-bar" style="flex-wrap: wrap; gap: 15px;">
-    <h3 style="color: var(--text-primary); margin: 0; align-self: center;">🎓 Cronograma de Treinamento: Master Drive</h3>
-    <div class="filter-group" style="display: flex; gap: 10px; align-items: center; margin-left: auto; flex-wrap: wrap;">
-        <label for="treinamentoDataInicio" style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">Data Início:</label>
-        <input type="date" id="treinamentoDataInicio" class="dark-select">
-        
-        <label for="treinamentoInstrutor" style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600; margin-left: 10px;">Instrutor:</label>
-        <select id="treinamentoInstrutor" class="dark-select">
-            <option value="">Selecione...</option>
-        </select>
-
-        <label for="treinamentoTurno" style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600; margin-left: 10px;">Turno:</label>
-        <select id="treinamentoTurno" class="dark-select">
-            <option value="Todos">Ambos (Dia/Noite)</option>
-            <option value="Dia">Apenas Dia (Equipes A, B, C)</option>
-            <option value="Noite">Apenas Noite (Equipes D, E, F)</option>
-        </select>
-
-        <div style="display: flex; align-items: center; gap: 5px; margin-left: 10px; background: rgba(0,0,0,0.2); padding: 5px 10px; border-radius: 6px;">
-            <input type="checkbox" id="apenasDiasUteis" checked style="cursor: pointer;">
-            <label for="apenasDiasUteis" style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600; cursor: pointer; margin:0;">Seg a Sex</label>
+<div class="dashboard-treinamentos" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px;">
+    <div style="background: rgba(61, 220, 132, 0.05); border: 1px solid var(--ccol-green-bright); border-radius: 12px; padding: 20px; display: flex; align-items: center; gap: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
+        <div style="font-size: 2.5rem; background: rgba(61, 220, 132, 0.15); padding: 15px; border-radius: 50%; display: flex; align-items: center; justify-content: center; width: 60px; height: 60px;">✅</div>
+        <div>
+            <h4 style="margin: 0; color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Treinamentos Concluídos</h4>
+            <h2 id="dashConcluidos" style="margin: 5px 0 0; color: var(--ccol-green-bright); font-size: 2.2rem; font-weight: bold;">0</h2>
         </div>
     </div>
-    <div class="button-group" style="display: flex; gap: 10px;">
-        <button class="btn-primary-green" onclick="gerarTreinamentoAuto()">⚡ Gerar Cronograma</button>
-        <button class="btn-primary-blue" style="background: var(--ccol-blue-bright); color: #000;" onclick="imprimirCronogramaPDF()">🖨️ Imprimir PDF</button>
-        <button class="btn-primary-green" style="background: #10b981; color: #fff;" onclick="exportarCronogramaExcel()">📊 Exportar Excel</button>
+    
+    <div style="background: rgba(59, 130, 246, 0.05); border: 1px solid var(--ccol-blue-bright); border-radius: 12px; padding: 20px; display: flex; align-items: center; gap: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
+        <div style="font-size: 2.5rem; background: rgba(59, 130, 246, 0.15); padding: 15px; border-radius: 50%; display: flex; align-items: center; justify-content: center; width: 60px; height: 60px;">📅</div>
+        <div>
+            <h4 style="margin: 0; color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Agendados (Próximos)</h4>
+            <h2 id="dashAgendados" style="margin: 5px 0 0; color: var(--ccol-blue-bright); font-size: 2.2rem; font-weight: bold;">0</h2>
+        </div>
+    </div>
+
+    <div style="background: rgba(251, 146, 60, 0.05); border: 1px solid var(--ccol-rust-bright); border-radius: 12px; padding: 20px; display: flex; align-items: center; gap: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
+        <div style="font-size: 2.5rem; background: rgba(251, 146, 60, 0.15); padding: 15px; border-radius: 50%; display: flex; align-items: center; justify-content: center; width: 60px; height: 60px;">⚠️</div>
+        <div>
+            <h4 style="margin: 0; color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Fila de Espera (Pendentes)</h4>
+            <h2 id="dashPendentes" style="margin: 5px 0 0; color: var(--ccol-rust-bright); font-size: 2.2rem; font-weight: bold;">0</h2>
+        </div>
+    </div>
+</div>
+
+<div class="content-panel" style="margin-bottom: 20px; padding: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="font-size: 1.8rem;">🎓</div>
+            <h3 style="color: var(--text-primary); margin: 0; font-size: 1.3rem;">Gerenciar Cronograma: Master Drive</h3>
+        </div>
+        
+        <div class="button-group" style="display: flex; gap: 10px;">
+            <button class="btn-primary-blue" style="background: var(--ccol-blue-bright); color: #000; display: flex; align-items: center; gap: 8px; font-weight: bold;" onclick="imprimirCronogramaPDF()">
+                🖨️ Imprimir PDF
+            </button>
+            <button class="btn-primary-green" style="background: #10b981; color: #fff; display: flex; align-items: center; gap: 8px; font-weight: bold;" onclick="exportarCronogramaExcel()">
+                📊 Exportar Excel
+            </button>
+        </div>
+    </div>
+
+    <div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 15px 0;"></div>
+
+    <div class="filter-group" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+            <label for="treinamentoDataInicio" style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">Data Início:</label>
+            <input type="date" id="treinamentoDataInicio" class="dark-select" style="min-width: 150px;">
+        </div>
+        
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+            <label for="treinamentoInstrutor" style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">Instrutor:</label>
+            <select id="treinamentoInstrutor" class="dark-select" style="min-width: 180px;">
+                <option value="">Selecione...</option>
+            </select>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+            <label for="treinamentoTurno" style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">Turno:</label>
+            <select id="treinamentoTurno" class="dark-select" style="min-width: 180px;">
+                <option value="Todos">Ambos (Dia/Noite)</option>
+                <option value="Dia">Apenas Dia (Equipes A, B, C)</option>
+                <option value="Noite">Apenas Noite (Equipes D, E, F)</option>
+            </select>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.2); padding: 8px 15px; border-radius: 8px; height: 40px; border: 1px solid rgba(255,255,255,0.05);">
+            <input type="checkbox" id="apenasDiasUteis" checked style="cursor: pointer; width: 16px; height: 16px;">
+            <label for="apenasDiasUteis" style="color: var(--text-primary); font-size: 0.9rem; font-weight: 600; cursor: pointer; margin:0;">Apenas Seg a Sex</label>
+        </div>
+
+        <button class="btn-primary-green" style="height: 40px; display: flex; align-items: center; gap: 5px; font-weight: bold; margin-left: auto; font-size: 0.95rem;" onclick="gerarTreinamentoAuto()">
+            ⚡ Gerar Cronograma Auto
+        </button>
     </div>
 </div>
 
@@ -34,14 +82,15 @@
             <h3>👨‍🏫 Instrutores</h3>
         </div>
         <div style="padding: 15px;">
-            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 10px;">Adicione os instrutores.</p>
+            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 10px;">Adicione os instrutores da base.</p>
             <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                 <input type="text" id="novoInstrutorNome" placeholder="Nome do Instrutor" class="dark-select" style="flex:1;">
-                <button class="btn-primary-blue" onclick="adicionarInstrutor()">➕ Add</button>
+                <button class="btn-primary-blue" onclick="adicionarInstrutor()" style="padding: 0 15px;">➕</button>
             </div>
             <ul id="listaInstrutores" style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px;"></ul>
         </div>
     </div>
+    
     <div class="content-panel">
         <div class="panel-header">
             <h3 style="color: var(--ccol-blue-bright);">📅 Treinamentos Agendados</h3>
