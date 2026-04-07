@@ -82,9 +82,9 @@ window.adicionarMotorista = async function() {
     const novoMotorista = {
         id: Date.now(), 
         nome: nome,
-        masterDrive: document.getElementById('motoristaMasterDrive').value,
-        destra: document.getElementById('motoristaDestra').value,
-        cidade: document.getElementById('motoristaCidade').value,
+        masterDrive: document.getElementById('motoristaMasterDrive').value || null,
+        destra: document.getElementById('motoristaDestra').value || null,
+        cidade: document.getElementById('motoristaCidade').value || null,
         conjuntoId: document.getElementById('motoristaConjunto').value ? parseInt(document.getElementById('motoristaConjunto').value) : null,
         equipe: document.getElementById('motoristaEquipe').value || '-',
         turno: document.getElementById('motoristaTurno').value || '-',
@@ -116,8 +116,8 @@ window.abrirModalEdicao = function(id) {
 
     document.getElementById('editMotoristaId').value = m.id;
     document.getElementById('editMotoristaNome').value = m.nome;
-    document.getElementById('editMotoristaMasterDrive').value = m.masterDrive;
-    document.getElementById('editMotoristaDestra').value = m.destra;
+    document.getElementById('editMotoristaMasterDrive').value = m.masterDrive || '';
+    document.getElementById('editMotoristaDestra').value = m.destra || '';
     document.getElementById('editMotoristaCidade').value = m.cidade || '';
     
     document.getElementById('editMotoristaConjunto').value = m.conjuntoId || '';
@@ -138,20 +138,35 @@ window.salvarEdicaoMotorista = async function() {
     if (!m) return;
 
     m.nome = document.getElementById('editMotoristaNome').value.trim();
-    m.masterDrive = document.getElementById('editMotoristaMasterDrive').value;
-    m.destra = document.getElementById('editMotoristaDestra').value;
-    m.cidade = document.getElementById('editMotoristaCidade').value;
+    m.masterDrive = document.getElementById('editMotoristaMasterDrive').value || null;
+    m.destra = document.getElementById('editMotoristaDestra').value || null;
+    m.cidade = document.getElementById('editMotoristaCidade').value || null;
     
     const conjVal = document.getElementById('editMotoristaConjunto').value;
     m.conjuntoId = conjVal ? parseInt(conjVal) : null; 
-    m.equipe = document.getElementById('editMotoristaEquipe').value;
-    m.turno = document.getElementById('editMotoristaTurno').value;
+    m.equipe = document.getElementById('editMotoristaEquipe').value || '-';
+    m.turno = document.getElementById('editMotoristaTurno').value || '-';
     m.data_ancora = document.getElementById('editMotoristaDataAncora').value || null;
 
-    await db.updateMotorista(id, {
-        nome: m.nome, masterDrive: m.masterDrive, destra: m.destra, cidade: m.cidade,
-        conjuntoId: m.conjuntoId, equipe: m.equipe, turno: m.turno, data_ancora: m.data_ancora
+    // Constrói os dados da mesma forma que são usados na interface
+    // ATENÇÃO: Se as colunas no Supabase estiverem com underline (ex: master_drive), você deverá alterar a chave antes dos dois pontos. Ex: "master_drive: m.masterDrive"
+    const payload = {
+        nome: m.nome, 
+        masterDrive: m.masterDrive, 
+        destra: m.destra, 
+        cidade: m.cidade,
+        conjuntoId: m.conjuntoId, 
+        equipe: m.equipe, 
+        turno: m.turno, 
+        data_ancora: m.data_ancora
+    };
+
+    // Previne envio de string vazia caso o banco exija null em alguma coluna não preenchida
+    Object.keys(payload).forEach(k => {
+        if (payload[k] === "") payload[k] = null;
     });
+
+    await db.updateMotorista(id, payload);
     
     if(typeof salvarBackupLocal === 'function') salvarBackupLocal();
     window.fecharModalEdicao();
