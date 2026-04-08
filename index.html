@@ -254,40 +254,6 @@
         </div>
     </div>
 
-    <div id="modalFinalizarJornada" class="modal-overlay">
-        <div class="custom-modal" style="max-width: 500px;">
-            <div class="modal-header">
-                <h3>🏁 Finalizar Jornada de Trabalho</h3>
-                <button class="close-modal" onclick="fecharModalJornada()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" id="jornadaMotId">
-                <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; border: 1px solid var(--border-dim); margin-bottom: 20px;">
-                    <p style="margin-bottom: 5px; color: var(--text-secondary); font-size: 0.85rem;">Motorista Selecionado:</p>
-                    <strong id="jornadaMotNome" style="font-size: 1.1rem; color: var(--ccol-blue-bright);"></strong>
-                    <p style="margin-top: 5px; color: var(--text-secondary); font-size: 0.85rem;">Turno Previsto: <span id="jornadaTurnoPrevisto" style="color: #fff; font-weight: bold;"></span></p>
-                </div>
-                <div class="form-grid">
-                    <div class="form-group-dark">
-                        <label>Data de Finalização</label>
-                        <input type="date" id="jornadaDataFim" class="dark-select">
-                    </div>
-                    <div class="form-group-dark">
-                        <label>Hora de Finalização</label>
-                        <input type="time" id="jornadaHoraFim" class="dark-select">
-                    </div>
-                </div>
-                <div style="background: rgba(251, 146, 60, 0.1); border-left: 3px solid var(--ccol-rust-bright); padding: 10px; margin-top: 20px; font-size: 0.75rem; color: var(--text-secondary);">
-                    <strong>Atenção:</strong> O tempo total será calculado com base na hora de início do turno cruzado com a escala do dia. Se exceder 12 horas, ficará marcado no histórico.
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn-secondary-dark" onclick="fecharModalJornada()">Cancelar</button>
-                <button class="btn-primary-green" onclick="confirmarFinalizarJornada()">💾 Salvar e Finalizar</button>
-            </div>
-        </div>
-    </div>
-
     <div id="modalImpressaoDiaria" class="modal-overlay">
         <div class="custom-modal" style="max-width: 400px;">
             <div class="modal-header">
@@ -327,8 +293,6 @@
     <script src="js/escala.js"></script>
     <script src="js/treinamento.js"></script>
     <script src="js/os.js"></script>
-    
-    <script src="js/jornada.js"></script>
     
     <script src="js/status_frota.js"></script>
     <script src="js/ssma.js"></script>

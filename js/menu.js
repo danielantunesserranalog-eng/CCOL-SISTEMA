@@ -42,7 +42,6 @@ window.renderizarMenu = function() {
     }
 
     if (meusMenus.includes('troca')) navHtml += `<button class="nav-item" onclick="navegarPara('troca', this)">⏱️ Painel de Troca</button>`;
-    if (meusMenus.includes('jornada')) navHtml += `<button class="nav-item" onclick="navegarPara('jornada', this)">⏳ Controle de Jornada</button>`;
     if (meusMenus.includes('treinamento')) navHtml += `<button class="nav-item" onclick="navegarPara('treinamento', this)">🎓 Treinamento</button>`;
     
     // MENU SSMA ADICIONADO AQUI
@@ -120,12 +119,6 @@ window.navegarPara = async function(pagina, elementoClicado) {
 
         // NOVO: RECADOS
         if (pagina === 'recados' && typeof window.carregarRecados === 'function') window.carregarRecados();
-
-        if (pagina === 'jornada') {
-            if (typeof window.initJornadaTab === 'function') window.initJornadaTab();
-        } else {
-            if (typeof window.deactivateJornadaTab === 'function') window.deactivateJornadaTab();
-        }
 
         if (pagina === 'config') {
             if (typeof window.renderizarUsuarios === 'function') window.renderizarUsuarios();
