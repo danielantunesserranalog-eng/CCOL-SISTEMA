@@ -1,0 +1,22 @@
+/* ================== CONJUNTOS CARDS ================== */
+#conjuntosList { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; padding: 20px; }
+.conjunto-card { background-color: var(--bg-panel); border: 1px solid var(--border-dim); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 15px; box-shadow: var(--shadow-md); transition: transform 0.2s, border-color 0.2s; }
+.conjunto-card:hover { transform: translateY(-2px); border-color: #4b5563; }
+.conjunto-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-dim); padding-bottom: 12px; }
+.conjunto-id { font-size: 1.3rem; font-weight: 800; color: var(--ccol-green-bright); }
+.caminhoes-list { display: flex; flex-direction: column; gap: 8px; }
+.caminhoes-list strong { color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
+.caminhao-item { display: flex; justify-content: space-between; align-items: center; background-color: rgba(255,255,255,0.03); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-dim); font-size: 0.9rem; }
+.caminhao-item strong { color: var(--ccol-blue-bright); margin-left: 5px; }
+
+.add-caminhao { display: flex; flex-direction: column; gap: 10px; margin-top: auto; padding-top: 15px; border-top: 1px dashed var(--border-dim); }
+.add-caminhao > div { display: flex; gap: 10px; }
+.add-caminhao input { flex: 1; padding: 8px 10px; background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-dim); border-radius: 6px; color: var(--text-primary); font-size: 0.85rem; transition: all 0.2s; }
+.add-caminhao input:focus { border-color: var(--ccol-green-bright); outline: none; }
+
+.btn-remove-conjunto { background-color: transparent; color: #ef4444; border: 1px solid #ef4444; padding: 5px 12px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; font-weight: bold; transition: all 0.2s; }
+.btn-remove-conjunto:hover { background-color: rgba(239, 68, 68, 0.1); }
+.btn-remove-caminhao { background-color: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; font-weight: bold; transition: all 0.2s; }
+.btn-remove-caminhao:hover { background-color: #ef4444; color: white; }
+.btn-add-caminhao { background-color: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--border-dim); padding: 8px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.8rem; transition: all 0.2s; text-transform: uppercase; }
+.btn-add-caminhao:hover { background-color: rgba(255,255,255,0.1); color: var(--ccol-green-bright); border-color: #4b5563; }
