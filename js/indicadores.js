@@ -1,14 +1,9 @@
-let graficoFrota;
-let graficoManutencao;
-
 window.carregarDadosDashboard = async function() {
-    inicializarGraficos();
     await atualizarPonteiros();
     carregarControladorAtual();
     carregarFrentesTv();
     carregarOcorrenciasTv();
     
-    // Inicia a função de atualizar os horários das frentes/barras e checa a cada minuto
     if(typeof atualizarFrentesDeTrabalho === 'function') {
         atualizarFrentesDeTrabalho();
         setInterval(atualizarFrentesDeTrabalho, 60000);
@@ -30,7 +25,6 @@ window.atualizarRelogio = function() {
     if(elData) elData.textContent = `${dia}/${mes}/${ano}`;
 }
 
-// Função: Atualiza as Frentes de Trabalho E a Barra de Turno automaticamente
 window.atualizarFrentesDeTrabalho = function() {
     const agora = new Date();
     const dia = String(agora.getDate()).padStart(2, '0');
@@ -42,82 +36,28 @@ window.atualizarFrentesDeTrabalho = function() {
     let textoTurnoFrente = "";
     let classeTurnoFrente = "";
     
-    // Elementos da Barra Inferior
     const elTurnoBarText = document.getElementById('dash-turno');
     const elTurnoBarIcon = document.getElementById('dash-turno-icon');
     const elTurnoBarContainer = document.getElementById('container-barra-turno');
 
-    // Lógica do Horário: 06h às 18h = Dia, restante = Noite
     if (hora >= 6 && hora < 18) {
-        // Modo DIA
         textoTurnoFrente = "☀️ 06:00 às 18:00";
         classeTurnoFrente = "turno-dia-style";
-        
         if(elTurnoBarText) { elTurnoBarText.textContent = "TURNO DIA"; elTurnoBarText.style.color = "#fbbf24"; }
         if(elTurnoBarIcon) elTurnoBarIcon.className = "fas fa-sun";
         if(elTurnoBarContainer) elTurnoBarContainer.style.borderLeftColor = "#f59e0b";
-
     } else {
-        // Modo NOITE
         textoTurnoFrente = "🌙 18:00 às 06:00";
         classeTurnoFrente = "turno-noite-style";
-        
         if(elTurnoBarText) { elTurnoBarText.textContent = "TURNO NOITE"; elTurnoBarText.style.color = "#7dd3fc"; }
         if(elTurnoBarIcon) elTurnoBarIcon.className = "fas fa-moon";
         if(elTurnoBarContainer) elTurnoBarContainer.style.borderLeftColor = "#38bdf8";
     }
 
-    // Atualiza os Cards dentro do painel esquerdo
-    const datasHtml = document.querySelectorAll('.dash-data-frente');
-    const turnosHtml = document.querySelectorAll('.dash-turno-frente');
-    
-    datasHtml.forEach(el => el.textContent = dataFormatada);
-    turnosHtml.forEach(el => {
+    document.querySelectorAll('.dash-data-frente').forEach(el => el.textContent = dataFormatada);
+    document.querySelectorAll('.dash-turno-frente').forEach(el => {
         el.textContent = textoTurnoFrente;
         el.className = `frente-turno dash-turno-frente ${classeTurnoFrente}`;
-    });
-}
-
-function inicializarGraficos() {
-    const baseConfig = {
-        series: [{
-            type: 'gauge',
-            startAngle: 210, 
-            endAngle: -30,
-            min: 0,
-            max: 100,
-            splitNumber: 5,
-            itemStyle: { color: '#38bdf8' },
-            progress: { show: true, width: 14, roundCap: true },
-            pointer: { show: true, length: '75%', width: 5, itemStyle: { color: '#ffffff' } },
-            axisLine: { roundCap: true, lineStyle: { width: 14, color: [[1, '#1e293b']] } },
-            axisTick: { show: false },
-            splitLine: { show: false },
-            axisLabel: { show: false },
-            title: { show: false },
-            detail: { show: false }, 
-            data: [{ value: 0 }]
-        }]
-    };
-
-    const domFrota = document.getElementById('gauge-frota');
-    if (domFrota) {
-        graficoFrota = echarts.init(domFrota);
-        baseConfig.series[0].itemStyle.color = '#38bdf8'; 
-        graficoFrota.setOption(baseConfig);
-    }
-
-    const domManut = document.getElementById('gauge-manutencao');
-    if (domManut) {
-        graficoManutencao = echarts.init(domManut);
-        let configManut = JSON.parse(JSON.stringify(baseConfig));
-        configManut.series[0].itemStyle.color = '#ef4444'; 
-        graficoManutencao.setOption(configManut);
-    }
-
-    window.addEventListener('resize', () => {
-        if(graficoFrota) graficoFrota.resize();
-        if(graficoManutencao) graficoManutencao.resize();
     });
 }
 
@@ -140,28 +80,27 @@ async function atualizarPonteiros() {
                 }
             });
         }
-    } catch (e) { console.error("Erro na busca de Placas:", e); }
+    } catch (e) { console.error("Erro Placas:", e); }
 
     try {
         const queryManutencao = await supabaseClient.from('ordens_servico').select('*', { count: 'exact', head: true }).neq('status', 'Concluída');
         if(queryManutencao.count !== null) totalManutencao = queryManutencao.count;
-    } catch (e) { console.error("Erro na busca de Manutenções:", e); }
+    } catch (e) { console.error("Erro O.S.:", e); }
 
     try {
-        const queryOcorrencias = await supabaseClient.from('dashboard_ocorrencias').select('*', { count: 'exact', head: true }).eq('status', 'Pendente');
-        if(queryOcorrencias.count !== null) totalOcorrencias = queryOcorrencias.count;
-    } catch (e) { console.error("Erro na busca de Ocorrencias:", e); }
+        const queryOcorrencias = await supabaseClient.from('dashboard_status').select('id'); // Apenas para checar se a tabela existe
+        const { count } = await supabaseClient.from('dashboard_ocorrencias').select('*', { count: 'exact', head: true }).eq('status', 'Pendente');
+        totalOcorrencias = count || 0;
+    } catch (e) { console.error("Erro Sinistros:", e); }
 
     let frotaDisponivel = totalPlacasCadastradas - totalManutencao - totalOcorrencias;
     if(frotaDisponivel < 0) frotaDisponivel = 0;
 
-    if(graficoFrota) {
-        let maxFrota = totalPlacasCadastradas < 20 ? 20 : totalPlacasCadastradas + 10;
-        graficoFrota.setOption({ series: [{ max: maxFrota, data: [{ value: frotaDisponivel }] }] });
-    }
-    if(graficoManutencao) {
-        let maxManut = totalPlacasCadastradas > 0 ? totalPlacasCadastradas : 20;
-        graficoManutencao.setOption({ series: [{ max: maxManut, data: [{ value: totalManutencao }] }] });
+    const elGaugeFill = document.getElementById('gauge-fill-frota');
+    if (elGaugeFill && totalPlacasCadastradas > 0) {
+        const perc = (frotaDisponivel / totalPlacasCadastradas) * 100;
+        const rotation = -45 + (1.8 * perc);
+        elGaugeFill.style.transform = `rotate(${rotation}deg)`;
     }
 
     const elFrotaDisp = document.getElementById('texto-frota-disponivel');
@@ -191,17 +130,16 @@ window.salvarControladorDash = async function() {
     }
 }
 
-// Gera os items da Frente verticalmente no Painel Esquerdo
 async function carregarFrentesTv() {
     const { data } = await supabaseClient.from('frentes_trabalho').select('*').eq('status', 'Ativa');
     const container = document.getElementById('lista-frentes-tv');
     const containerConfig = document.getElementById('config-lista-frentes');
+    const elKpiFrentes = document.getElementById('kpi-frentes');
     
     if (data && data.length > 0) {
-        document.getElementById('kpi-frentes').textContent = data.length;
+        if(elKpiFrentes) elKpiFrentes.textContent = data.length;
         if(container) container.innerHTML = ''; 
         if(containerConfig) containerConfig.innerHTML = '';
-        
         data.forEach(f => {
             if(container) {
                 container.innerHTML += `
@@ -212,32 +150,21 @@ async function carregarFrentesTv() {
                     </div>
                     <div class="frente-content-box">
                         <h4 class="frente-nome-titulo"><i class="fas fa-tractor text-green"></i> ${f.nome}</h4>
-                        <div style="color: #64748b; font-style: italic; font-size: 0.95rem; margin-top: 5px;">
-                            Área reservada para detalhamento...
-                        </div>
                     </div>
                 </div>`;
             }
-
-            if(containerConfig) {
-                containerConfig.innerHTML += `<div class="mini-item"><span>${f.nome}</span> <button class="btn-remover-mini" onclick="removerFrenteDash('${f.id}')"><i class="fas fa-trash"></i></button></div>`;
-            }
+            if(containerConfig) containerConfig.innerHTML += `<div class="mini-item"><span>${f.nome}</span> <button class="btn-remover-mini" onclick="removerFrenteDash('${f.id}')"><i class="fas fa-trash"></i></button></div>`;
         });
-
-        // Atualiza a Data e o Turno para ficarem corretos assim que carrega
         atualizarFrentesDeTrabalho();
-
     } else {
-        document.getElementById('kpi-frentes').textContent = '0';
+        if(elKpiFrentes) elKpiFrentes.textContent = '0';
         if(container) container.innerHTML = '<div class="empty-state">Nenhuma frente ativa.</div>';
-        if (containerConfig) containerConfig.innerHTML = '';
     }
 }
 
 async function carregarOcorrenciasTv() {
     const { data } = await supabaseClient.from('dashboard_ocorrencias').select('*').eq('status', 'Pendente');
     const containerConfig = document.getElementById('config-lista-ocorrencias');
-    
     if (data && data.length > 0) {
         containerConfig.innerHTML = '';
         data.forEach(o => {
@@ -280,20 +207,13 @@ window.exportarDashboardPNG = function() {
     const elemento = document.getElementById('area-print-dash');
     const botaoPrint = document.getElementById('btn-gerar-print');
     const botaoFlutuante = document.getElementById('btn-floating-config');
-    
     botaoPrint.style.display = 'none';
     if(botaoFlutuante) botaoFlutuante.style.display = 'none';
-    
-    html2canvas(elemento, { 
-        backgroundColor: '#070b14',
-        scale: 2,
-        useCORS: true 
-    }).then(canvas => {
+    html2canvas(elemento, { backgroundColor: '#070b14', scale: 2, useCORS: true }).then(canvas => {
         const link = document.createElement('a');
-        link.download = `CCOL_Operacao_${new Date().getTime()}.png`;
+        link.download = `CCOL_${new Date().getTime()}.png`;
         link.href = canvas.toDataURL('image/png');
         link.click();
-        
         botaoPrint.style.display = 'flex';
         if(botaoFlutuante) botaoFlutuante.style.display = 'block';
     });
