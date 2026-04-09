@@ -92,11 +92,11 @@
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 5px;">
-            <label for="treinamentoTurno" style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">Turno:</label>
+            <label for="treinamentoTurno" style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">Filtrar Horário:</label>
             <select id="treinamentoTurno" class="input-treinamento" style="min-width: 180px;">
                 <option value="Todos">Ambos (Dia/Noite)</option>
-                <option value="Dia">Apenas Dia (Equipes A, B, C)</option>
-                <option value="Noite">Apenas Noite (Equipes D, E, F)</option>
+                <option value="Dia">Apenas Dia (06:00 às 18:00)</option>
+                <option value="Noite">Apenas Noite (18:00 às 06:00)</option>
             </select>
         </div>
 
@@ -135,6 +135,7 @@
                 <thead>
                     <tr>
                         <th>Data Prevista</th>
+                        <th>Horário de Trabalho</th>
                         <th>Instrutor</th>
                         <th>Motorista</th>
                         <th>Viagens Necessárias</th>
@@ -175,6 +176,7 @@
             <thead>
                 <tr>
                     <th>Data do Evento</th>
+                    <th>Horário de Trabalho</th>
                     <th>Motorista</th>
                     <th>Classificação</th>
                     <th>Instrutor</th>
@@ -208,6 +210,11 @@
             <div>
                 <label style="color: var(--text-secondary); font-size: 0.85rem;">Novo Instrutor:</label>
                 <select id="editTreinoInstrutor" class="input-treinamento" style="width: 100%; box-sizing: border-box;"></select>
+            </div>
+
+            <div>
+                <label style="color: var(--text-secondary); font-size: 0.85rem;">Horário de Trabalho:</label>
+                <input type="text" id="editTreinoTurno" class="input-treinamento" style="width: 100%; box-sizing: border-box;" placeholder="Ex: 06:00 às 18:00">
             </div>
         </div>
         

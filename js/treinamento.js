@@ -104,13 +104,27 @@ const listaViagemAssistida = [
 
 let instrutoresMaster = [];
 let cronogramaTreinamento = [];
-let historicoTreinamentos = []; // Substitui o antigo treinamentosConcluidos para guardar tudo (Concluído/Cancelado)
+let historicoTreinamentos = []; 
 
 const strNormalize = (str) => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim() : '';
 
+// Função robusta para descobrir o horário real do motorista na base de dados
+function getHorarioCorreto(t) {
+    let h = t.turno;
+    // Se o treinamento foi salvo antigo como "Misto" ou está sem horário, puxamos direto do cadastro oficial
+    if (!h || h === 'Misto' || h === 'A Definir') {
+        let motBase = typeof motoristas !== 'undefined' ? motoristas.find(m => strNormalize(m.nome) === strNormalize(t.motoristaNome)) : null;
+        if (motBase) {
+            if (motBase.turno && motBase.turno !== '-') h = motBase.turno;
+            else if (['A','B','C'].includes(motBase.equipe)) h = '06:00 às 18:00';
+            else if (['D','E','F'].includes(motBase.equipe)) h = '18:00 às 06:00';
+        }
+    }
+    return (!h || h === 'Misto') ? 'A Definir' : h;
+}
+
 // === FUNÇÃO DO DASHBOARD ===
 window.atualizarDashboardTreinamentos = function() {
-    // Para o Dashboard de "Concluídos", contamos apenas os que realmente têm status "concluido"
     const concluidos = historicoTreinamentos ? historicoTreinamentos.filter(t => t.status === 'concluido').length : 0;
     const agendados = cronogramaTreinamento ? cronogramaTreinamento.length : 0;
     
@@ -205,17 +219,20 @@ window.renderizarCronogramaTreinamento = function() {
     renderizarInstrutores(); 
     
     const tbody = document.getElementById('tabelaTreinamentos');
-    const tbodyConcluidos = document.getElementById('tabelaConcluidos'); // Agora serve como Histórico
+    const tbodyConcluidos = document.getElementById('tabelaConcluidos'); 
     const tbodyPendentes = document.getElementById('tabelaPendentes'); 
     if (!tbody || !tbodyConcluidos || !tbodyPendentes) return;
 
     if (cronogramaTreinamento.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="padding: 30px; text-align: center; color: var(--text-secondary);">Nenhum treinamento agendado no momento.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="padding: 30px; text-align: center; color: var(--text-secondary);">Nenhum treinamento agendado no momento.</td></tr>';
     } else {
         cronogramaTreinamento.sort((a, b) => a.data.localeCompare(b.data));
-        tbody.innerHTML = cronogramaTreinamento.map(t => `
+        tbody.innerHTML = cronogramaTreinamento.map(t => {
+            const horarioFormatado = getHorarioCorreto(t); // Resgata horário real
+            return `
             <tr style="background-color: rgba(255,255,255,0.02);">
-                <td><strong style="font-size: 1.05rem;">${t.dataTexto}</strong><br><span style="font-size:0.75rem; color:var(--text-secondary);">${t.data} - ${t.turno}</span></td>
+                <td><strong style="font-size: 1.05rem;">${t.dataTexto}</strong><br><span style="font-size:0.75rem; color:var(--text-secondary);">${t.data}</span></td>
+                <td><span style="background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; color: #cbd5e1;">${horarioFormatado}</span></td>
                 <td style="color: var(--ccol-blue-bright); font-size: 0.95rem;"><strong>${t.instrutor}</strong></td>
                 <td style="color: var(--text-primary); font-size: 0.95rem;"><strong>${t.motoristaNome}</strong></td>
                 <td><span style="background: rgba(251, 146, 60, 0.1); color: var(--ccol-rust-bright); padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.8rem;">Class: ${t.classificacao} | ${t.viagens}</span></td>
@@ -225,7 +242,7 @@ window.renderizarCronogramaTreinamento = function() {
                     <button onclick="removerTreinamento('${t.id}')" title="Cancelar Agendamento" style="background:transparent; border: 1px solid #ef4444; color:#ef4444; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:bold;">❌</button>
                 </td>
             </tr>
-        `).join('');
+        `}).join('');
     }
 
     let alunosPendentes = listaViagemAssistida.filter(req => {
@@ -255,11 +272,12 @@ window.renderizarCronogramaTreinamento = function() {
     }
 
     if (historicoTreinamentos.length === 0) {
-        tbodyConcluidos.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: var(--text-secondary);">Nenhum histórico registrado.</td></tr>';
+        tbodyConcluidos.innerHTML = '<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text-secondary);">Nenhum histórico registrado.</td></tr>';
     } else {
         historicoTreinamentos.sort((a, b) => new Date(b.dataConclusao) - new Date(a.dataConclusao));
         tbodyConcluidos.innerHTML = historicoTreinamentos.map(t => {
             const dataFormatada = new Date(t.dataConclusao).toLocaleDateString('pt-BR');
+            const horarioFormatado = getHorarioCorreto(t); // Resgata horário real
             const isConcluido = t.status === 'concluido';
             const bgCorLinha = isConcluido ? 'rgba(61, 220, 132, 0.05)' : 'rgba(239, 68, 68, 0.05)';
             const corTextoData = isConcluido ? 'var(--ccol-green-bright)' : '#ef4444';
@@ -269,6 +287,7 @@ window.renderizarCronogramaTreinamento = function() {
             return `
             <tr style="background-color: ${bgCorLinha};">
                 <td><strong style="color: ${corTextoData};">${dataFormatada}</strong></td>
+                <td><span style="background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; color: #cbd5e1;">${horarioFormatado}</span></td>
                 <td><strong>${t.motoristaNome}</strong></td>
                 <td>Classificação: ${t.classificacao}</td>
                 <td style="color: var(--text-secondary);">${t.instrutor}</td>
@@ -277,25 +296,25 @@ window.renderizarCronogramaTreinamento = function() {
         `}).join('');
     }
 
-    // Atualiza os painéis numéricos do Dashboard
     if(typeof window.atualizarDashboardTreinamentos === 'function') {
         window.atualizarDashboardTreinamentos();
     }
 }
 
-// === FUNÇÕES DO NOVO MODAL DE EDIÇÃO ===
 window.abrirModalEdicaoTreinamento = function(id) {
     const t = cronogramaTreinamento.find(x => x.id == id);
     if(!t) return;
     
     document.getElementById('editTreinoId').value = t.id;
     document.getElementById('editTreinoMotorista').value = t.motoristaNome;
-    document.getElementById('editTreinoData').value = t.data; // formato yyyy-mm-dd
+    document.getElementById('editTreinoData').value = t.data; 
     
-    // Atualiza o select de instrutores no modal
     const selectInstrutor = document.getElementById('editTreinoInstrutor');
     selectInstrutor.innerHTML = instrutoresMaster.map(inst => `<option value="${inst}">${inst}</option>`).join('');
     selectInstrutor.value = t.instrutor;
+    
+    const hCorreto = getHorarioCorreto(t);
+    document.getElementById('editTreinoTurno').value = hCorreto !== 'A Definir' ? hCorreto : '';
     
     document.getElementById('modalEditarTreinamento').style.display = 'flex';
 }
@@ -308,6 +327,7 @@ window.salvarEdicaoTreinamento = async function() {
     const id = document.getElementById('editTreinoId').value;
     const novaData = document.getElementById('editTreinoData').value;
     const novoInstrutor = document.getElementById('editTreinoInstrutor').value;
+    const novoTurno = document.getElementById('editTreinoTurno').value;
     
     if(!novaData || !novoInstrutor) {
         alert('⚠️ Preencha a data e selecione o instrutor!');
@@ -317,15 +337,15 @@ window.salvarEdicaoTreinamento = async function() {
     const t = cronogramaTreinamento.find(x => x.id == id);
     if(t) {
         t.data = novaData;
-        // Recalcula o dataTexto (DD/MM) garantindo fuso horário correto
         const d = new Date(novaData + 'T00:00:00');
         t.dataTexto = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth()+1).padStart(2, '0')}`;
         t.instrutor = novoInstrutor;
+        t.turno = novoTurno || 'A Definir';
         
         await db.upsertTreinamento(t);
         
         if(typeof db.addLog === 'function') {
-            await db.addLog('Edição de Treinamento', `Agendamento de ${t.motoristaNome} reprogramado para ${t.dataTexto} com ${t.instrutor}.`);
+            await db.addLog('Edição de Treinamento', `Agendamento de ${t.motoristaNome} reprogramado para ${t.dataTexto} con ${t.instrutor}.`);
         }
         if(typeof renderizarLogs === 'function') renderizarLogs();
         
@@ -335,7 +355,6 @@ window.salvarEdicaoTreinamento = async function() {
     }
 }
 
-// Soft Delete (Cancelamento que preserva histórico)
 window.removerTreinamento = async function(id) {
     if(currentUser && currentUser.role !== 'Admin') { alert('⛔ Acesso Negado: Apenas Administradores podem cancelar agendamentos.'); return; }
     
@@ -345,8 +364,7 @@ window.removerTreinamento = async function(id) {
         if (treinamento) {
             cronogramaTreinamento = cronogramaTreinamento.filter(t => t.id != id);
             
-            // Em vez de deletar, muda o status para cancelado e manda para o histórico
-            treinamento.dataConclusao = new Date().toISOString(); // Usado como data do evento/cancelamento
+            treinamento.dataConclusao = new Date().toISOString(); 
             treinamento.status = 'cancelado';
             historicoTreinamentos.push(treinamento);
             
@@ -401,7 +419,7 @@ window.gerarTreinamentoAuto = async function() {
 
     if(alunosPendentes.length === 0) { alert('✅ Todos os motoristas da Lista do PDF já foram agendados ou concluídos!'); return; }
 
-    if(!confirm(`Deseja gerar o cronograma automaticamente para TODOS os motoristas pendentes a partir do dia ${dataInicioInput.split('-').reverse().join('/')}?`)) {
+    if(!confirm(`Deseja gerar o cronograma automaticamente a partir do dia ${dataInicioInput.split('-').reverse().join('/')}?\n\nO sistema protegerá o descanso do instrutor alternando as semanas (ex: uma semana inteira só Dia, a próxima semana inteira só Noite).`)) {
         return; 
     }
 
@@ -411,6 +429,15 @@ window.gerarTreinamentoAuto = async function() {
     let agendamentosNovos = 0;
     
     let diasSemAgendarNinguem = 0; 
+
+    // Função auxiliar para encontrar a Segunda-feira de uma determinada data
+    const getMonday = (d) => {
+        let dt = new Date(d);
+        let day = dt.getDay();
+        let diff = dt.getDate() - day + (day === 0 ? -6 : 1);
+        return new Date(dt.setDate(diff)).setHours(0,0,0,0);
+    };
+    let baseMonday = getMonday(dataBase);
 
     let totalViagensFaltantes = 0;
     alunosPendentes.forEach(p => {
@@ -433,8 +460,17 @@ window.gerarTreinamentoAuto = async function() {
         const diaTexto = diasSemana[diaSemana];
         const diaNum = `${String(dataAtual.getDate()).padStart(2, '0')}/${String(dataAtual.getMonth()+1).padStart(2, '0')}`;
         
-        let alunoEscolhido = null, infoPDF = null;
+        // CÁLCULO DE ALTERNÂNCIA DE SEMANA PARA PROTEGER O INSTRUTOR
+        let currentMonday = getMonday(dataAtual);
+        let weeksDiff = Math.round((currentMonday - baseMonday) / (7 * 24 * 60 * 60 * 1000));
         
+        let turnoAlvoNestaSemana = turnoSelecionado;
+        if (turnoSelecionado === 'Todos') {
+            // Alterna a cada mudança de semana: Paridade 0 = Dia, Paridade 1 = Noite
+            turnoAlvoNestaSemana = (weeksDiff % 2 === 0) ? 'Dia' : 'Noite';
+        }
+
+        let alunoEscolhido = null, infoPDF = null;
         let instrutorOcupadoHoje = cronogramaTreinamento.some(t => t.data === dataStr && t.instrutor === instrutorSelecionado && t.status === 'agendado');
 
         if (!instrutorOcupadoHoje) {
@@ -458,14 +494,12 @@ window.gerarTreinamentoAuto = async function() {
                         isElegivel = false;
                     }
 
-                    if (isElegivel && diasSemAgendarNinguem < 5) {
-                        if (turnoSelecionado === 'Dia' && !isDia) isElegivel = false;
-                        if (turnoSelecionado === 'Noite' && !isNoite) isElegivel = false;
-                    }
+                    // BLOQUEIO RESTRITO: Só entra se for o turno Exato estipulado para a semana do Master Drive
+                    if (turnoAlvoNestaSemana === 'Dia' && isNoite) isElegivel = false;
+                    if (turnoAlvoNestaSemana === 'Noite' && isDia) isElegivel = false;
+
                 } else {
-                    if (turnoSelecionado !== 'Todos' && diasSemAgendarNinguem < 3) {
-                        isElegivel = false;
-                    }
+                    // Motoristas do PDF que não estão na base do sistema. Segue se precisar agendar à força.
                 }
 
                 if(isElegivel) {
@@ -477,6 +511,24 @@ window.gerarTreinamentoAuto = async function() {
         }
         
         if(infoPDF) {
+            // DEFINIÇÃO CORRETA E IMEDIATA DO HORÁRIO NO NOVO AGENDAMENTO
+            let horarioDefinido = 'A Definir';
+            if (alunoEscolhido) {
+                if (alunoEscolhido.turno && String(alunoEscolhido.turno).trim() !== '-' && String(alunoEscolhido.turno).trim() !== '') {
+                    horarioDefinido = alunoEscolhido.turno;
+                } else if (alunoEscolhido.equipe) {
+                    const eq = alunoEscolhido.equipe;
+                    if (['A', 'B', 'C'].includes(eq)) horarioDefinido = '06:00 às 18:00';
+                    else if (['D', 'E', 'F'].includes(eq)) horarioDefinido = '18:00 às 06:00';
+                }
+            }
+
+            // Se ainda não temos horário (ex: Reserva sem turno), nós adaptamos ao turno que a semana está exigindo.
+            if (horarioDefinido === 'A Definir' || horarioDefinido === 'Misto') {
+                if (turnoAlvoNestaSemana === 'Dia') horarioDefinido = '06:00 às 18:00';
+                if (turnoAlvoNestaSemana === 'Noite') horarioDefinido = '18:00 às 06:00';
+            }
+
             const novoTreino = {
                 id: Date.now() + Math.floor(Math.random() * 100000), 
                 data: dataStr, 
@@ -486,7 +538,7 @@ window.gerarTreinamentoAuto = async function() {
                 motoristaNome: infoPDF.nome,
                 classificacao: infoPDF.class, 
                 viagens: infoPDF.viagens, 
-                turno: alunoEscolhido ? (alunoEscolhido.turno || 'Misto') : 'Misto',
+                turno: horarioDefinido,
                 status: 'agendado', 
                 dataConclusao: null
             };
@@ -521,9 +573,9 @@ window.gerarTreinamentoAuto = async function() {
     if(typeof window.renderizarEscala === 'function') window.renderizarEscala(); 
     
     if (agendamentosNovos > 0) {
-        alert(`🎉 SUCESSO TOTAL! A lista foi esgotada.\nForam criados ${agendamentosNovos} novos agendamentos com o Instrutor ${instrutorSelecionado}.`);
+        alert(`🎉 SUCESSO! A lista foi esgotada.\n\nForam criados ${agendamentosNovos} novos agendamentos com o Instrutor ${instrutorSelecionado}.\n\n✅ NOTA: O sistema alternou inteligentemente entre turnos do Dia e da Noite nas quebras de final de semana para proteger o Instrutor.`);
     } else {
-        alert(`⚠️ Nenhum agendamento foi feito. O Instrutor pode estar ocupado ou incompatível com o turno/folgas.`);
+        alert(`⚠️ Nenhum agendamento foi feito. O Instrutor pode estar ocupado ou incompatível com o turno/folgas dos motoristas.`);
     }
 }
 
@@ -536,12 +588,13 @@ window.exportarCronogramaExcel = function() {
     let agendados = [...cronogramaTreinamento].sort((a, b) => a.data.localeCompare(b.data));
     
     let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
-    csvContent += "Data Prevista;Instrutor;Motorista;Classificacao;Situacao de Viagens\n";
+    csvContent += "Data Prevista;Horário de Trabalho;Instrutor;Motorista;Classificacao;Situacao de Viagens\n";
 
     agendados.forEach(t => {
         let dataPt = t.data.split('-').reverse().join('/');
         let dataCompleta = `${dataPt} (${t.dataTexto})`;
-        csvContent += `"${dataCompleta}";"${t.instrutor}";"${t.motoristaNome}";"${t.classificacao}";"${t.viagens}"\n`;
+        let horarioExport = getHorarioCorreto(t);
+        csvContent += `"${dataCompleta}";"${horarioExport}";"${t.instrutor}";"${t.motoristaNome}";"${t.classificacao}";"${t.viagens}"\n`;
     });
 
     const encodedUri = encodeURI(csvContent);
@@ -583,6 +636,7 @@ window.imprimirCronogramaPDF = function() {
                 <thead>
                     <tr>
                         <th>Data Agendada</th>
+                        <th>Horário de Trabalho</th>
                         <th>Instrutor</th>
                         <th>Motorista</th>
                         <th>Classificação</th>
@@ -594,9 +648,11 @@ window.imprimirCronogramaPDF = function() {
 
     agendados.forEach(t => {
         let dataPt = t.data.split('-').reverse().join('/');
+        let horarioExport = getHorarioCorreto(t);
         html += `
             <tr>
                 <td><strong>${dataPt}</strong> (${t.dataTexto})</td>
+                <td><strong>${horarioExport}</strong></td>
                 <td>${t.instrutor}</td>
                 <td><strong>${t.motoristaNome}</strong></td>
                 <td>${t.classificacao}</td>
@@ -608,7 +664,7 @@ window.imprimirCronogramaPDF = function() {
     html += `
                 </tbody>
             </table>
-            <div class="footer">Gerado pelo CCOL - Controle Operacional e Logístico em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</div>
+            <div class="footer">Gerado pelo CCOL - Controle Operacional e Logístico en ${new Date().toLocaleDateString('pt-BR')} ás ${new Date().toLocaleTimeString('pt-BR')}</div>
             <script>
                 window.onload = function() { window.print(); }
             </script>
