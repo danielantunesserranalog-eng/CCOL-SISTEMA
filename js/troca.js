@@ -147,17 +147,24 @@ window.gerarRelatorioImpressao = function() {
         }
     });
 
-    // 4. Ordenação: Primeiro pela Trinca, depois pela Placa, depois pelo Turno
+    // 4. Ordenação: Primeiro pelo Turno (Horário), depois pela Trinca, depois pela Placa
     trabs.sort((a, b) => {
+        const turnoA = a.turno !== '-' && a.turno ? a.turno : '99:99';
+        const turnoB = b.turno !== '-' && b.turno ? b.turno : '99:99';
+        
+        // Primeiro critério: Ordena pelo horário (Turno)
+        if (turnoA !== turnoB) return turnoA.localeCompare(turnoB);
+        
+        // Segundo critério: Ordena pela trinca caso o horário seja igual
         const trincaA = a.trinca === 'S/F' ? 9999 : Number(a.trinca);
         const trincaB = b.trinca === 'S/F' ? 9999 : Number(b.trinca);
         
         if (trincaA !== trincaB) return trincaA - trincaB;
+        
+        // Terceiro critério: Ordena pela placa do caminhão
         if (a.caminhao !== b.caminhao) return a.caminhao.localeCompare(b.caminhao);
         
-        const turnoA = a.turno !== '-' && a.turno ? a.turno : '99:99';
-        const turnoB = b.turno !== '-' && b.turno ? b.turno : '99:99';
-        return turnoA.localeCompare(turnoB);
+        return 0;
     });
 
     // 5. Renderizar a Tabela
@@ -172,7 +179,7 @@ window.gerarRelatorioImpressao = function() {
             
             // Se estiver vazio, aplica classes em vermelho
             tHtml += `<tr class="${isVazio ? 'vazio-row' : ''}">
-                <td style="font-weight:bold;">${l.turno}</td>
+                <td style="font-weight:bold;">${l.turno === '99:99' ? '-' : l.turno}</td>
                 <td>${l.trinca}</td>
                 <td style="text-align:left; font-weight:bold;">${isVazio ? '⚠ SEM MOTORISTA' : l.nome}</td>
                 <td>${l.eq}</td>
