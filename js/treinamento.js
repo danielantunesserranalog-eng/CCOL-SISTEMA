@@ -104,20 +104,21 @@ const listaViagemAssistida = [
 
 let instrutoresMaster = [];
 let cronogramaTreinamento = [];
-let treinamentosConcluidos = [];
+let historicoTreinamentos = []; // Substitui o antigo treinamentosConcluidos para guardar tudo (Concluído/Cancelado)
 
 const strNormalize = (str) => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim() : '';
 
 // === FUNÇÃO DO DASHBOARD ===
 window.atualizarDashboardTreinamentos = function() {
-    const concluidos = treinamentosConcluidos ? treinamentosConcluidos.length : 0;
+    // Para o Dashboard de "Concluídos", contamos apenas os que realmente têm status "concluido"
+    const concluidos = historicoTreinamentos ? historicoTreinamentos.filter(t => t.status === 'concluido').length : 0;
     const agendados = cronogramaTreinamento ? cronogramaTreinamento.length : 0;
     
     let pendentes = 0;
     if (typeof listaViagemAssistida !== 'undefined') {
         const alunosPendentesList = listaViagemAssistida.filter(req => {
             let necessarias = getViagensNecessarias(req.viagens);
-            let realizadas = treinamentosConcluidos.filter(c => strNormalize(c.motoristaNome) === strNormalize(req.nome)).length;
+            let realizadas = historicoTreinamentos.filter(c => c.status === 'concluido' && strNormalize(c.motoristaNome) === strNormalize(req.nome)).length;
             let agendadosLista = cronogramaTreinamento.filter(a => strNormalize(a.motoristaNome) === strNormalize(req.nome)).length;
             return (realizadas + agendadosLista) < necessarias;
         });
@@ -140,7 +141,7 @@ window.carregarDadosTreinamento = async function() {
 
         const treinosDb = await db.getTreinamentos();
         cronogramaTreinamento = treinosDb.filter(t => t.status === 'agendado');
-        treinamentosConcluidos = treinosDb.filter(t => t.status === 'concluido');
+        historicoTreinamentos = treinosDb.filter(t => t.status === 'concluido' || t.status === 'cancelado');
         
         renderizarInstrutores();
         renderizarCronogramaTreinamento();
@@ -204,7 +205,7 @@ window.renderizarCronogramaTreinamento = function() {
     renderizarInstrutores(); 
     
     const tbody = document.getElementById('tabelaTreinamentos');
-    const tbodyConcluidos = document.getElementById('tabelaConcluidos');
+    const tbodyConcluidos = document.getElementById('tabelaConcluidos'); // Agora serve como Histórico
     const tbodyPendentes = document.getElementById('tabelaPendentes'); 
     if (!tbody || !tbodyConcluidos || !tbodyPendentes) return;
 
@@ -219,8 +220,9 @@ window.renderizarCronogramaTreinamento = function() {
                 <td style="color: var(--text-primary); font-size: 0.95rem;"><strong>${t.motoristaNome}</strong></td>
                 <td><span style="background: rgba(251, 146, 60, 0.1); color: var(--ccol-rust-bright); padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.8rem;">Class: ${t.classificacao} | ${t.viagens}</span></td>
                 <td>
-                    <button onclick="concluirTreinamento('${t.id}')" style="background: var(--ccol-green-bright); border: none; color:#000; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:bold; margin-right: 5px;">✅ Concluir</button>
-                    <button onclick="removerTreinamento('${t.id}')" style="background:transparent; border: 1px solid #ef4444; color:#ef4444; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:bold;">❌</button>
+                    <button onclick="concluirTreinamento('${t.id}')" title="Concluir" style="background: var(--ccol-green-bright); border: none; color:#000; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:bold; margin-right: 5px;">✅ Concluir</button>
+                    <button onclick="abrirModalEdicaoTreinamento('${t.id}')" title="Editar/Reprogramar" style="background: var(--ccol-blue-bright); border: none; color:#000; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:bold; margin-right: 5px;">✏️ Editar</button>
+                    <button onclick="removerTreinamento('${t.id}')" title="Cancelar Agendamento" style="background:transparent; border: 1px solid #ef4444; color:#ef4444; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:bold;">❌</button>
                 </td>
             </tr>
         `).join('');
@@ -228,7 +230,7 @@ window.renderizarCronogramaTreinamento = function() {
 
     let alunosPendentes = listaViagemAssistida.filter(req => {
         let necessarias = getViagensNecessarias(req.viagens);
-        let realizadas = treinamentosConcluidos.filter(c => strNormalize(c.motoristaNome) === strNormalize(req.nome)).length;
+        let realizadas = historicoTreinamentos.filter(c => c.status === 'concluido' && strNormalize(c.motoristaNome) === strNormalize(req.nome)).length;
         let agendadas = cronogramaTreinamento.filter(a => strNormalize(a.motoristaNome) === strNormalize(req.nome)).length;
         return (realizadas + agendadas) < necessarias;
     });
@@ -238,7 +240,7 @@ window.renderizarCronogramaTreinamento = function() {
     } else {
         tbodyPendentes.innerHTML = alunosPendentes.map(p => {
             let necessarias = getViagensNecessarias(p.viagens);
-            let realizadas = treinamentosConcluidos.filter(c => strNormalize(c.motoristaNome) === strNormalize(p.nome)).length;
+            let realizadas = historicoTreinamentos.filter(c => c.status === 'concluido' && strNormalize(c.motoristaNome) === strNormalize(p.nome)).length;
             let agendadas = cronogramaTreinamento.filter(a => strNormalize(a.motoristaNome) === strNormalize(p.nome)).length;
             let faltando = necessarias - (realizadas + agendadas);
 
@@ -252,19 +254,25 @@ window.renderizarCronogramaTreinamento = function() {
         `}).join('');
     }
 
-    if (treinamentosConcluidos.length === 0) {
-        tbodyConcluidos.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: var(--text-secondary);">Nenhum treinamento concluído.</td></tr>';
+    if (historicoTreinamentos.length === 0) {
+        tbodyConcluidos.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: var(--text-secondary);">Nenhum histórico registrado.</td></tr>';
     } else {
-        treinamentosConcluidos.sort((a, b) => new Date(b.dataConclusao) - new Date(a.dataConclusao));
-        tbodyConcluidos.innerHTML = treinamentosConcluidos.map(t => {
+        historicoTreinamentos.sort((a, b) => new Date(b.dataConclusao) - new Date(a.dataConclusao));
+        tbodyConcluidos.innerHTML = historicoTreinamentos.map(t => {
             const dataFormatada = new Date(t.dataConclusao).toLocaleDateString('pt-BR');
+            const isConcluido = t.status === 'concluido';
+            const bgCorLinha = isConcluido ? 'rgba(61, 220, 132, 0.05)' : 'rgba(239, 68, 68, 0.05)';
+            const corTextoData = isConcluido ? 'var(--ccol-green-bright)' : '#ef4444';
+            const badgeBg = isConcluido ? '#3ddc84' : '#ef4444';
+            const badgeTexto = isConcluido ? 'CONCLUÍDO' : 'CANCELADO';
+            
             return `
-            <tr style="background-color: rgba(61, 220, 132, 0.05);">
-                <td><strong style="color: var(--ccol-green-bright);">${dataFormatada}</strong></td>
+            <tr style="background-color: ${bgCorLinha};">
+                <td><strong style="color: ${corTextoData};">${dataFormatada}</strong></td>
                 <td><strong>${t.motoristaNome}</strong></td>
                 <td>Classificação: ${t.classificacao}</td>
                 <td style="color: var(--text-secondary);">${t.instrutor}</td>
-                <td><span style="background: #3ddc84; color: #000; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">CONCLUÍDO</span></td>
+                <td><span style="background: ${badgeBg}; color: ${isConcluido ? '#000' : '#fff'}; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">${badgeTexto}</span></td>
             </tr>
         `}).join('');
     }
@@ -275,21 +283,83 @@ window.renderizarCronogramaTreinamento = function() {
     }
 }
 
-window.removerTreinamento = async function(id) {
-    if(currentUser && currentUser.role !== 'Admin') { alert('⛔ Acesso Negado: Apenas Administradores podem excluir agendamentos.'); return; }
-    if(confirm("Deseja cancelar e EXCLUIR este treinamento?")) {
-        const treinoCancelado = cronogramaTreinamento.find(t => t.id == id);
-        cronogramaTreinamento = cronogramaTreinamento.filter(t => t.id != id);
-        
-        await db.deleteTreinamento(id); 
-        
-        if (treinoCancelado) {
-            await db.addLog('Exclusão de Treinamento', `Agendamento de ${treinoCancelado.motoristaNome} com Instrutor ${treinoCancelado.instrutor} foi cancelado.`);
-            if(typeof renderizarLogs === 'function') renderizarLogs();
-        }
+// === FUNÇÕES DO NOVO MODAL DE EDIÇÃO ===
+window.abrirModalEdicaoTreinamento = function(id) {
+    const t = cronogramaTreinamento.find(x => x.id == id);
+    if(!t) return;
+    
+    document.getElementById('editTreinoId').value = t.id;
+    document.getElementById('editTreinoMotorista').value = t.motoristaNome;
+    document.getElementById('editTreinoData').value = t.data; // formato yyyy-mm-dd
+    
+    // Atualiza o select de instrutores no modal
+    const selectInstrutor = document.getElementById('editTreinoInstrutor');
+    selectInstrutor.innerHTML = instrutoresMaster.map(inst => `<option value="${inst}">${inst}</option>`).join('');
+    selectInstrutor.value = t.instrutor;
+    
+    document.getElementById('modalEditarTreinamento').style.display = 'flex';
+}
 
+window.fecharModalEdicao = function() {
+    document.getElementById('modalEditarTreinamento').style.display = 'none';
+}
+
+window.salvarEdicaoTreinamento = async function() {
+    const id = document.getElementById('editTreinoId').value;
+    const novaData = document.getElementById('editTreinoData').value;
+    const novoInstrutor = document.getElementById('editTreinoInstrutor').value;
+    
+    if(!novaData || !novoInstrutor) {
+        alert('⚠️ Preencha a data e selecione o instrutor!');
+        return;
+    }
+
+    const t = cronogramaTreinamento.find(x => x.id == id);
+    if(t) {
+        t.data = novaData;
+        // Recalcula o dataTexto (DD/MM) garantindo fuso horário correto
+        const d = new Date(novaData + 'T00:00:00');
+        t.dataTexto = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth()+1).padStart(2, '0')}`;
+        t.instrutor = novoInstrutor;
+        
+        await db.upsertTreinamento(t);
+        
+        if(typeof db.addLog === 'function') {
+            await db.addLog('Edição de Treinamento', `Agendamento de ${t.motoristaNome} reprogramado para ${t.dataTexto} com ${t.instrutor}.`);
+        }
+        if(typeof renderizarLogs === 'function') renderizarLogs();
+        
+        fecharModalEdicao();
         renderizarCronogramaTreinamento();
         if(typeof window.renderizarEscala === 'function') window.renderizarEscala();
+    }
+}
+
+// Soft Delete (Cancelamento que preserva histórico)
+window.removerTreinamento = async function(id) {
+    if(currentUser && currentUser.role !== 'Admin') { alert('⛔ Acesso Negado: Apenas Administradores podem cancelar agendamentos.'); return; }
+    
+    if(confirm("Deseja cancelar este agendamento? Ele será movido para o Histórico como 'Cancelado' e o motorista voltará para a Fila de Espera.")) {
+        const treinamento = cronogramaTreinamento.find(t => t.id == id);
+        
+        if (treinamento) {
+            cronogramaTreinamento = cronogramaTreinamento.filter(t => t.id != id);
+            
+            // Em vez de deletar, muda o status para cancelado e manda para o histórico
+            treinamento.dataConclusao = new Date().toISOString(); // Usado como data do evento/cancelamento
+            treinamento.status = 'cancelado';
+            historicoTreinamentos.push(treinamento);
+            
+            await db.upsertTreinamento(treinamento); 
+            
+            if(typeof db.addLog === 'function') {
+                await db.addLog('Cancelamento de Treinamento', `Agendamento de ${treinamento.motoristaNome} com Instrutor ${treinamento.instrutor} foi cancelado.`);
+            }
+            if(typeof renderizarLogs === 'function') renderizarLogs();
+
+            renderizarCronogramaTreinamento();
+            if(typeof window.renderizarEscala === 'function') window.renderizarEscala();
+        }
     }
 }
 
@@ -300,7 +370,7 @@ window.concluirTreinamento = async function(id) {
             cronogramaTreinamento = cronogramaTreinamento.filter(t => t.id != id);
             treinamento.dataConclusao = new Date().toISOString();
             treinamento.status = 'concluido';
-            treinamentosConcluidos.push(treinamento);
+            historicoTreinamentos.push(treinamento);
             
             await db.upsertTreinamento(treinamento); 
             
@@ -324,7 +394,7 @@ window.gerarTreinamentoAuto = async function() {
     
     let alunosPendentes = listaViagemAssistida.filter(req => {
         let necessarias = getViagensNecessarias(req.viagens);
-        let realizadas = treinamentosConcluidos.filter(c => strNormalize(c.motoristaNome) === strNormalize(req.nome)).length;
+        let realizadas = historicoTreinamentos.filter(c => c.status === 'concluido' && strNormalize(c.motoristaNome) === strNormalize(req.nome)).length;
         let agendadas = cronogramaTreinamento.filter(a => strNormalize(a.motoristaNome) === strNormalize(req.nome)).length;
         return (realizadas + agendadas) < necessarias;
     });
@@ -345,7 +415,7 @@ window.gerarTreinamentoAuto = async function() {
     let totalViagensFaltantes = 0;
     alunosPendentes.forEach(p => {
         let necessarias = getViagensNecessarias(p.viagens);
-        let realizadas = treinamentosConcluidos.filter(c => strNormalize(c.motoristaNome) === strNormalize(p.nome)).length;
+        let realizadas = historicoTreinamentos.filter(c => c.status === 'concluido' && strNormalize(c.motoristaNome) === strNormalize(p.nome)).length;
         let agendadas = cronogramaTreinamento.filter(a => strNormalize(a.motoristaNome) === strNormalize(p.nome)).length;
         totalViagensFaltantes += (necessarias - (realizadas + agendadas));
     });
@@ -429,7 +499,7 @@ window.gerarTreinamentoAuto = async function() {
             }
 
             let necessarias = getViagensNecessarias(infoPDF.viagens);
-            let feitas = treinamentosConcluidos.filter(c => strNormalize(c.motoristaNome) === strNormalize(infoPDF.nome)).length;
+            let feitas = historicoTreinamentos.filter(c => c.status === 'concluido' && strNormalize(c.motoristaNome) === strNormalize(infoPDF.nome)).length;
             let marcadas = cronogramaTreinamento.filter(a => strNormalize(a.motoristaNome) === strNormalize(infoPDF.nome)).length;
             
             if ((feitas + marcadas) >= necessarias) {
@@ -453,7 +523,7 @@ window.gerarTreinamentoAuto = async function() {
     if (agendamentosNovos > 0) {
         alert(`🎉 SUCESSO TOTAL! A lista foi esgotada.\nForam criados ${agendamentosNovos} novos agendamentos com o Instrutor ${instrutorSelecionado}.`);
     } else {
-        alert(`⚠️ Nenhum agendamento foi feito. O Instrutor pode estar ocupado.`);
+        alert(`⚠️ Nenhum agendamento foi feito. O Instrutor pode estar ocupado ou incompatível com o turno/folgas.`);
     }
 }
 

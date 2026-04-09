@@ -168,20 +168,52 @@
 
 <div class="content-panel" style="margin-top: 20px;">
     <div class="panel-header">
-        <h3 style="color: var(--ccol-green-bright);">✅ Treinamentos Concluídos</h3>
+        <h3 style="color: #94a3b8;">📜 Histórico de Treinamentos (Concluídos / Cancelados)</h3>
     </div>
     <div class="table-modern-wrapper">
         <table class="data-table-modern">
             <thead>
                 <tr>
-                    <th>Data de Conclusão</th>
+                    <th>Data do Evento</th>
                     <th>Motorista</th>
                     <th>Classificação</th>
                     <th>Instrutor</th>
-                    <th>Status</th>
+                    <th>Status Final</th>
                 </tr>
             </thead>
             <tbody id="tabelaConcluidos"></tbody>
         </table>
+    </div>
+</div>
+
+<div id="modalEditarTreinamento" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
+    <div style="background: #1e293b; padding: 25px; border-radius: 12px; width: 400px; max-width: 90%; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+        <h3 style="margin-top: 0; color: var(--ccol-blue-bright); display: flex; align-items: center; gap: 10px;">
+            <span>✏️</span> Reprogramar / Editar
+        </h3>
+        
+        <input type="hidden" id="editTreinoId">
+        
+        <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px;">
+            <div>
+                <label style="color: var(--text-secondary); font-size: 0.85rem;">Motorista:</label>
+                <input type="text" id="editTreinoMotorista" class="input-treinamento" style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);" readonly disabled>
+            </div>
+            
+            <div>
+                <label style="color: var(--text-secondary); font-size: 0.85rem;">Nova Data:</label>
+                <input type="date" id="editTreinoData" class="input-treinamento" style="width: 100%; box-sizing: border-box;">
+            </div>
+            
+            <div>
+                <label style="color: var(--text-secondary); font-size: 0.85rem;">Novo Instrutor:</label>
+                <select id="editTreinoInstrutor" class="input-treinamento" style="width: 100%; box-sizing: border-box;"></select>
+            </div>
+        </div>
+        
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px;">
+            <button onclick="fecharModalEdicao()" style="background: transparent; border: 1px solid var(--text-secondary); color: var(--text-primary); padding: 8px 15px; border-radius: 6px; cursor: pointer; transition: 0.3s;">Cancelar</button>
+            <button onclick="salvarEdicaoTreinamento()" class="btn-primary-blue" style="background: var(--ccol-blue-bright); color: #000; font-weight: bold; padding: 8px 15px; border-radius: 6px; border: none; cursor: pointer; transition: 0.3s;">Salvar Alterações</button>
+        </div>
     </div>
 </div>
