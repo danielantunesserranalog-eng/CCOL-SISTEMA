@@ -97,10 +97,24 @@ async function atualizarPonteiros() {
     if(frotaDisponivel < 0) frotaDisponivel = 0;
 
     const elGaugeFill = document.getElementById('gauge-fill-frota');
+    const elPonteiro = document.getElementById('gauge-ponteiro-frota'); // Captura o novo ponteiro
+
     if (elGaugeFill && totalPlacasCadastradas > 0) {
         const perc = (frotaDisponivel / totalPlacasCadastradas) * 100;
-        const rotation = -45 + (1.8 * perc);
-        elGaugeFill.style.transform = `rotate(${rotation}deg)`;
+        
+        // Preenche da ESQUERDA (-225) para a DIREITA (-45)
+        const fillRotation = -225 + (1.8 * perc);
+        elGaugeFill.style.transform = `rotate(${fillRotation}deg)`;
+
+        // PONTEIRO: Começa em -90 graus (esq) e vai até +90 graus (dir)
+        if (elPonteiro) {
+            const ponteiroRotation = -90 + (1.8 * perc);
+            elPonteiro.style.transform = `translateX(-50%) rotate(${ponteiroRotation}deg)`;
+        }
+    } else {
+        // Estado inicial se estiver zerado
+        if (elGaugeFill) elGaugeFill.style.transform = `rotate(-225deg)`;
+        if (elPonteiro) elPonteiro.style.transform = `translateX(-50%) rotate(-90deg)`;
     }
 
     const elFrotaDisp = document.getElementById('texto-frota-disponivel');
