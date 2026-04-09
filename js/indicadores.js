@@ -232,17 +232,29 @@ window.removerOcorrenciaDash = async function(id) {
     carregarOcorrenciasTv();
 }
 
+// === FUNÇÃO DE EXPORTAÇÃO TURBINADA PARA ALTA DEFINIÇÃO ===
 window.exportarDashboardPNG = function() {
     const elemento = document.getElementById('area-print-dash');
     const botaoPrint = document.getElementById('btn-gerar-print');
     const botaoFlutuante = document.getElementById('btn-floating-config');
+    
+    // Esconde os botões para não saírem na foto
     botaoPrint.style.display = 'none';
     if(botaoFlutuante) botaoFlutuante.style.display = 'none';
-    html2canvas(elemento, { backgroundColor: '#070b14', scale: 2, useCORS: true }).then(canvas => {
+    
+    // Configura o canvas para ALTA DEFINIÇÃO (scale: 4)
+    html2canvas(elemento, { 
+        backgroundColor: '#070b14', 
+        scale: 4, // Multiplica a resolução por 4 (qualidade muito superior)
+        useCORS: true,
+        logging: false // Evita lentidão desnecessária no console
+    }).then(canvas => {
         const link = document.createElement('a');
-        link.download = `CCOL_${new Date().getTime()}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
+        link.download = `CCOL_DASHBOARD_${new Date().getTime()}.png`;
+        link.href = canvas.toDataURL('image/png'); // Gera o arquivo PNG
+        link.click(); // Faz o download automático
+        
+        // Volta a exibir os botões na tela
         botaoPrint.style.display = 'flex';
         if(botaoFlutuante) botaoFlutuante.style.display = 'block';
     });
