@@ -42,7 +42,6 @@ window.renderizarMenu = function() {
     }
 
     if (meusMenus.includes('troca')) navHtml += `<button class="nav-item" onclick="navegarPara('troca', this)">⏱️ Painel de Troca</button>`;
-    if (meusMenus.includes('treinamento')) navHtml += `<button class="nav-item" onclick="navegarPara('treinamento', this)">🎓 Treinamento</button>`;
     
     // MENU SSMA ADICIONADO AQUI
     if (meusMenus.includes('ssma') || isAdmin) {
@@ -118,7 +117,6 @@ window.navegarPara = async function(pagina, elementoClicado) {
         if (pagina === 'os' && typeof window.alternarTelaOS === 'function') window.alternarTelaOS('lista');
         
         if (pagina === 'troca' && typeof window.renderizarTrocaTurno === 'function') window.renderizarTrocaTurno();
-        if (pagina === 'treinamento' && typeof window.renderizarCronogramaTreinamento === 'function') window.renderizarCronogramaTreinamento();
         
         // SSMA e Recados
         if (pagina === 'ssma' && typeof window.renderizarSSMA === 'function') window.renderizarSSMA();
