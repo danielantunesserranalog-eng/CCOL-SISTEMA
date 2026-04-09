@@ -331,3 +331,97 @@
 .pro-list-item { background: rgba(255,255,255,0.02); padding: 16px 20px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); display: flex; gap: 15px; align-items: center; font-size: 1.15rem; color: #e2e8f0; }
 .item-text { flex-grow: 1; }
 .empty-state { color: #475569; font-style: italic; font-size: 1.2rem; grid-column: 1 / -1; }
+
+/* =========================================
+   DETALHAMENTO FRENTES DE TRABALHO
+   ========================================= */
+.frentes-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Divide exatamente ao meio */
+    gap: 25px;
+    margin-top: 20px;
+    margin-bottom: 25px;
+}
+
+.frente-panel {
+    background-color: var(--bg-panel);
+    border: 1px solid var(--border-dim);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+}
+
+.frente-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-bottom: 1px dashed var(--border-dim);
+    padding-bottom: 15px;
+    text-align: center;
+}
+
+.frente-header h3 {
+    margin: 0 0 15px 0;
+    font-size: 1.3rem;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.frente-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+
+.frente-data {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--text-secondary);
+    letter-spacing: 2px;
+}
+
+.frente-turno {
+    padding: 8px 20px;
+    border-radius: 30px;
+    font-weight: 900;
+    font-size: 1.1rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+}
+
+/* Cores Automáticas do Turno */
+.turno-dia-style {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border: 1px solid #f59e0b;
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.2);
+}
+
+.turno-noite-style {
+    background: rgba(56, 189, 248, 0.15);
+    color: #7dd3fc;
+    border: 1px solid #38bdf8;
+    box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+}
+
+.frente-controle-area {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-dim);
+    border-radius: 8px;
+    padding: 20px;
+    flex-grow: 1; /* Faz a área de controle preencher o espaço restante */
+}
+
+/* Responsividade: Se for celular, fica um embaixo do outro */
+@media (max-width: 900px) {
+    .frentes-container {
+        grid-template-columns: 1fr;
+    }
+}

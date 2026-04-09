@@ -7,6 +7,12 @@ window.carregarDadosDashboard = async function() {
     carregarControladorAtual();
     carregarFrentesTv();
     carregarOcorrenciasTv();
+    
+    // Inicia a função de atualizar os horários das frentes/barras e checa a cada minuto
+    if(typeof atualizarFrentesDeTrabalho === 'function') {
+        atualizarFrentesDeTrabalho();
+        setInterval(atualizarFrentesDeTrabalho, 60000);
+    }
 }
 
 window.atualizarRelogio = function() {
@@ -22,11 +28,54 @@ window.atualizarRelogio = function() {
     const elData = document.getElementById('dash-data');
     if(elHora) elHora.textContent = `${horas}:${minutos}:${segundos}`;
     if(elData) elData.textContent = `${dia}/${mes}/${ano}`;
+}
 
-    let turno = "Turno Dia";
-    if (agora.getHours() >= 18 || agora.getHours() < 6) turno = "Turno Noite";
-    const elTurno = document.getElementById('dash-turno');
-    if(elTurno) elTurno.textContent = turno;
+// Função: Atualiza as Frentes de Trabalho E a Barra de Turno automaticamente
+window.atualizarFrentesDeTrabalho = function() {
+    const agora = new Date();
+    const dia = String(agora.getDate()).padStart(2, '0');
+    const mes = String(agora.getMonth() + 1).padStart(2, '0'); 
+    const ano = agora.getFullYear();
+    const dataFormatada = `${dia}/${mes}/${ano}`;
+
+    const hora = agora.getHours();
+    let textoTurnoFrente = "";
+    let classeTurnoFrente = "";
+    
+    // Elementos da Barra Inferior
+    const elTurnoBarText = document.getElementById('dash-turno');
+    const elTurnoBarIcon = document.getElementById('dash-turno-icon');
+    const elTurnoBarContainer = document.getElementById('container-barra-turno');
+
+    // Lógica do Horário: 06h às 18h = Dia, restante = Noite
+    if (hora >= 6 && hora < 18) {
+        // Modo DIA
+        textoTurnoFrente = "☀️ 06:00 às 18:00";
+        classeTurnoFrente = "turno-dia-style";
+        
+        if(elTurnoBarText) { elTurnoBarText.textContent = "TURNO DIA"; elTurnoBarText.style.color = "#fbbf24"; }
+        if(elTurnoBarIcon) elTurnoBarIcon.className = "fas fa-sun";
+        if(elTurnoBarContainer) elTurnoBarContainer.style.borderLeftColor = "#f59e0b";
+
+    } else {
+        // Modo NOITE
+        textoTurnoFrente = "🌙 18:00 às 06:00";
+        classeTurnoFrente = "turno-noite-style";
+        
+        if(elTurnoBarText) { elTurnoBarText.textContent = "TURNO NOITE"; elTurnoBarText.style.color = "#7dd3fc"; }
+        if(elTurnoBarIcon) elTurnoBarIcon.className = "fas fa-moon";
+        if(elTurnoBarContainer) elTurnoBarContainer.style.borderLeftColor = "#38bdf8";
+    }
+
+    // Atualiza os Cards dentro do painel esquerdo
+    const datasHtml = document.querySelectorAll('.dash-data-frente');
+    const turnosHtml = document.querySelectorAll('.dash-turno-frente');
+    
+    datasHtml.forEach(el => el.textContent = dataFormatada);
+    turnosHtml.forEach(el => {
+        el.textContent = textoTurnoFrente;
+        el.className = `frente-turno dash-turno-frente ${classeTurnoFrente}`;
+    });
 }
 
 function inicializarGraficos() {
@@ -77,16 +126,13 @@ async function atualizarPonteiros() {
     let totalManutencao = 0;
     let totalOcorrencias = 0;
 
-    // 1. Busca total de Frotas (Contando as PLACAS dentro de cada conjunto)
     try {
         const { data: conjuntosData, error } = await supabaseClient.from('conjuntos').select('caminhoes');
         if (!error && conjuntosData) {
             conjuntosData.forEach(conj => {
-                // Verifica se a coluna caminhões existe e é um array
                 if (conj.caminhoes && Array.isArray(conj.caminhoes)) {
                     totalPlacasCadastradas += conj.caminhoes.length;
                 } else if (typeof conj.caminhoes === 'string') {
-                    // Caso tenha sido salvo como string JSON
                     try {
                         const arr = JSON.parse(conj.caminhoes);
                         if (Array.isArray(arr)) totalPlacasCadastradas += arr.length;
@@ -96,24 +142,19 @@ async function atualizarPonteiros() {
         }
     } catch (e) { console.error("Erro na busca de Placas:", e); }
 
-    // 2. Busca Manutenções Pendentes
     try {
         const queryManutencao = await supabaseClient.from('ordens_servico').select('*', { count: 'exact', head: true }).neq('status', 'Concluída');
         if(queryManutencao.count !== null) totalManutencao = queryManutencao.count;
     } catch (e) { console.error("Erro na busca de Manutenções:", e); }
 
-    // 3. Busca Ocorrências Pendentes
     try {
         const queryOcorrencias = await supabaseClient.from('dashboard_ocorrencias').select('*', { count: 'exact', head: true }).eq('status', 'Pendente');
         if(queryOcorrencias.count !== null) totalOcorrencias = queryOcorrencias.count;
     } catch (e) { console.error("Erro na busca de Ocorrencias:", e); }
 
-
-    // CÁLCULO DE DISPONIBILIDADE: Placas Totais - Manutenções - Ocorrências
     let frotaDisponivel = totalPlacasCadastradas - totalManutencao - totalOcorrencias;
     if(frotaDisponivel < 0) frotaDisponivel = 0;
 
-    // Atualiza os ponteiros (O máximo do gráfico se ajusta baseado na frota total)
     if(graficoFrota) {
         let maxFrota = totalPlacasCadastradas < 20 ? 20 : totalPlacasCadastradas + 10;
         graficoFrota.setOption({ series: [{ max: maxFrota, data: [{ value: frotaDisponivel }] }] });
@@ -123,7 +164,6 @@ async function atualizarPonteiros() {
         graficoManutencao.setOption({ series: [{ max: maxManut, data: [{ value: totalManutencao }] }] });
     }
 
-    // Atualiza os textos na tela
     const elFrotaDisp = document.getElementById('texto-frota-disponivel');
     const elFrotaTotal = document.getElementById('texto-frota-total');
     const elManut = document.getElementById('texto-manut-total');
@@ -151,6 +191,7 @@ window.salvarControladorDash = async function() {
     }
 }
 
+// Gera os items da Frente verticalmente no Painel Esquerdo
 async function carregarFrentesTv() {
     const { data } = await supabaseClient.from('frentes_trabalho').select('*').eq('status', 'Ativa');
     const container = document.getElementById('lista-frentes-tv');
@@ -158,15 +199,38 @@ async function carregarFrentesTv() {
     
     if (data && data.length > 0) {
         document.getElementById('kpi-frentes').textContent = data.length;
-        container.innerHTML = ''; containerConfig.innerHTML = '';
+        if(container) container.innerHTML = ''; 
+        if(containerConfig) containerConfig.innerHTML = '';
+        
         data.forEach(f => {
-            container.innerHTML += `<div class="pro-list-item"><i class="fas fa-check-circle text-green"></i> <div class="item-text">${f.nome}</div></div>`;
-            containerConfig.innerHTML += `<div class="mini-item"><span>${f.nome}</span> <button class="btn-remover-mini" onclick="removerFrenteDash('${f.id}')"><i class="fas fa-trash"></i></button></div>`;
+            if(container) {
+                container.innerHTML += `
+                <div class="frente-item-card">
+                    <div class="frente-time-box">
+                        <span class="frente-data dash-data-frente">--/--/----</span>
+                        <span class="frente-turno dash-turno-frente">Carregando...</span>
+                    </div>
+                    <div class="frente-content-box">
+                        <h4 class="frente-nome-titulo"><i class="fas fa-tractor text-green"></i> ${f.nome}</h4>
+                        <div style="color: #64748b; font-style: italic; font-size: 0.95rem; margin-top: 5px;">
+                            Área reservada para detalhamento...
+                        </div>
+                    </div>
+                </div>`;
+            }
+
+            if(containerConfig) {
+                containerConfig.innerHTML += `<div class="mini-item"><span>${f.nome}</span> <button class="btn-remover-mini" onclick="removerFrenteDash('${f.id}')"><i class="fas fa-trash"></i></button></div>`;
+            }
         });
+
+        // Atualiza a Data e o Turno para ficarem corretos assim que carrega
+        atualizarFrentesDeTrabalho();
+
     } else {
         document.getElementById('kpi-frentes').textContent = '0';
-        container.innerHTML = '<div class="empty-state">Nenhuma frente ativa.</div>';
-        containerConfig.innerHTML = '';
+        if(container) container.innerHTML = '<div class="empty-state">Nenhuma frente ativa.</div>';
+        if (containerConfig) containerConfig.innerHTML = '';
     }
 }
 
@@ -182,7 +246,6 @@ async function carregarOcorrenciasTv() {
     } else {
         containerConfig.innerHTML = '';
     }
-    // Re-calcula e movimenta o ponteiro das frotas quando uma ocorrência é carregada
     atualizarPonteiros();
 }
 

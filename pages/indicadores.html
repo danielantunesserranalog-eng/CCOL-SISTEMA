@@ -1,3 +1,149 @@
+<style>
+    /* Estilos do Layout Base */
+    .dash-pro-wrapper {
+        background-color: #070b14;
+        padding: 25px 30px;
+        border-radius: 16px;
+        font-family: var(--font-family);
+        color: #f8fafc;
+        display: flex;
+        flex-direction: column;
+        gap: 25px;
+        min-height: calc(100vh - 80px);
+    }
+
+    /* TOPO: 4 KPIs ocupando toda a largura */
+    .dash-pro-kpis {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 25px;
+    }
+
+    /* PARTE DE BAIXO: Dividida (Esquerda Maior / Direita Menor) */
+    .dash-bottom-split {
+        display: grid;
+        grid-template-columns: 65% 35%; /* Lado esquerdo bem maior */
+        gap: 25px;
+        align-items: stretch;
+        flex-grow: 1;
+    }
+
+    /* LADO ESQUERDO DA PARTE DE BAIXO - Frentes de Trabalho */
+    .dash-left-frentes {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .pro-list-panel {
+        flex-grow: 1; 
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .list-body-vertical {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+        overflow-y: auto;
+        max-height: 400px;
+    }
+
+    /* Estilos do Card da Frente de Trabalho */
+    .frente-item-card {
+        display: flex;
+        background: rgba(255,255,255,0.02);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    }
+
+    .frente-time-box {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+        border-right: 1px dashed rgba(255,255,255,0.1);
+        min-width: 180px;
+        text-align: center;
+        gap: 12px;
+        background: rgba(0,0,0,0.3);
+    }
+
+    .frente-data { font-size: 1.2rem; font-weight: 800; color: #94a3b8; letter-spacing: 1px; }
+    .frente-turno { padding: 6px 15px; border-radius: 20px; font-weight: bold; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* Cores Automáticas Injetadas via JS */
+    .turno-dia-style { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid #f59e0b; }
+    .turno-noite-style { background: rgba(56, 189, 248, 0.15); color: #7dd3fc; border: 1px solid #38bdf8; }
+
+    .frente-content-box {
+        padding: 20px;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    
+    .frente-nome-titulo { font-size: 1.2rem; color: #fff; margin: 0 0 10px 0; text-transform: uppercase; display: flex; align-items: center; gap: 10px; }
+
+    /* LADO DIREITO DA PARTE DE BAIXO - 3 Barras de Info */
+    .dash-right-info {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start; /* Alinha no topo, mas você pode mudar para center se quiser centralizado */
+    }
+
+    .info-bars-container {
+        display: flex;
+        flex-direction: column;
+        gap: 20px; /* Mais espaço entre as barras para preencher bem o canto */
+    }
+
+    .info-bar-item {
+        background: #0f172a;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 12px;
+        padding: 22px 25px; /* Deixei as caixas um pouco mais parrudas */
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        border-left: 5px solid transparent;
+    }
+
+    .bar-data { border-left-color: #10b981; }
+    .bar-turno { border-left-color: #f59e0b; }
+    .bar-controlador { border-left-color: #38bdf8; }
+
+    .info-bar-label {
+        font-size: 1.1rem;
+        color: #94a3b8;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .info-bar-value {
+        font-size: 1.6rem;
+        color: #fff;
+        font-weight: 900;
+        text-transform: uppercase;
+    }
+
+    @media (max-width: 1200px) {
+        .dash-bottom-split { grid-template-columns: 1fr; }
+        .dash-pro-kpis { grid-template-columns: 1fr 1fr; }
+    }
+</style>
+
 <div id="area-print-dash" class="dash-pro-wrapper fade-in">
     <header class="dash-pro-header">
         <div class="header-logo-title">
@@ -9,19 +155,9 @@
         </div>
         
         <div class="header-actions">
-            <div class="controlador-header-box">
-                <span class="pro-label">CONTROLADOR DE TRÁFEGO</span>
-                <strong id="dash-controlador-nome" class="text-blue" style="font-size: 1.4rem; display: block; text-transform: uppercase;">AGUARDANDO...</strong>
-            </div>
-
             <button id="btn-gerar-print" class="btn-pro-print" onclick="exportarDashboardPNG()">
                 <i class="fas fa-camera"></i> Salvar Imagem
             </button>
-            <div class="pro-clock-box">
-                <span id="dash-data" class="pro-date">--/--/----</span>
-                <span id="dash-hora" class="pro-time">--:--:--</span>
-                <span id="dash-turno" class="pro-badge">Turno --</span>
-            </div>
         </div>
     </header>
 
@@ -33,7 +169,7 @@
                 <span class="kpi-number" id="texto-frota-disponivel">0</span>
                 <span class="kpi-label">Disponível / Rodando</span>
                 <div style="font-size: 0.8rem; color: #64748b; margin-top: 5px; font-weight: bold;">
-                    Total Cadastrado: <span id="texto-frota-total" style="color:#fff;">0</span>
+                    Total: <span id="texto-frota-total" style="color:#fff;">0</span>
                 </div>
             </div>
         </div>
@@ -48,34 +184,55 @@
         </div>
 
         <div class="pro-kpi-card glass-panel flex-center">
-            <h3 class="kpi-title text-green">Frentes de Trabalho</h3>
+            <h3 class="kpi-title text-green">Frentes Abertas</h3>
             <div class="huge-number-box">
                 <i class="fas fa-map-marked-alt icon-bg text-green"></i>
                 <span class="huge-number text-green" id="kpi-frentes">0</span>
             </div>
-            <span class="kpi-label">Frentes Ativas no Momento</span>
+            <span class="kpi-label">Ativas no Momento</span>
         </div>
 
         <div class="pro-kpi-card glass-panel flex-center">
-            <h3 class="kpi-title text-orange">Ocorrências / Sinistros</h3>
+            <h3 class="kpi-title text-orange">Sinistros</h3>
             <div class="huge-number-box">
                 <i class="fas fa-exclamation-triangle icon-bg text-orange"></i>
                 <span class="huge-number text-orange" id="kpi-ocorrencias">0</span>
             </div>
-            <span class="kpi-label">Impactando a Disponibilidade</span>
+            <span class="kpi-label">Impactando Frota</span>
         </div>
     </section>
 
-    <section class="dash-pro-lists-single">
-        <div class="pro-list-panel glass-panel">
-            <div class="list-header">
-                <h3><i class="fas fa-route"></i> Detalhamento das Frentes de Trabalho</h3>
-            </div>
-            <div class="list-body-horizontal" id="lista-frentes-tv">
-                <div class="empty-state">Aguardando dados...</div>
+    <div class="dash-bottom-split">
+        <div class="dash-left-frentes">
+            <div class="pro-list-panel glass-panel">
+                <div class="list-header">
+                    <h3><i class="fas fa-route"></i> Detalhamento das Frentes de Trabalho</h3>
+                </div>
+                <div class="list-body-vertical" id="lista-frentes-tv">
+                    <div class="empty-state">Aguardando dados...</div>
+                </div>
             </div>
         </div>
-    </section>
+
+        <div class="dash-right-info">
+            <div class="info-bars-container">
+                <div class="info-bar-item bar-data">
+                    <span class="info-bar-label"><i class="fas fa-clock"></i> Data e Hora</span>
+                    <span class="info-bar-value" style="color: #10b981;"><span id="dash-data">--/--/----</span> - <span id="dash-hora">--:--:--</span></span>
+                </div>
+
+                <div class="info-bar-item bar-turno" id="container-barra-turno">
+                    <span class="info-bar-label"><i id="dash-turno-icon" class="fas fa-sun"></i> Turno Atual</span>
+                    <span class="info-bar-value" id="dash-turno" style="color: #fbbf24;">TURNO --</span>
+                </div>
+
+                <div class="info-bar-item bar-controlador">
+                    <span class="info-bar-label"><i class="fas fa-user-shield"></i> Controlador</span>
+                    <span class="info-bar-value text-blue" id="dash-controlador-nome">AGUARDANDO...</span>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="dash-floating-actions" id="btn-floating-config">
