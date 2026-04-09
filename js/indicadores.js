@@ -4,6 +4,11 @@ window.carregarDadosDashboard = async function() {
     carregarFrentesTv();
     carregarOcorrenciasTv();
     
+    // Faz o painel buscar atualizações no banco a cada 10 segundos automaticamente
+    setInterval(() => {
+        carregarOcorrenciasTv(); // Essa função recarrega os dados e atualiza os ponteiros automaticamente
+    }, 10000);
+
     if(typeof atualizarFrentesDeTrabalho === 'function') {
         atualizarFrentesDeTrabalho();
         setInterval(atualizarFrentesDeTrabalho, 60000);
@@ -66,6 +71,7 @@ async function atualizarPonteiros() {
     let totalManutencao = 0;
     let totalOcorrencias = 0;
 
+    // 1. Puxa total de placas cadastradas
     try {
         const { data: conjuntosData, error } = await supabaseClient.from('conjuntos').select('caminhoes');
         if (!error && conjuntosData) {
@@ -82,37 +88,45 @@ async function atualizarPonteiros() {
         }
     } catch (e) { console.error("Erro Placas:", e); }
 
+    // 2. CORREÇÃO: Puxa Manutenção baseada ESTIRITAMENTE nos status da oficina
     try {
-        const queryManutencao = await supabaseClient.from('ordens_servico').select('*', { count: 'exact', head: true }).neq('status', 'Concluída');
-        if(queryManutencao.count !== null) totalManutencao = queryManutencao.count;
+        const { data: osData, error: osError } = await supabaseClient
+            .from('ordens_servico')
+            .select('status');
+            
+        if (!osError && osData) {
+            // Filtra com precisão absoluta: apenas o que está no pátio aguardando ou já em manutenção
+            totalManutencao = osData.filter(os => 
+                os.status === 'Aguardando Oficina' || os.status === 'Em Manutenção'
+            ).length;
+        }
     } catch (e) { console.error("Erro O.S.:", e); }
 
+    // 3. Puxa Ocorrências/Sinistros
     try {
-        const queryOcorrencias = await supabaseClient.from('dashboard_status').select('id'); // Apenas para checar se a tabela existe
+        const queryOcorrencias = await supabaseClient.from('dashboard_status').select('id'); 
         const { count } = await supabaseClient.from('dashboard_ocorrencias').select('*', { count: 'exact', head: true }).eq('status', 'Pendente');
         totalOcorrencias = count || 0;
     } catch (e) { console.error("Erro Sinistros:", e); }
 
+    // 4. Calcula disponíveis e desenha os ponteiros
     let frotaDisponivel = totalPlacasCadastradas - totalManutencao - totalOcorrencias;
     if(frotaDisponivel < 0) frotaDisponivel = 0;
 
     const elGaugeFill = document.getElementById('gauge-fill-frota');
-    const elPonteiro = document.getElementById('gauge-ponteiro-frota'); // Captura o novo ponteiro
+    const elPonteiro = document.getElementById('gauge-ponteiro-frota'); 
 
     if (elGaugeFill && totalPlacasCadastradas > 0) {
         const perc = (frotaDisponivel / totalPlacasCadastradas) * 100;
         
-        // Preenche da ESQUERDA (-225) para a DIREITA (-45)
         const fillRotation = -225 + (1.8 * perc);
         elGaugeFill.style.transform = `rotate(${fillRotation}deg)`;
 
-        // PONTEIRO: Começa em -90 graus (esq) e vai até +90 graus (dir)
         if (elPonteiro) {
             const ponteiroRotation = -90 + (1.8 * perc);
             elPonteiro.style.transform = `translateX(-50%) rotate(${ponteiroRotation}deg)`;
         }
     } else {
-        // Estado inicial se estiver zerado
         if (elGaugeFill) elGaugeFill.style.transform = `rotate(-225deg)`;
         if (elPonteiro) elPonteiro.style.transform = `translateX(-50%) rotate(-90deg)`;
     }
@@ -185,8 +199,9 @@ async function carregarOcorrenciasTv() {
             containerConfig.innerHTML += `<div class="mini-item"><span><strong>${o.tipo}:</strong> ${o.descricao}</span> <button class="btn-remover-mini text-green" onclick="removerOcorrenciaDash('${o.id}')"><i class="fas fa-check"></i></button></div>`;
         });
     } else {
-        containerConfig.innerHTML = '';
+        if(containerConfig) containerConfig.innerHTML = '';
     }
+    // Toda vez que carrega as ocorrências, ele recalcula os ponteiros com os dados frescos do banco
     atualizarPonteiros();
 }
 
