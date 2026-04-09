@@ -1,0 +1,134 @@
+<div id="area-print-dash" class="dash-pro-wrapper fade-in">
+    <header class="dash-pro-header">
+        <div class="header-logo-title">
+            <img src="assets/logo.png" alt="Serrana" class="pro-logo">
+            <div class="pro-title-box">
+                <h2>STATUS DA OPERAÇÃO LOGÍSTICA</h2>
+                <p>CCOL - CENTRO DE CONTROLE OPERACIONAL</p>
+            </div>
+        </div>
+        
+        <div class="header-actions">
+            <div class="controlador-header-box">
+                <span class="pro-label">CONTROLADOR DE TRÁFEGO</span>
+                <strong id="dash-controlador-nome" class="text-blue" style="font-size: 1.4rem; display: block; text-transform: uppercase;">AGUARDANDO...</strong>
+            </div>
+
+            <button id="btn-gerar-print" class="btn-pro-print" onclick="exportarDashboardPNG()">
+                <i class="fas fa-camera"></i> Salvar Imagem
+            </button>
+            <div class="pro-clock-box">
+                <span id="dash-data" class="pro-date">--/--/----</span>
+                <span id="dash-hora" class="pro-time">--:--:--</span>
+                <span id="dash-turno" class="pro-badge">Turno --</span>
+            </div>
+        </div>
+    </header>
+
+    <section class="dash-pro-kpis">
+        <div class="pro-kpi-card glass-panel">
+            <h3 class="kpi-title text-blue">Frota em Operação</h3>
+            <div class="gauge-container" id="gauge-frota"></div>
+            <div class="kpi-value-box">
+                <span class="kpi-number" id="texto-frota-disponivel">0</span>
+                <span class="kpi-label">Disponível / Rodando</span>
+                <div style="font-size: 0.8rem; color: #64748b; margin-top: 5px; font-weight: bold;">
+                    Total Cadastrado: <span id="texto-frota-total" style="color:#fff;">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="pro-kpi-card glass-panel">
+            <h3 class="kpi-title text-red">Em Manutenção</h3>
+            <div class="gauge-container" id="gauge-manutencao"></div>
+            <div class="kpi-value-box">
+                <span class="kpi-number text-red" id="texto-manut-total">0</span>
+                <span class="kpi-label">O.S. Pendentes</span>
+            </div>
+        </div>
+
+        <div class="pro-kpi-card glass-panel flex-center">
+            <h3 class="kpi-title text-green">Frentes de Trabalho</h3>
+            <div class="huge-number-box">
+                <i class="fas fa-map-marked-alt icon-bg text-green"></i>
+                <span class="huge-number text-green" id="kpi-frentes">0</span>
+            </div>
+            <span class="kpi-label">Frentes Ativas no Momento</span>
+        </div>
+
+        <div class="pro-kpi-card glass-panel flex-center">
+            <h3 class="kpi-title text-orange">Ocorrências / Sinistros</h3>
+            <div class="huge-number-box">
+                <i class="fas fa-exclamation-triangle icon-bg text-orange"></i>
+                <span class="huge-number text-orange" id="kpi-ocorrencias">0</span>
+            </div>
+            <span class="kpi-label">Impactando a Disponibilidade</span>
+        </div>
+    </section>
+
+    <section class="dash-pro-lists-single">
+        <div class="pro-list-panel glass-panel">
+            <div class="list-header">
+                <h3><i class="fas fa-route"></i> Detalhamento das Frentes de Trabalho</h3>
+            </div>
+            <div class="list-body-horizontal" id="lista-frentes-tv">
+                <div class="empty-state">Aguardando dados...</div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<div class="dash-floating-actions" id="btn-floating-config">
+    <button class="btn-float btn-config" onclick="abrirConfigDash()">
+        <i class="fas fa-sliders-h"></i> Preencher Painel
+    </button>
+</div>
+
+<div id="modalConfigDash" class="modal-overlay" style="display: none;">
+    <div class="custom-modal modal-largo">
+        <div class="modal-header">
+            <h3>⚙️ Preencher Dados do Painel</h3>
+            <button class="close-modal" onclick="fecharConfigDash()">&times;</button>
+        </div>
+        
+        <div class="modal-body dash-config-body" style="max-height: 70vh; overflow-y: auto;">
+            <div class="config-section">
+                <label style="color:#fff; font-weight:bold; margin-bottom:5px; display:block;">1. Controlador do Turno</label>
+                <select id="configControlador" class="dark-select" onchange="salvarControladorDash()">
+                    <option value="" disabled selected>Selecione quem está operando...</option>
+                    <option value="ADRIANO SANTOS">ADRIANO SANTOS</option>
+                    <option value="ANDERSON LEMOS">ANDERSON LEMOS</option>
+                    <option value="FELIPE CARDOSO">FELIPE CARDOSO</option>
+                    <option value="OSVALDO NETO">OSVALDO NETO</option>
+                </select>
+            </div>
+            <hr class="dash-divisor">
+            <div class="config-section">
+                <label style="color:#fff; font-weight:bold; margin-bottom:5px; display:block;">2. Adicionar Frente de Trabalho</label>
+                <div class="input-group-inline">
+                    <input type="text" id="novaFrenteInput" class="dark-input" placeholder="Ex: Fazenda Boa Esperança - Plantio...">
+                    <button class="btn-primary-green" onclick="addFrenteDash()">Add</button>
+                </div>
+                <div class="mini-lista" id="config-lista-frentes"></div>
+            </div>
+            <hr class="dash-divisor">
+            <div class="config-section">
+                <label style="color:#fff; font-weight:bold; margin-bottom:5px; display:block;">3. Registrar Ocorrência / Sinistro</label>
+                <div class="input-group-inline">
+                    <select id="novaOcorrenciaTipo" class="dark-select" style="width: 30%;">
+                        <option value="Atraso">Atraso</option>
+                        <option value="Mecânica">Mecânica</option>
+                        <option value="Sinistro">Sinistro</option>
+                    </select>
+                    <input type="text" id="novaOcorrenciaDesc" class="dark-input" placeholder="Descrição do problema..." style="width: 70%;">
+                    <button class="btn-danger-block" style="width: auto;" onclick="addOcorrenciaDash()">Add</button>
+                </div>
+                <div class="mini-lista" id="config-lista-ocorrencias"></div>
+            </div>
+        </div>
+        
+        <div class="modal-footer">
+            <button class="btn-primary-blue" style="width: 100%;" onclick="fecharConfigDash()">Salvar e Atualizar Painel</button>
+        </div>
+    </div>
+</div>
