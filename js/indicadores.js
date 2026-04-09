@@ -43,13 +43,13 @@ window.atualizarFrentesDeTrabalho = function() {
     if (hora >= 6 && hora < 18) {
         textoTurnoFrente = "☀️ 06:00 às 18:00";
         classeTurnoFrente = "turno-dia-style";
-        if(elTurnoBarText) { elTurnoBarText.textContent = "TURNO DIA"; elTurnoBarText.style.color = "#fbbf24"; }
+        if(elTurnoBarText) { elTurnoBarText.textContent = "TURNO: 06:00 às 18:00"; elTurnoBarText.style.color = "#ffffff"; }
         if(elTurnoBarIcon) elTurnoBarIcon.className = "fas fa-sun";
         if(elTurnoBarContainer) elTurnoBarContainer.style.borderLeftColor = "#f59e0b";
     } else {
         textoTurnoFrente = "🌙 18:00 às 06:00";
         classeTurnoFrente = "turno-noite-style";
-        if(elTurnoBarText) { elTurnoBarText.textContent = "TURNO NOITE"; elTurnoBarText.style.color = "#7dd3fc"; }
+        if(elTurnoBarText) { elTurnoBarText.textContent = "TURNO: 18:00 às 06:00"; elTurnoBarText.style.color = "#ffffff"; }
         if(elTurnoBarIcon) elTurnoBarIcon.className = "fas fa-moon";
         if(elTurnoBarContainer) elTurnoBarContainer.style.borderLeftColor = "#38bdf8";
     }
