@@ -108,19 +108,27 @@ let historicoTreinamentos = [];
 
 const strNormalize = (str) => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim() : '';
 
-// Função robusta para descobrir o horário real do motorista na base de dados
+// Função robusta: GARANTE que o horário seja exatamente o da tela de Escala/Motoristas
 function getHorarioCorreto(t) {
-    let h = t.turno;
-    // Se o treinamento foi salvo antigo como "Misto" ou está sem horário, puxamos direto do cadastro oficial
-    if (!h || h === 'Misto' || h === 'A Definir') {
-        let motBase = typeof motoristas !== 'undefined' ? motoristas.find(m => strNormalize(m.nome) === strNormalize(t.motoristaNome)) : null;
-        if (motBase) {
-            if (motBase.turno && motBase.turno !== '-') h = motBase.turno;
-            else if (['A','B','C'].includes(motBase.equipe)) h = '06:00 às 18:00';
-            else if (['D','E','F'].includes(motBase.equipe)) h = '18:00 às 06:00';
-        }
+    let motBase = typeof motoristas !== 'undefined' ? motoristas.find(m => strNormalize(m.nome) === strNormalize(t.motoristaNome)) : null;
+    
+    // Prioridade Máxima: Pegar o turno EXATO que está salvo no motorista no momento (Sincronia com a Escala)
+    if (motBase && motBase.turno && motBase.turno !== '-' && motBase.turno !== '') {
+        return motBase.turno; 
     }
-    return (!h || h === 'Misto') ? 'A Definir' : h;
+
+    // Se o motorista foi deletado ou não tiver turno na escala, tenta pegar o que foi salvo no agendamento
+    if (t.turno && t.turno !== 'Misto' && t.turno !== 'A Definir') {
+        return t.turno;
+    }
+    
+    // Dedução de último caso pela Equipe
+    if (motBase) {
+        if (['A','B','C'].includes(motBase.equipe)) return '06:00 às 18:00';
+        else if (['D','E','F'].includes(motBase.equipe)) return '18:00 às 06:00';
+    }
+    
+    return 'A Definir';
 }
 
 // === FUNÇÃO DO DASHBOARD ===
@@ -228,7 +236,7 @@ window.renderizarCronogramaTreinamento = function() {
     } else {
         cronogramaTreinamento.sort((a, b) => a.data.localeCompare(b.data));
         tbody.innerHTML = cronogramaTreinamento.map(t => {
-            const horarioFormatado = getHorarioCorreto(t); // Resgata horário real
+            const horarioFormatado = getHorarioCorreto(t); // Puxa o horário real sincronizado
             return `
             <tr style="background-color: rgba(255,255,255,0.02);">
                 <td><strong style="font-size: 1.05rem;">${t.dataTexto}</strong><br><span style="font-size:0.75rem; color:var(--text-secondary);">${t.data}</span></td>
@@ -277,7 +285,7 @@ window.renderizarCronogramaTreinamento = function() {
         historicoTreinamentos.sort((a, b) => new Date(b.dataConclusao) - new Date(a.dataConclusao));
         tbodyConcluidos.innerHTML = historicoTreinamentos.map(t => {
             const dataFormatada = new Date(t.dataConclusao).toLocaleDateString('pt-BR');
-            const horarioFormatado = getHorarioCorreto(t); // Resgata horário real
+            const horarioFormatado = getHorarioCorreto(t); 
             const isConcluido = t.status === 'concluido';
             const bgCorLinha = isConcluido ? 'rgba(61, 220, 132, 0.05)' : 'rgba(239, 68, 68, 0.05)';
             const corTextoData = isConcluido ? 'var(--ccol-green-bright)' : '#ef4444';
@@ -419,7 +427,7 @@ window.gerarTreinamentoAuto = async function() {
 
     if(alunosPendentes.length === 0) { alert('✅ Todos os motoristas da Lista do PDF já foram agendados ou concluídos!'); return; }
 
-    if(!confirm(`Deseja gerar o cronograma automaticamente a partir do dia ${dataInicioInput.split('-').reverse().join('/')}?\n\nO sistema protegerá o descanso do instrutor alternando as semanas (ex: uma semana inteira só Dia, a próxima semana inteira só Noite).`)) {
+    if(!confirm(`Deseja gerar o cronograma automaticamente a partir do dia ${dataInicioInput.split('-').reverse().join('/')}?\n\nO sistema protegerá o descanso do instrutor alternando as semanas de forma inteligente.`)) {
         return; 
     }
 
@@ -430,7 +438,7 @@ window.gerarTreinamentoAuto = async function() {
     
     let diasSemAgendarNinguem = 0; 
 
-    // Função auxiliar para encontrar a Segunda-feira de uma determinada data
+    // Função para achar a segunda-feira da semana de uma data (para alternância do Instrutor)
     const getMonday = (d) => {
         let dt = new Date(d);
         let day = dt.getDay();
@@ -485,21 +493,22 @@ window.gerarTreinamentoAuto = async function() {
                 let isElegivel = true;
 
                 if (motSistema) {
-                    const equipeMot = motSistema.equipe || '-';
-                    const isDia = ['A', 'B', 'C'].includes(equipeMot);
-                    const isNoite = ['D', 'E', 'F'].includes(equipeMot);
+                    let turnoMot = motSistema.turno || '';
+                    let eqMot = motSistema.equipe || '-';
+                    
+                    // Leitura Inteligente do Turno salvo do motorista na Escala
+                    let isDia = ['A', 'B', 'C'].includes(eqMot) || turnoMot.includes('05:') || turnoMot.includes('06:') || turnoMot.includes('07:') || turnoMot.includes('08:');
+                    let isNoite = ['D', 'E', 'F'].includes(eqMot) || turnoMot.includes('17:') || turnoMot.includes('18:') || turnoMot.includes('19:') || turnoMot.includes('20:');
 
                     let escalaDia = window.getEscalaDiaComputada ? window.getEscalaDiaComputada(motSistema, dataStr) : null;
                     if(escalaDia && (escalaDia.caminhao === 'F' || escalaDia.caminhao === 'FOLGA')) {
                         isElegivel = false;
                     }
 
-                    // BLOQUEIO RESTRITO: Só entra se for o turno Exato estipulado para a semana do Master Drive
-                    if (turnoAlvoNestaSemana === 'Dia' && isNoite) isElegivel = false;
-                    if (turnoAlvoNestaSemana === 'Noite' && isDia) isElegivel = false;
-
-                } else {
-                    // Motoristas do PDF que não estão na base do sistema. Segue se precisar agendar à força.
+                    // BLOQUEIO RESTRITO DE DESCANSO: 
+                    // O aluno só é elegível se o turno dele bater exatamente com o que a Semana permite
+                    if (turnoAlvoNestaSemana === 'Dia' && !isDia) isElegivel = false;
+                    if (turnoAlvoNestaSemana === 'Noite' && !isNoite) isElegivel = false;
                 }
 
                 if(isElegivel) {
@@ -511,22 +520,13 @@ window.gerarTreinamentoAuto = async function() {
         }
         
         if(infoPDF) {
-            // DEFINIÇÃO CORRETA E IMEDIATA DO HORÁRIO NO NOVO AGENDAMENTO
             let horarioDefinido = 'A Definir';
-            if (alunoEscolhido) {
-                if (alunoEscolhido.turno && String(alunoEscolhido.turno).trim() !== '-' && String(alunoEscolhido.turno).trim() !== '') {
-                    horarioDefinido = alunoEscolhido.turno;
-                } else if (alunoEscolhido.equipe) {
-                    const eq = alunoEscolhido.equipe;
-                    if (['A', 'B', 'C'].includes(eq)) horarioDefinido = '06:00 às 18:00';
-                    else if (['D', 'E', 'F'].includes(eq)) horarioDefinido = '18:00 às 06:00';
-                }
-            }
-
-            // Se ainda não temos horário (ex: Reserva sem turno), nós adaptamos ao turno que a semana está exigindo.
-            if (horarioDefinido === 'A Definir' || horarioDefinido === 'Misto') {
-                if (turnoAlvoNestaSemana === 'Dia') horarioDefinido = '06:00 às 18:00';
-                if (turnoAlvoNestaSemana === 'Noite') horarioDefinido = '18:00 às 06:00';
+            if (alunoEscolhido && alunoEscolhido.turno && alunoEscolhido.turno !== '-') {
+                horarioDefinido = alunoEscolhido.turno; // Crava o horário real do motorista na Escala
+            } else if (alunoEscolhido && alunoEscolhido.equipe) {
+                const eq = alunoEscolhido.equipe;
+                if (['A', 'B', 'C'].includes(eq)) horarioDefinido = '06:00 às 18:00';
+                else if (['D', 'E', 'F'].includes(eq)) horarioDefinido = '18:00 às 06:00';
             }
 
             const novoTreino = {
