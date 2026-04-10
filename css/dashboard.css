@@ -459,3 +459,10 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* Substitua .total-indicador pela classe real que você está usando */
+.total-indicador {
+    margin-top: 20px; /* Aumente ou diminua esse valor conforme necessário */
+    display: block;   /* Garante que ele fique em uma linha isolada */
+    text-align: center; /* Opcional: centraliza o texto embaixo do quadro */
+}
