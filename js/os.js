@@ -532,8 +532,11 @@ async function salvarNovaOS() {
         status_inicial = 'Sinistrado';
     }
     
-    // Captura o nome do usuário logado se ele existir
-    const usuarioLogado = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.nome : 'Usuário Desconhecido';
+    // Captura o nome do usuário logado de forma mais robusta para evitar o 'undefined'
+    let usuarioLogado = 'Desconhecido';
+    if (typeof currentUser !== 'undefined' && currentUser) {
+        usuarioLogado = currentUser.nome || currentUser.name || currentUser.email || 'Usuário Logado';
+    }
 
     const novaOS = {
         placa, go, motorista, data_abertura, hodometro, prioridade, tipo, problema, observacoes, detalhes_pneu,
@@ -743,8 +746,17 @@ function imprimirOS(id) {
     const dataConclusaoFormatada = os.data_conclusao ? formatarDataHoraBrasil(os.data_conclusao) : 'Em andamento';
     const numeroOSFormatado = String(os.id).padStart(4, '0');
     
-    // Captura o usuario que abriu a OS, ou o logado caso n seja encontrado
-    const infoAbertoPor = os.aberto_por || ((typeof currentUser !== 'undefined' && currentUser) ? currentUser.nome : 'N/A');
+    // Tratamento robusto para evitar que apareça 'undefined' na impressão
+    let infoAbertoPor = os.aberto_por;
+    
+    // Verifica se está nulo ou se o banco salvou a string literal "undefined" em O.S. antigas
+    if (!infoAbertoPor || infoAbertoPor === 'undefined') {
+        if (typeof currentUser !== 'undefined' && currentUser) {
+            infoAbertoPor = currentUser.nome || currentUser.name || currentUser.email || 'Sistema / Admin';
+        } else {
+            infoAbertoPor = 'Sistema / Admin';
+        }
+    }
     
     let painelBorracharia = '';
     if (os.tipo === 'Borracharia (PNEU)' && os.detalhes_pneu) {
