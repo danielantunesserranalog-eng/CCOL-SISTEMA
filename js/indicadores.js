@@ -229,7 +229,7 @@ async function carregarFrotasParadas() {
             container.innerHTML += `
                 <div class="item-frota-parada ${classeCss}">
                     <div class="cavalo-info">
-                        <i class="${icone} ${textColor}" style="font-size: 1.1rem;"></i>
+                        <i class="${icone} ${textColor}" style="font-size: 1.3rem;"></i>
                         <span class="identificacao-cavalo">${os.placa || 'N/I'}</span>
                     </div>
                     <div class="badge-tipo ${classeCss}">
