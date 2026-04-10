@@ -3,7 +3,6 @@
 let ordensServico = [];
 let frotasManutencao = [];
 let tvInterval = null;
-let osSelecionadaParaAceite = null; 
 let osSelecionadaParaConclusao = null; 
 let osSelecionadaParaServicoExtra = null; 
 
@@ -363,9 +362,7 @@ function renderizarTabelaOS() {
         
         if (os.status === 'Agendada') {
             botoesAcao += `<button onclick="darEntradaPatio(${os.id})" style="background: var(--bg-panel); border: 1px solid #8b5cf6; color: #8b5cf6; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">🚚 Dar Entrada no Pátio</button>`;
-        } else if (os.status === 'Aguardando Oficina') {
-            botoesAcao += `<button onclick="abrirModalAceiteOS(${os.id})" style="background: var(--bg-panel); border: 1px solid #f59e0b; color: #f59e0b; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">🛠️ Aceitar O.S.</button>`;
-        } else if (os.status === 'Em Manutenção') {
+        } else if (os.status === 'Aguardando Oficina' || os.status === 'Em Manutenção') {
             botoesAcao += `<button onclick="abrirModalConclusaoOS(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-green-bright); color: var(--ccol-green-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">✅ Concluir</button>`;
             botoesAcao += `<button onclick="abrirModalServicoExtra(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-blue-bright); color: var(--ccol-blue-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">➕ Add Serviço</button>`;
         }
@@ -474,9 +471,7 @@ function renderizarTabelaHistoricoOS() {
         
         if (os.status === 'Agendada' && os.tipo !== 'Sinistro') {
             botoesAcao += `<button onclick="darEntradaPatio(${os.id})" style="background: var(--bg-panel); border: 1px solid #8b5cf6; color: #8b5cf6; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">🚚 Dar Entrada</button>`;
-        } else if (os.status === 'Aguardando Oficina' && os.tipo !== 'Sinistro') {
-            botoesAcao += `<button onclick="abrirModalAceiteOS(${os.id})" style="background: var(--bg-panel); border: 1px solid #f59e0b; color: #f59e0b; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">🛠️ Aceitar</button>`;
-        } else if ((os.status === 'Em Manutenção' || os.tipo === 'Sinistro') && os.status !== 'Concluída') {
+        } else if ((os.status === 'Aguardando Oficina' || os.status === 'Em Manutenção' || os.tipo === 'Sinistro') && os.status !== 'Concluída') {
             botoesAcao += `<button onclick="abrirModalConclusaoOS(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-green-bright); color: var(--ccol-green-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">✅ Concluir</button>`;
             if (os.tipo !== 'Sinistro') {
                 botoesAcao += `<button onclick="abrirModalServicoExtra(${os.id})" style="background: var(--bg-panel); border: 1px solid var(--ccol-blue-bright); color: var(--ccol-blue-bright); padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">➕ Add Serviço</button>`;
@@ -571,7 +566,7 @@ async function salvarNovaOS() {
         alert("O.S. Agendada com sucesso! Ela ficará oculta da TV até você clicar em 'Dar Entrada'.");
         alternarTelaOS('lista');
     } else {
-        alert("O.S. Aberta no Pátio! Agora a Oficina precisa aceitar o chamado.");
+        alert("O.S. Aberta no Pátio! Agora a Oficina precisa finalizar ou agendar os serviços.");
         alternarTelaOS('lista');
     }
 }
@@ -602,54 +597,11 @@ async function darEntradaPatio(id) {
     }
 }
 
-function abrirModalAceiteOS(id) {
-    osSelecionadaParaAceite = id;
-    document.getElementById('aceiteMecanico').value = '';
-    document.getElementById('aceitePrevisao').value = '';
-    document.getElementById('modalAceiteOS').classList.add('show');
-}
-
-function fecharModalAceiteOS() {
-    osSelecionadaParaAceite = null;
-    document.getElementById('modalAceiteOS').classList.remove('show');
-}
-
-async function salvarAceiteOS() {
-    if (!osSelecionadaParaAceite) return;
-    
-    const mecanico = document.getElementById('aceiteMecanico').value.trim();
-    const previsao = document.getElementById('aceitePrevisao').value;
-
-    if (!mecanico || !previsao) {
-        alert("Preencha o mecânico/equipe responsável e a previsão de entrega!");
-        return;
-    }
-
-    const { error } = await supabaseClient
-        .from('ordens_servico')
-        .update({ 
-            status: 'Em Manutenção', 
-            previsao: previsao,
-            mecanico_responsavel: mecanico 
-        })
-        .eq('id', osSelecionadaParaAceite);
-
-    if (!error) {
-        alert("O.S. Aceita com sucesso! O relógio na TV foi atualizado.");
-        fecharModalAceiteOS();
-        await carregarDadosOS();
-        renderizarTabelaOS();
-        renderizarTabelaHistoricoOS();
-    } else {
-        alert("Erro ao aceitar a O.S.");
-        console.error(error);
-    }
-}
-
 function abrirModalConclusaoOS(id) {
     osSelecionadaParaConclusao = id;
     const inputHora = document.getElementById('horaConclusaoOS');
     
+    // Setando horário atual no input, mas agora permitindo que o usuário altere
     const agora = new Date();
     const dataConclusaoLocal = new Date(agora.getTime() - (agora.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
     inputHora.value = dataConclusaoLocal;
@@ -665,7 +617,14 @@ function fecharModalConclusaoOS() {
 async function salvarConclusaoOS() {
     if (!osSelecionadaParaConclusao) return;
 
-    const momentoExatoDaConclusao = new Date().toISOString(); 
+    const inputHoraValue = document.getElementById('horaConclusaoOS').value;
+    if (!inputHoraValue) {
+        alert("Por favor, informe a data e hora de conclusão.");
+        return;
+    }
+
+    // Converte o valor inserido localmente de volta para o formato UTC
+    const momentoExatoDaConclusao = new Date(inputHoraValue).toISOString(); 
     
     const { error } = await supabaseClient
         .from('ordens_servico')
@@ -1018,15 +977,15 @@ function renderizarCardsTV() {
         let cardClass = 'tv-card-modern';
         let iconGiro = '';
 
-        if (os.status === 'Aguardando Oficina') {
+        if (os.status === 'Aguardando Oficina' || (os.status === 'Em Manutenção' && !os.previsao)) {
             cardClass += ' tv-card-atencao';
             statusBox = `
-                <div style="background: rgba(245, 158, 11, 0.1); border: 1px dashed #f59e0b; border-radius: 8px; padding: 10px; text-align: center; display: flex; flex-direction: column; justify-content: center; height: 100%;">
-                    <div style="color: #f59e0b; font-size: 0.95rem; font-weight: 800; text-transform: uppercase;">⚠️ Aguardando Aceite</div>
-                    <div style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 5px;">A Oficina precisa definir o prazo</div>
+                <div style="background: rgba(96, 165, 250, 0.1); border: 1px dashed var(--ccol-blue-bright); border-radius: 8px; padding: 10px; text-align: center; display: flex; flex-direction: column; justify-content: center; height: 100%;">
+                    <div style="color: var(--ccol-blue-bright); font-size: 0.95rem; font-weight: 800; text-transform: uppercase;">🔧 Em Atendimento</div>
+                    <div style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 5px;">Manutenção em andamento</div>
                 </div>
             `;
-            iconGiro = `<div class="spinner-warning" title="Aguardando Aceite"></div>`;
+            iconGiro = `<div class="spinner-blue" title="Em Atendimento"></div>`;
             
         } else if (os.status === 'Em Manutenção' && os.previsao) {
             

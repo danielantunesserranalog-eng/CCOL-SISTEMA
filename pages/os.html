@@ -291,30 +291,6 @@
         </div>
 </div>
 
-<div id="modalAceiteOS" class="modal-overlay">
-    <div class="custom-modal">
-        <div class="modal-header">
-            <h3>🛠️ Aceitar Ordem de Serviço</h3>
-            <button class="close-modal" onclick="fecharModalAceiteOS()">×</button>
-        </div>
-        <div class="modal-body">
-            <p style="color: var(--text-secondary); font-size: 0.85rem;">Defina o mecânico responsável e o prazo estimado para iniciar a contagem na TV.</p>
-            <div class="form-group-dark">
-                <label>Mecânico / Equipe Responsável</label>
-                <input type="text" id="aceiteMecanico" placeholder="Ex: João Silva ou Equipe A">
-            </div>
-            <div class="form-group-dark">
-                <label>Previsão de Finalização</label>
-                <input type="datetime-local" id="aceitePrevisao" class="dark-select">
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn-secondary-dark" onclick="fecharModalAceiteOS()">Cancelar</button>
-            <button class="btn-primary-blue" onclick="salvarAceiteOS()">Confirmar Aceite</button>
-        </div>
-    </div>
-</div>
-
 <div id="modalConclusaoOS" class="modal-overlay">
     <div class="custom-modal">
         <div class="modal-header">
@@ -322,10 +298,10 @@
             <button class="close-modal" onclick="fecharModalConclusaoOS()">×</button>
         </div>
         <div class="modal-body">
-            <p style="color: var(--text-secondary); font-size: 0.85rem;">A ordem será encerrada com o horário cravado abaixo:</p>
+            <p style="color: var(--text-secondary); font-size: 0.85rem;">A ordem será encerrada com o horário abaixo. Fique à vontade para ajustá-lo caso a conclusão tenha ocorrido em outro momento:</p>
             <div class="form-group-dark">
-                <label>Horário Atual de Conclusão</label>
-                <input type="datetime-local" id="horaConclusaoOS" class="dark-select" readonly disabled style="background-color: rgba(255,255,255,0.05); color: #fff;">
+                <label>Horário de Conclusão</label>
+                <input type="datetime-local" id="horaConclusaoOS" class="dark-select">
             </div>
         </div>
         <div class="modal-footer">
