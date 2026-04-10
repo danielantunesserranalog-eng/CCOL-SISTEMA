@@ -86,7 +86,8 @@ window.gerarCronogramaAutomatico = async function() {
 
         motoristasDisponiveis.slice(0, qtdViagens).forEach((mot, index) => {
             listaNovosTreinos.push({
-                id: `${mot.id}_${dataKey}_${index}`,
+                // A LINHA ABAIXO FOI COMENTADA PARA O SUPABASE GERAR O ID AUTOMATICAMENTE
+                // id: `${mot.id}_${dataKey}_${index}`,
                 motorista_id: mot.id,
                 motorista_nome: mot.nome,
                 equipe: mot.equipe,
@@ -259,4 +260,94 @@ window.exportarTreinamentosExcel = function() {
     link.href = URL.createObjectURL(blob);
     link.download = "Cronograma_Viagem_Assistida.csv";
     link.click();
+};
+
+// NOVA FUNÇÃO: Exportar / Imprimir PDF
+window.exportarTreinamentosPDF = function() {
+    if (treinamentos.length === 0) {
+        alert("Não há treinamentos agendados para gerar relatório.");
+        return;
+    }
+
+    // Ordena os treinamentos por data
+    const ordenados = [...treinamentos].sort((a, b) => new Date(a.data) - new Date(b.data));
+
+    // Monta a estrutura do HTML para impressão
+    let html = `
+        <html>
+        <head>
+            <title>Cronograma de Viagem Assistida</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
+                .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
+                h2 { margin: 0; color: #1e293b; }
+                p { margin: 5px 0; color: #64748b; font-size: 14px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+                th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+                th { background-color: #f1f5f9; color: #334155; font-weight: bold; }
+                .status-concluido { color: #10b981; font-weight: bold; }
+                .status-pendente { color: #f59e0b; font-weight: bold; }
+                .status-agendado { color: #3b82f6; font-weight: bold; }
+                @media print {
+                    @page { margin: 1cm; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h2>Cronograma de Viagem Assistida - Master Drive</h2>
+                <p>Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Horário</th>
+                        <th>Motorista</th>
+                        <th>Equipe</th>
+                        <th>Master Drive</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    // Preenche as linhas da tabela
+    ordenados.forEach(t => {
+        let classStatus = "";
+        if (t.status === 'Concluído') classStatus = "status-concluido";
+        else if (t.status === 'Pendente') classStatus = "status-pendente";
+        else classStatus = "status-agendado";
+
+        html += `
+            <tr>
+                <td>${t.data.split('-').reverse().join('/')}</td>
+                <td>${t.horario}</td>
+                <td style="font-weight: bold;">${t.motorista_nome}</td>
+                <td>${t.equipe || '-'}</td>
+                <td>${t.master_drive}</td>
+                <td class="${classStatus}">${t.status}</td>
+            </tr>
+        `;
+    });
+
+    html += `
+                </tbody>
+            </table>
+            
+            <script>
+                window.onload = function() { 
+                    window.print(); 
+                    // Fecha a aba de impressão logo depois
+                    setTimeout(() => window.close(), 500);
+                }
+            </script>
+        </body>
+        </html>
+    `;
+
+    // Abre uma nova janela e injeta o HTML preparado
+    let printWindow = window.open('', '_blank', 'width=1000,height=800');
+    printWindow.document.write(html);
+    printWindow.document.close();
 };
