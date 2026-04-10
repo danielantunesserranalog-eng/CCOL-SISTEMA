@@ -3,10 +3,11 @@ window.carregarDadosDashboard = async function() {
     carregarControladorAtual();
     carregarFrentesTv();
     carregarOcorrenciasTv();
+    carregarFrotasParadas(); 
     
-    // Faz o painel buscar atualizações no banco a cada 10 segundos automaticamente
     setInterval(() => {
-        carregarOcorrenciasTv(); // Essa função recarrega os dados e atualiza os ponteiros automaticamente
+        carregarOcorrenciasTv(); 
+        carregarFrotasParadas(); 
     }, 10000);
 
     if(typeof atualizarFrentesDeTrabalho === 'function') {
@@ -71,7 +72,6 @@ async function atualizarPonteiros() {
     let totalManutencao = 0;
     let totalOcorrencias = 0;
 
-    // 1. Puxa total de placas cadastradas
     try {
         const { data: conjuntosData, error } = await supabaseClient.from('conjuntos').select('caminhoes');
         if (!error && conjuntosData) {
@@ -88,28 +88,24 @@ async function atualizarPonteiros() {
         }
     } catch (e) { console.error("Erro Placas:", e); }
 
-    // 2. CORREÇÃO: Puxa Manutenção baseada ESTIRITAMENTE nos status da oficina
     try {
         const { data: osData, error: osError } = await supabaseClient
             .from('ordens_servico')
             .select('status');
             
         if (!osError && osData) {
-            // Filtra com precisão absoluta: apenas o que está no pátio aguardando ou já em manutenção
             totalManutencao = osData.filter(os => 
                 os.status === 'Aguardando Oficina' || os.status === 'Em Manutenção'
             ).length;
         }
     } catch (e) { console.error("Erro O.S.:", e); }
 
-    // 3. Puxa Ocorrências/Sinistros
     try {
         const queryOcorrencias = await supabaseClient.from('dashboard_status').select('id'); 
         const { count } = await supabaseClient.from('dashboard_ocorrencias').select('*', { count: 'exact', head: true }).eq('status', 'Pendente');
         totalOcorrencias = count || 0;
     } catch (e) { console.error("Erro Sinistros:", e); }
 
-    // 4. Calcula disponíveis e desenha os ponteiros
     let frotaDisponivel = totalPlacasCadastradas - totalManutencao - totalOcorrencias;
     if(frotaDisponivel < 0) frotaDisponivel = 0;
 
@@ -190,6 +186,68 @@ async function carregarFrentesTv() {
     }
 }
 
+async function carregarFrotasParadas() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('ordens_servico')
+            .select('placa, tipo, status') 
+            .in('status', ['Aguardando Oficina', 'Em Manutenção']); 
+
+        if (error) throw error;
+
+        const container = document.getElementById('frotas-paradas-list');
+        if(!container) return;
+
+        container.innerHTML = ''; 
+
+        if (!data || data.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state" style="text-align: center; margin-top: 20px;">
+                    ✅ Nenhuma frota parada no momento.
+                </div>
+            `;
+            return;
+        }
+
+        data.forEach(os => {
+            let tipoString = os.tipo ? os.tipo.toLowerCase() : 'corretiva';
+            let classeCss = 'corretiva'; 
+            let icone = 'fas fa-wrench';
+            let textColor = 'text-red';
+            
+            if (tipoString.includes('preventiva')) {
+                classeCss = 'preventiva';
+                icone = 'fas fa-clipboard-check';
+                textColor = 'text-orange';
+            }
+            if (tipoString.includes('borracharia') || tipoString.includes('pneu')) {
+                classeCss = 'borracharia';
+                icone = 'fas fa-life-ring';
+                textColor = 'text-blue';
+            }
+
+            container.innerHTML += `
+                <div class="item-frota-parada ${classeCss}">
+                    <div class="cavalo-info">
+                        <i class="${icone} ${textColor}" style="font-size: 1.1rem;"></i>
+                        <span class="identificacao-cavalo">${os.placa || 'N/I'}</span>
+                    </div>
+                    <div class="badge-tipo ${classeCss}">
+                        ${os.tipo ? os.tipo.toUpperCase() : 'CORRETIVA'}
+                    </div>
+                </div>
+            `;
+        });
+
+    } catch (error) {
+        console.error("Erro ao buscar frotas paradas:", error);
+        const container = document.getElementById('frotas-paradas-list');
+        if(container) {
+            container.innerHTML = `<div class="empty-state" style="color: #ef4444; text-align: center;">Erro ao carregar dados da oficina.</div>`;
+        }
+    }
+}
+
 async function carregarOcorrenciasTv() {
     const { data } = await supabaseClient.from('dashboard_ocorrencias').select('*').eq('status', 'Pendente');
     const containerConfig = document.getElementById('config-lista-ocorrencias');
@@ -201,7 +259,6 @@ async function carregarOcorrenciasTv() {
     } else {
         if(containerConfig) containerConfig.innerHTML = '';
     }
-    // Toda vez que carrega as ocorrências, ele recalcula os ponteiros com os dados frescos do banco
     atualizarPonteiros();
 }
 
@@ -232,29 +289,25 @@ window.removerOcorrenciaDash = async function(id) {
     carregarOcorrenciasTv();
 }
 
-// === FUNÇÃO DE EXPORTAÇÃO TURBINADA PARA ALTA DEFINIÇÃO ===
 window.exportarDashboardPNG = function() {
     const elemento = document.getElementById('area-print-dash');
     const botaoPrint = document.getElementById('btn-gerar-print');
     const botaoFlutuante = document.getElementById('btn-floating-config');
     
-    // Esconde os botões para não saírem na foto
     botaoPrint.style.display = 'none';
     if(botaoFlutuante) botaoFlutuante.style.display = 'none';
     
-    // Configura o canvas para ALTA DEFINIÇÃO (scale: 4)
     html2canvas(elemento, { 
         backgroundColor: '#070b14', 
-        scale: 4, // Multiplica a resolução por 4 (qualidade muito superior)
+        scale: 4, 
         useCORS: true,
-        logging: false // Evita lentidão desnecessária no console
+        logging: false 
     }).then(canvas => {
         const link = document.createElement('a');
         link.download = `CCOL_DASHBOARD_${new Date().getTime()}.png`;
-        link.href = canvas.toDataURL('image/png'); // Gera o arquivo PNG
-        link.click(); // Faz o download automático
+        link.href = canvas.toDataURL('image/png'); 
+        link.click(); 
         
-        // Volta a exibir os botões na tela
         botaoPrint.style.display = 'flex';
         if(botaoFlutuante) botaoFlutuante.style.display = 'block';
     });

@@ -330,14 +330,14 @@
 
 .pro-list-item { background: rgba(255,255,255,0.02); padding: 16px 20px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); display: flex; gap: 15px; align-items: center; font-size: 1.15rem; color: #e2e8f0; }
 .item-text { flex-grow: 1; }
-.empty-state { color: #475569; font-style: italic; font-size: 1.2rem; grid-column: 1 / -1; }
+.empty-state { color: #475569; font-style: italic; font-size: 1.2rem; grid-column: 1 / -1; text-align: center; margin-top: 15px;}
 
 /* =========================================
    DETALHAMENTO FRENTES DE TRABALHO
    ========================================= */
 .frentes-container {
     display: grid;
-    grid-template-columns: 1fr 1fr; /* Divide exatamente ao meio */
+    grid-template-columns: 1fr 1fr;
     gap: 25px;
     margin-top: 20px;
     margin-bottom: 25px;
@@ -416,10 +416,44 @@
     border: 1px solid var(--border-dim);
     border-radius: 8px;
     padding: 20px;
-    flex-grow: 1; /* Faz a área de controle preencher o espaço restante */
+    flex-grow: 1;
 }
 
-/* Responsividade: Se for celular, fica um embaixo do outro */
+/* =========================================
+   FROTAS PARADAS (INDICADORES)
+   ========================================= */
+.item-frota-parada {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-left: 5px solid #ccc;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    width: 100%;
+    margin-bottom: 10px;
+}
+.item-frota-parada.preventiva { border-left-color: #f59e0b; }
+.item-frota-parada.corretiva { border-left-color: #ef4444; }
+.item-frota-parada.borracharia { border-left-color: #38bdf8; }
+
+.cavalo-info { display: flex; align-items: center; gap: 15px; }
+.identificacao-cavalo { font-weight: 800; font-size: 1.25rem; color: #fff; letter-spacing: 1px;}
+
+.badge-tipo {
+    font-size: 0.85rem;
+    font-weight: 800;
+    padding: 6px 15px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+.badge-tipo.preventiva { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid #f59e0b; }
+.badge-tipo.corretiva { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid #ef4444; }
+.badge-tipo.borracharia { background: rgba(56, 189, 248, 0.15); color: #7dd3fc; border: 1px solid #38bdf8; }
+
 @media (max-width: 900px) {
     .frentes-container {
         grid-template-columns: 1fr;
