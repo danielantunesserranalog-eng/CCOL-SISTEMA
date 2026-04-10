@@ -15,14 +15,29 @@ async function carregarDadosTreinamento() {
     treinamentos = await db.getTreinamentos();
 }
 
+// Atualizado: Popula tanto a seleção principal de criação, quanto os de Realocação
 function popularSelectMasterDrive() {
-    const select = document.getElementById('treinoMasterDrive');
-    if (!select) return;
+    const selectPrincipal = document.getElementById('treinoMasterDrive');
+    const selectDe = document.getElementById('realocarDe');
+    const selectPara = document.getElementById('realocarPara');
+    
+    // Lista para Criação
     let html = '<option value="">Selecione o Master...</option>';
     instrutores.forEach(ins => {
         html += `<option value="${ins.nome}">${ins.nome}</option>`;
     });
-    select.innerHTML = html;
+    if (selectPrincipal) selectPrincipal.innerHTML = html;
+    
+    // Lista para Realocação
+    let htmlDe = '<option value="">De (Master Atual)...</option>';
+    let htmlPara = '<option value="">Para (Novo Master)...</option>';
+    instrutores.forEach(ins => {
+        htmlDe += `<option value="${ins.nome}">${ins.nome}</option>`;
+        htmlPara += `<option value="${ins.nome}">${ins.nome}</option>`;
+    });
+    
+    if (selectDe) selectDe.innerHTML = htmlDe;
+    if (selectPara) selectPara.innerHTML = htmlPara;
 }
 
 window.gerarCronogramaAutomatico = async function() {
@@ -41,26 +56,19 @@ window.gerarCronogramaAutomatico = async function() {
     let dataAtual = new Date(dataInicioStr + 'T00:00:00');
     let listaNovosTreinos = [];
     
-    // Configurações de Ciclo do Master Drive
-    // Semana 1: Master trabalha de DIA (Equipes A,B,C)
-    // Semana 2: Master trabalha de NOITE (Equipes D,E,F)
-    
-    let turnoMasterAtual = "Dia"; // Começa no escolhido ou padrão
+    let turnoMasterAtual = "Dia";
     if (turnoOpcao === "Noite") turnoMasterAtual = "Noite";
 
-    // Vamos gerar para os próximos 30 dias como exemplo
     for (let d = 0; d < 30; d++) {
         let dataLoop = new Date(dataAtual);
         dataLoop.setDate(dataLoop.getDate() + d);
         let dataKey = dataLoop.toISOString().split('T')[0];
         
-        // Verifica se é fim de semana para "Virada de Turno" do Master
-        // Se for Segunda-feira, e a opção for "Ambos", inverte o turno do Master
+        // Virada de Turno (Segunda-Feira)
         if (dataLoop.getDay() === 1 && turnoOpcao === "Ambos") {
             turnoMasterAtual = (turnoMasterAtual === "Dia") ? "Noite" : "Dia";
         }
 
-        // Filtra motoristas que estão TRABALHANDO (escala 4x2) no turno do Master
         const motoristasDisponiveis = motoristas.filter(m => {
             const escala = window.getEscalaDiaComputada(m, dataKey);
             const estaTrabalhando = escala.caminhao !== 'F';
@@ -76,8 +84,6 @@ window.gerarCronogramaAutomatico = async function() {
             return estaTrabalhando && noTurnoCerto;
         });
 
-        // Pega até 2 motoristas por dia (ou de acordo com a jornada)
-        // Aqui simulamos que o Master consegue atender o horário do motorista
         motoristasDisponiveis.slice(0, qtdViagens).forEach((mot, index) => {
             listaNovosTreinos.push({
                 id: `${mot.id}_${dataKey}_${index}`,
@@ -93,7 +99,6 @@ window.gerarCronogramaAutomatico = async function() {
         });
     }
 
-    // Salva no Banco
     for (const t of listaNovosTreinos) {
         await db.upsertTreinamento(t);
     }
@@ -111,7 +116,6 @@ function renderizarListaTreinamentos() {
         return;
     }
 
-    // Ordena por data
     const ordenados = [...treinamentos].sort((a, b) => new Date(a.data) - new Date(b.data));
 
     tbody.innerHTML = ordenados.map(t => {
@@ -169,7 +173,8 @@ function atualizarIndicadoresTreinamento() {
     if (document.getElementById('treinoStatPendente')) document.getElementById('treinoStatPendente').innerText = pendentes;
 }
 
-// Gestão de Master Drives (Instrutores)
+// ==================== GESTÃO E REALOCAÇÃO DE MASTER DRIVES ====================
+
 window.abrirModalMasterDrive = function() {
     document.getElementById('modalMasterDrive').classList.add('show');
     renderizarListaMasterDrives();
@@ -198,14 +203,50 @@ window.salvarMasterDrive = async function() {
     document.getElementById('novoMasterNome').value = '';
     await carregarDadosTreinamento();
     renderizarListaMasterDrives();
-    popularSelectMasterDrive();
+    popularSelectMasterDrive(); // Atualiza todos os selects
 };
 
 window.removerMasterDrive = async function(nome) {
+    if(!confirm(`Tem certeza que deseja apagar o instrutor ${nome}?`)) return;
     await db.deleteInstrutor(nome);
     await carregarDadosTreinamento();
     renderizarListaMasterDrives();
-    popularSelectMasterDrive();
+    popularSelectMasterDrive(); // Atualiza todos os selects
+};
+
+// NOVA FUNÇÃO: Realocar Treinamentos de um Master para Outro
+window.realocarTreinamentosMaster = async function() {
+    const deMaster = document.getElementById('realocarDe').value;
+    const paraMaster = document.getElementById('realocarPara').value;
+
+    if (!deMaster || !paraMaster) {
+        alert("Selecione os dois Master Drives para realizar a transferência.");
+        return;
+    }
+    
+    if (deMaster === paraMaster) {
+        alert("O Master de origem e destino não podem ser a mesma pessoa.");
+        return;
+    }
+
+    if (!confirm(`Confirma a transferência de TODOS os treinamentos agendados de "${deMaster}" para "${paraMaster}"?`)) return;
+
+    let alterados = 0;
+    
+    // Procura na lista local e manda atualizar no BD
+    for (let t of treinamentos) {
+        if (t.master_drive === deMaster) {
+            t.master_drive = paraMaster;
+            await db.upsertTreinamento(t); // Atualiza no banco
+            alterados++;
+        }
+    }
+
+    alert(`Transferência concluída! ${alterados} viagens foram transferidas para ${paraMaster}.`);
+    
+    // Atualiza a tela
+    await carregarDadosTreinamento();
+    window.renderizarPaginaTreinamento();
 };
 
 window.exportarTreinamentosExcel = function() {
