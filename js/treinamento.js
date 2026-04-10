@@ -15,20 +15,17 @@ async function carregarDadosTreinamento() {
     treinamentos = await db.getTreinamentos();
 }
 
-// Atualizado: Popula tanto a seleção principal de criação, quanto os de Realocação
 function popularSelectMasterDrive() {
     const selectPrincipal = document.getElementById('treinoMasterDrive');
     const selectDe = document.getElementById('realocarDe');
     const selectPara = document.getElementById('realocarPara');
     
-    // Lista para Criação
     let html = '<option value="">Selecione o Master...</option>';
     instrutores.forEach(ins => {
         html += `<option value="${ins.nome}">${ins.nome}</option>`;
     });
     if (selectPrincipal) selectPrincipal.innerHTML = html;
     
-    // Lista para Realocação
     let htmlDe = '<option value="">De (Master Atual)...</option>';
     let htmlPara = '<option value="">Para (Novo Master)...</option>';
     instrutores.forEach(ins => {
@@ -44,50 +41,90 @@ window.gerarCronogramaAutomatico = async function() {
     const dataInicioStr = document.getElementById('treinoDataInicio').value;
     const masterNome = document.getElementById('treinoMasterDrive').value;
     const turnoOpcao = document.getElementById('treinoTurnoOpcao').value;
-    const qtdViagens = parseInt(document.getElementById('treinoQtdViagens').value);
+    const metaPorMotorista = parseInt(document.getElementById('treinoQtdViagens').value);
 
     if (!dataInicioStr || !masterNome) {
         alert("Preencha a data inicial e selecione o Master Drive!");
         return;
     }
 
-    if (!confirm("Isso gerará uma escala automática baseada na disponibilidade 4x2 dos motoristas. Continuar?")) return;
+    if (!confirm("O sistema gerará a escala para TODOS os motoristas selecionados, pulando os finais de semana. Continuar?")) return;
 
     let dataAtual = new Date(dataInicioStr + 'T00:00:00');
     let listaNovosTreinos = [];
     
-    let turnoMasterAtual = "Dia";
-    if (turnoOpcao === "Noite") turnoMasterAtual = "Noite";
+    // Filtrar apenas as equipes que o Master Drive vai acompanhar
+    let equipesPossiveis = [];
+    if (turnoOpcao === "Dia") equipesPossiveis = ['A', 'B', 'C'];
+    else if (turnoOpcao === "Noite") equipesPossiveis = ['D', 'E', 'F'];
+    else equipesPossiveis = ['A', 'B', 'C', 'D', 'E', 'F'];
 
-    for (let d = 0; d < 30; d++) {
-        let dataLoop = new Date(dataAtual);
-        dataLoop.setDate(dataLoop.getDate() + d);
-        let dataKey = dataLoop.toISOString().split('T')[0];
+    let motoristasParaTreinar = motoristas.filter(m => equipesPossiveis.includes((m.equipe || '').toUpperCase()));
+
+    if (motoristasParaTreinar.length === 0) {
+        alert("Nenhum motorista encontrado para os turnos selecionados!");
+        return;
+    }
+
+    // Criar o Placar para controlar quantas viagens cada motorista já ganhou
+    let placarViagens = {};
+    motoristasParaTreinar.forEach(m => placarViagens[m.id] = 0);
+
+    let d = 0; // Dias corridos adicionados à data inicial
+    let diasLimite = 365; // Trava de segurança para não gerar um loop infinito de anos
+
+    // LOOP INTELIGENTE: Só para quando todos atingirem a meta
+    while (true) {
+        // Verifica se TODOS os motoristas da lista já bateram a meta de viagens
+        let todosProntos = motoristasParaTreinar.every(m => placarViagens[m.id] >= metaPorMotorista);
         
-        // Virada de Turno (Segunda-Feira)
-        if (dataLoop.getDay() === 1 && turnoOpcao === "Ambos") {
-            turnoMasterAtual = (turnoMasterAtual === "Dia") ? "Noite" : "Dia";
+        if (todosProntos || d >= diasLimite) {
+            break; // Sai do loop se todos foram treinados
         }
 
-        const motoristasDisponiveis = motoristas.filter(m => {
+        let dataLoop = new Date(dataAtual);
+        dataLoop.setDate(dataLoop.getDate() + d);
+        let diaSemana = dataLoop.getDay();
+        let dataKey = dataLoop.toISOString().split('T')[0];
+
+        // 1. REGRA DO FIM DE SEMANA: Ignorar Domingos (0) e Sábados (6)
+        if (diaSemana === 0 || diaSemana === 6) {
+            d++;
+            continue; 
+        }
+
+        // 2. REGRA DO TURNO: Alternar Dia/Noite a cada semana inteira (7 dias corridos)
+        let turnoMasterAtual = "Dia";
+        if (turnoOpcao === "Noite") {
+            turnoMasterAtual = "Noite";
+        } else if (turnoOpcao === "Ambos") {
+            let semanasPassadas = Math.floor(d / 7);
+            turnoMasterAtual = (semanasPassadas % 2 === 0) ? "Dia" : "Noite";
+        }
+
+        // 3. SELEÇÃO DE MOTORISTAS: Achar quem trabalha hoje e precisa de treino
+        const motoristasDisponiveis = motoristasParaTreinar.filter(m => {
             const escala = window.getEscalaDiaComputada(m, dataKey);
-            const estaTrabalhando = escala.caminhao !== 'F';
+            const estaTrabalhando = escala.caminhao !== 'F'; // Folga
             
-            let noTurnoCerto = false;
             const eq = (m.equipe || '').toUpperCase();
-            if (turnoMasterAtual === "Dia") {
-                noTurnoCerto = ['A', 'B', 'C'].includes(eq);
-            } else {
-                noTurnoCerto = ['D', 'E', 'F'].includes(eq);
-            }
+            let noTurnoCerto = false;
+            if (turnoMasterAtual === "Dia") noTurnoCerto = ['A', 'B', 'C'].includes(eq);
+            else noTurnoCerto = ['D', 'E', 'F'].includes(eq);
             
-            return estaTrabalhando && noTurnoCerto;
+            const aindaPrecisaTreinar = placarViagens[m.id] < metaPorMotorista;
+
+            return estaTrabalhando && noTurnoCerto && aindaPrecisaTreinar;
         });
 
-        motoristasDisponiveis.slice(0, qtdViagens).forEach((mot, index) => {
+        // 4. AGENDAMENTO: Ordena pelo placar para priorizar quem tem menos viagens
+        if (motoristasDisponiveis.length > 0) {
+            motoristasDisponiveis.sort((a, b) => placarViagens[a.id] - placarViagens[b.id]);
+            
+            let mot = motoristasDisponiveis[0]; // Pega o motorista que mais precisa de treino
+
             listaNovosTreinos.push({
-                // A LINHA ABAIXO FOI COMENTADA PARA O SUPABASE GERAR O ID AUTOMATICAMENTE
-                // id: `${mot.id}_${dataKey}_${index}`,
+                id: `${mot.id}_${dataKey}`, 
                 motorista_id: mot.id,
                 motorista_nome: mot.nome,
                 equipe: mot.equipe,
@@ -97,14 +134,25 @@ window.gerarCronogramaAutomatico = async function() {
                 status: 'Agendado',
                 turno_treino: turnoMasterAtual
             });
-        });
+
+            // Registra que esse motorista ganhou 1 viagem hoje
+            placarViagens[mot.id]++;
+        }
+
+        d++; // Vai pro próximo dia do calendário
     }
 
+    if (listaNovosTreinos.length === 0) {
+        alert("Nenhum treinamento gerado. Talvez todos já tenham batido a meta!");
+        return;
+    }
+
+    // Salva os treinamentos no banco
     for (const t of listaNovosTreinos) {
         await db.upsertTreinamento(t);
     }
 
-    alert("Cronograma gerado com sucesso! Foram criados " + listaNovosTreinos.length + " agendamentos.");
+    alert(`Cronograma Concluído! Foram geradas ${listaNovosTreinos.length} viagens. Todos os motoristas selecionados foram escalados!`);
     window.renderizarPaginaTreinamento();
 };
 
@@ -204,7 +252,7 @@ window.salvarMasterDrive = async function() {
     document.getElementById('novoMasterNome').value = '';
     await carregarDadosTreinamento();
     renderizarListaMasterDrives();
-    popularSelectMasterDrive(); // Atualiza todos os selects
+    popularSelectMasterDrive(); 
 };
 
 window.removerMasterDrive = async function(nome) {
@@ -212,7 +260,7 @@ window.removerMasterDrive = async function(nome) {
     await db.deleteInstrutor(nome);
     await carregarDadosTreinamento();
     renderizarListaMasterDrives();
-    popularSelectMasterDrive(); // Atualiza todos os selects
+    popularSelectMasterDrive(); 
 };
 
 // NOVA FUNÇÃO: Realocar Treinamentos de um Master para Outro
@@ -234,18 +282,16 @@ window.realocarTreinamentosMaster = async function() {
 
     let alterados = 0;
     
-    // Procura na lista local e manda atualizar no BD
     for (let t of treinamentos) {
         if (t.master_drive === deMaster) {
             t.master_drive = paraMaster;
-            await db.upsertTreinamento(t); // Atualiza no banco
+            await db.upsertTreinamento(t); 
             alterados++;
         }
     }
 
     alert(`Transferência concluída! ${alterados} viagens foram transferidas para ${paraMaster}.`);
     
-    // Atualiza a tela
     await carregarDadosTreinamento();
     window.renderizarPaginaTreinamento();
 };
@@ -269,10 +315,8 @@ window.exportarTreinamentosPDF = function() {
         return;
     }
 
-    // Ordena os treinamentos por data
     const ordenados = [...treinamentos].sort((a, b) => new Date(a.data) - new Date(b.data));
 
-    // Monta a estrutura do HTML para impressão
     let html = `
         <html>
         <head>
@@ -312,7 +356,6 @@ window.exportarTreinamentosPDF = function() {
                 <tbody>
     `;
 
-    // Preenche as linhas da tabela
     ordenados.forEach(t => {
         let classStatus = "";
         if (t.status === 'Concluído') classStatus = "status-concluido";
@@ -338,7 +381,6 @@ window.exportarTreinamentosPDF = function() {
             <script>
                 window.onload = function() { 
                     window.print(); 
-                    // Fecha a aba de impressão logo depois
                     setTimeout(() => window.close(), 500);
                 }
             </script>
@@ -346,7 +388,6 @@ window.exportarTreinamentosPDF = function() {
         </html>
     `;
 
-    // Abre uma nova janela e injeta o HTML preparado
     let printWindow = window.open('', '_blank', 'width=1000,height=800');
     printWindow.document.write(html);
     printWindow.document.close();
