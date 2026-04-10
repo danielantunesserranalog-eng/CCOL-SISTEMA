@@ -21,7 +21,7 @@ window.renderizarMenu = function() {
     if (meusMenus.includes('escala')) navHtml += `<button class="nav-item" onclick="navegarPara('escala', this)">📅 Escala Semanal</button>`;
     if (meusMenus.includes('alocacao')) navHtml += `<button class="nav-item" onclick="navegarPara('alocacao', this)">🔄 Alocação Geral</button>`;
     
-    // NOVO MENU: RECADOS E ANOTAÇÕES (Livre para todos verem)
+    // RECADOS E ANOTAÇÕES (Livre para todos)
     navHtml += `<button class="nav-item" onclick="navegarPara('recados', this)">📝 Recados e Anotações</button>`;
 
     // Dropdown Cadastros
@@ -36,31 +36,35 @@ window.renderizarMenu = function() {
 
     if (meusMenus.includes('os')) navHtml += `<button class="nav-item" onclick="navegarPara('os', this)">🛠️ Ordem de Serviço</button>`;
     
-    // NOVO MENU: STATUS FROTA (Aparece se tiver acesso a OS ou for Admin)
+    // STATUS FROTA
     if (meusMenus.includes('os') || isAdmin) {
         navHtml += `<button class="nav-item" onclick="navegarPara('status_frota', this)" style="color: var(--ccol-green-bright); font-weight: bold;">📊 Status Frota</button>`;
     }
 
     if (meusMenus.includes('troca')) navHtml += `<button class="nav-item" onclick="navegarPara('troca', this)">⏱️ Painel de Troca</button>`;
     
-    // MENU SSMA ADICIONADO AQUI
+    // SSMA
     if (meusMenus.includes('ssma') || isAdmin) {
         navHtml += `<button class="nav-item" onclick="navegarPara('ssma', this)" style="color: #f59e0b; font-weight: bold;">⚠️ SSMA</button>`;
     }
 
-    // NOVO MENU: INDICADORES (DASHBOARD)
-    // Liberado se estiver marcado na configuração ou for Admin
+    // NOVO MENU: TREINAMENTO (VIAGEM ASSISTIDA)
+    if (meusMenus.includes('treinamento') || isAdmin) {
+        navHtml += `<button class="nav-item" onclick="navegarPara('treinamento', this)" style="color: #a855f7; font-weight: bold;">🎓 Treinamento</button>`;
+    }
+
+    // INDICADORES (DASHBOARD)
     if (meusMenus.includes('indicadores') || isAdmin) {
         navHtml += `<button class="nav-item" onclick="navegarPara('indicadores', this)" style="color: #3498db; font-weight: bold;">📈 Indicadores</button>`;
     }
 
-    // Configurações: Apenas o Admin vê (Questão de segurança máxima)
+    // Configurações: Apenas o Admin vê
     if (isAdmin) navHtml += `<button id="navConfigBtn" class="nav-item" onclick="navegarPara('config', this)">⚙️ Configurações</button>`;
 
     navHtml += '</nav>';
     container.innerHTML = navHtml;
 
-    // Clica automaticamente no primeiro botão disponível ao carregar o menu
+    // Seleciona o primeiro item disponível
     setTimeout(() => {
         const firstBtn = container.querySelector('.nav-item:not(.dropdown-toggle)');
         if (firstBtn) {
@@ -74,11 +78,10 @@ window.renderizarMenu = function() {
 
 window.toggleDropdown = function(event) {
     const menu = event.target.nextElementSibling;
-    menu.classList.toggle('show');
+    if (menu) menu.classList.toggle('show');
 }
 
 window.navegarPara = async function(pagina, elementoClicado) {
-    // Dupla verificação de segurança no clique
     const userRole = (currentUser && currentUser.role) ? currentUser.role : 'Admin';
     if (pagina === 'config' && userRole !== 'Admin') {
         alert('⛔ Acesso Negado.');
@@ -90,8 +93,10 @@ window.navegarPara = async function(pagina, elementoClicado) {
         elementoClicado.classList.add('active');
         
         if(elementoClicado.classList.contains('dropdown-item')) {
-            elementoClicado.closest('.nav-dropdown').querySelector('.dropdown-toggle').classList.add('active');
-            document.querySelector('.dropdown-menu').classList.remove('show');
+            const dropdown = elementoClicado.closest('.nav-dropdown');
+            if (dropdown) dropdown.querySelector('.dropdown-toggle').classList.add('active');
+            const menu = document.querySelector('.dropdown-menu');
+            if (menu) menu.classList.remove('show');
         }
     }
 
@@ -107,27 +112,26 @@ window.navegarPara = async function(pagina, elementoClicado) {
         
         mainContent.innerHTML = pageCache[pagina];
 
-        // Chama as funções de renderização específicas de cada módulo após carregar o HTML
+        // Inicialização de módulos específicos
         if (pagina === 'escala' && typeof window.renderizarEscala === 'function') window.renderizarEscala();
         if (pagina === 'alocacao' && typeof window.renderizarAlocacao === 'function') window.renderizarAlocacao();
         if (pagina === 'motoristas' && typeof window.renderizarMotoristas === 'function') window.renderizarMotoristas();
         if (pagina === 'caminhoes' && typeof window.renderizarConjuntos === 'function') window.renderizarConjuntos();
-        
         if (pagina === 'status_frota' && typeof window.renderizarStatusFrota === 'function') window.renderizarStatusFrota();
         if (pagina === 'os' && typeof window.alternarTelaOS === 'function') window.alternarTelaOS('lista');
-        
         if (pagina === 'troca' && typeof window.renderizarTrocaTurno === 'function') window.renderizarTrocaTurno();
-        
-        // SSMA e Recados
         if (pagina === 'ssma' && typeof window.renderizarSSMA === 'function') window.renderizarSSMA();
         if (pagina === 'recados' && typeof window.carregarRecados === 'function') window.carregarRecados();
 
-        // NOVO: DASHBOARD DE INDICADORES
+        // NOVO: INICIALIZAÇÃO TREINAMENTO
+        if (pagina === 'treinamento' && typeof window.renderizarPaginaTreinamento === 'function') {
+            window.renderizarPaginaTreinamento();
+        }
+
         if (pagina === 'indicadores') {
             if (typeof window.carregarDadosDashboard === 'function') window.carregarDadosDashboard();
             if (typeof window.atualizarRelogio === 'function') {
                 window.atualizarRelogio();
-                // Limpa um intervalo anterior se existir para evitar que o relógio fique duplicado e piscando
                 if (window.intervaloRelogio) clearInterval(window.intervaloRelogio);
                 window.intervaloRelogio = setInterval(window.atualizarRelogio, 1000);
             }
