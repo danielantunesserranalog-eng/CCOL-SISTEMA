@@ -532,10 +532,10 @@ async function salvarNovaOS() {
         status_inicial = 'Sinistrado';
     }
     
-    // Captura o nome do usuário logado de forma mais robusta para evitar o 'undefined'
+    // Puxando o nome de usuário corretamente a partir da propriedade username
     let usuarioLogado = 'Desconhecido';
     if (typeof currentUser !== 'undefined' && currentUser) {
-        usuarioLogado = currentUser.nome || currentUser.name || currentUser.email || 'Usuário Logado';
+        usuarioLogado = currentUser.username || 'Usuário Logado';
     }
 
     const novaOS = {
@@ -746,13 +746,12 @@ function imprimirOS(id) {
     const dataConclusaoFormatada = os.data_conclusao ? formatarDataHoraBrasil(os.data_conclusao) : 'Em andamento';
     const numeroOSFormatado = String(os.id).padStart(4, '0');
     
-    // Tratamento robusto para evitar que apareça 'undefined' na impressão
+    // Agora verifica especificamente o username também se os.aberto_por vier vazio
     let infoAbertoPor = os.aberto_por;
     
-    // Verifica se está nulo ou se o banco salvou a string literal "undefined" em O.S. antigas
-    if (!infoAbertoPor || infoAbertoPor === 'undefined') {
+    if (!infoAbertoPor || infoAbertoPor === 'undefined' || infoAbertoPor === 'Desconhecido') {
         if (typeof currentUser !== 'undefined' && currentUser) {
-            infoAbertoPor = currentUser.nome || currentUser.name || currentUser.email || 'Sistema / Admin';
+            infoAbertoPor = currentUser.username || 'Sistema / Admin';
         } else {
             infoAbertoPor = 'Sistema / Admin';
         }
