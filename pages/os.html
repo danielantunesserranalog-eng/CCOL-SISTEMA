@@ -7,6 +7,7 @@
         <button class="btn-primary-blue" onclick="alternarTelaOS('painel_tv')" style="background-color: #8b5cf6; border-color: #8b5cf6;">📺 Modo TV (Tempo Real)</button>
         <button class="btn-primary-green" onclick="alternarTelaOS('nova')">➕ Abrir Nova O.S.</button>
         <button class="btn-secondary-dark" onclick="alternarTelaOS('frota')">🚛 Cadastro Frota (O.S.)</button>
+        <button class="btn-secondary-dark" onclick="alternarTelaOS('disponibilidade')" style="background-color: #047857; border-color: #047857; color: white;">📈 Disponibilidade (Excel)</button>
         <button class="btn-danger-outline" onclick="alternarTelaOS('relatorio')" title="Apenas Administradores">📊 Relatório Gerencial 🔒</button>
     </div>
 </div>
@@ -248,6 +249,44 @@
     </div>
 </div>
 
+<div id="telaDisponibilidadeOS" class="content-panel" style="display: none;">
+    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+        <h3 style="color: var(--ccol-green-bright); margin: 0;">📈 Disponibilidade Mecânica da Frota (Cavalos)</h3>
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <div class="form-group-dark" style="margin: 0; display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.2); padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border-dim);">
+                <label style="color: var(--ccol-blue-bright); font-size: 0.85rem; font-weight: bold; margin: 0;">🗓️ Filtrar Histórico (Data):</label>
+                <input type="date" id="filtroDataDisponibilidade" class="dark-select" onchange="renderizarDisponibilidadeMecanica()" title="Deixe vazio para ver o momento ATUAL" style="padding: 4px; font-size: 0.9rem;">
+            </div>
+            <button class="btn-primary-green" onclick="exportarDisponibilidadeExcel()" style="padding: 8px 15px;">📥 Exportar p/ Excel</button>
+        </div>
+    </div>
+    
+    <div class="quick-stats-header" style="justify-content: space-between; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;">
+        <div class="q-stat" style="flex: 1; text-align: center; min-width: 120px;">Total Cavalos<br><span id="kpiDispTotal" style="font-size: 1.8rem; color: #fff;">0</span></div>
+        <div class="q-stat" style="flex: 1; text-align: center; min-width: 120px; border-left: 3px solid var(--ccol-green-bright);">Disponíveis<br><span id="kpiDispDisponiveis" style="font-size: 1.8rem; color: var(--ccol-green-bright);">0</span></div>
+        <div class="q-stat" style="flex: 1; text-align: center; min-width: 120px; border-left: 3px solid #f59e0b;">Oficina/Manut.<br><span id="kpiDispManutencao" style="font-size: 1.8rem; color: #f59e0b;">0</span></div>
+        <div class="q-stat" style="flex: 1; text-align: center; min-width: 120px; border-left: 3px solid #ef4444;">Sinistrados<br><span id="kpiDispSinistro" style="font-size: 1.8rem; color: #ef4444;">0</span></div>
+        <div class="q-stat" style="flex: 1; text-align: center; min-width: 120px; border-left: 3px solid var(--ccol-blue-bright);">% Disp. Global<br><span id="kpiDispTaxa" style="font-size: 1.8rem; color: var(--ccol-blue-bright); font-weight: 900;">0%</span></div>
+    </div>
+
+    <div class="table-modern-wrapper">
+        <h4 id="tituloTabelaDisponibilidade" style="color: var(--text-secondary); margin-bottom: 10px; padding-left: 5px; font-weight: normal;">Situação da Frota (Tempo Real)</h4>
+        <table class="data-table-modern">
+            <thead>
+                <tr>
+                    <th>Placa (Cavalo)</th>
+                    <th>GO</th>
+                    <th>Status na Data</th>
+                    <th>Nº O.S Vinculada</th>
+                    <th>Data Abertura O.S</th>
+                    <th>Motivo / Diagnóstico</th>
+                    <th>Tempo Indisponível</th>
+                </tr>
+            </thead>
+            <tbody id="tabelaDisponibilidade"></tbody>
+        </table>
+    </div>
+</div>
 <div id="telaRelatorioOS" style="display: none;">
     <div class="quick-stats-header" style="justify-content: space-between; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px;">
         <div class="q-stat" style="flex: 1; text-align: center; min-width: 120px;">Total O.S. <br><span id="kpiTotalOS" style="font-size: 1.8rem; color: #fff;">0</span></div>

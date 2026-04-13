@@ -33,6 +33,7 @@ async function alternarTelaOS(tela) {
     const telaNova = document.getElementById('telaNovaOS');
     const telaFrota = document.getElementById('telaFrotaOS');
     const telaRelatorio = document.getElementById('telaRelatorioOS');
+    const telaDisponibilidade = document.getElementById('telaDisponibilidadeOS'); 
     const telaPainelTV = document.getElementById('telaPainelTV'); 
     
     if (tela === 'relatorio') {
@@ -49,6 +50,7 @@ async function alternarTelaOS(tela) {
     telaNova.style.display = 'none';
     telaFrota.style.display = 'none';
     if(telaRelatorio) telaRelatorio.style.display = 'none';
+    if(telaDisponibilidade) telaDisponibilidade.style.display = 'none';
     if(telaPainelTV) telaPainelTV.style.display = 'none';
 
     await carregarDadosOS();
@@ -68,10 +70,8 @@ async function alternarTelaOS(tela) {
         carregarMotoristasSelectOS();
         carregarSelectCavalosOS();
         
-        // Reseta o formulário para Entrada Imediata por padrão
         document.getElementById('osModoEntrada').value = 'imediata';
         mudarModoEntrada();
-        
         togglePneuFields(); 
     } else if (tela === 'frota') {
         telaFrota.style.display = 'block';
@@ -79,6 +79,9 @@ async function alternarTelaOS(tela) {
     } else if (tela === 'relatorio') {
         telaRelatorio.style.display = 'block';
         renderizarRelatorioGerencialOS();
+    } else if (tela === 'disponibilidade') {
+        if(telaDisponibilidade) telaDisponibilidade.style.display = 'block';
+        renderizarDisponibilidadeMecanica();
     } else if (tela === 'painel_tv') {
         entrarModoTV();
     }
@@ -221,7 +224,7 @@ function renderizarRelatorioGerencialOS() {
     document.getElementById('graficoPrioridadeOS').innerHTML = htmlPrio;
 }
 
-// ==================== PARTE 2: GESTÃO DE FROTA (O.S.) ====================
+// ==================== PARTE 2: GESTÃO DE FROTA ====================
 
 async function salvarFrotaManutencao() {
     const cavalo = document.getElementById('osFrotaCavalo').value.toUpperCase().trim();
@@ -337,7 +340,6 @@ function renderizarTabelaOS() {
     const termo = document.getElementById('searchOS').value.toLowerCase();
     if (!tbody) return;
 
-    // Filtra ocultando Sinistros da tela principal de manutenções
     const filtradas = ordensServico.filter(os => 
         os.status !== 'Concluída' && os.tipo !== 'Sinistro' &&
         (os.placa.toLowerCase().includes(termo) || os.motorista.toLowerCase().includes(termo))
@@ -391,7 +393,6 @@ function renderizarTabelaSinistro() {
     const termo = document.getElementById('searchSinistro') ? document.getElementById('searchSinistro').value.toLowerCase() : '';
     if (!tbody) return;
 
-    // Traz apenas os veículos em sinistro
     const filtradas = ordensServico.filter(os => 
         os.status !== 'Concluída' && os.tipo === 'Sinistro' &&
         (os.placa.toLowerCase().includes(termo) || os.motorista.toLowerCase().includes(termo))
@@ -527,12 +528,10 @@ async function salvarNovaOS() {
 
     let status_inicial = (modoEntrada === 'agendada') ? 'Agendada' : 'Aguardando Oficina';
     
-    // Se for Sinistro, não entra no fluxo de agendamento normal, vai direto pra inativo
     if (tipo === 'Sinistro') {
         status_inicial = 'Sinistrado';
     }
     
-    // Puxando o nome de usuário corretamente a partir da propriedade username
     let usuarioLogado = 'Desconhecido';
     if (typeof currentUser !== 'undefined' && currentUser) {
         usuarioLogado = currentUser.username || 'Usuário Logado';
@@ -604,7 +603,6 @@ function abrirModalConclusaoOS(id) {
     osSelecionadaParaConclusao = id;
     const inputHora = document.getElementById('horaConclusaoOS');
     
-    // Setando horário atual no input, mas agora permitindo que o usuário altere
     const agora = new Date();
     const dataConclusaoLocal = new Date(agora.getTime() - (agora.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
     inputHora.value = dataConclusaoLocal;
@@ -626,14 +624,13 @@ async function salvarConclusaoOS() {
         return;
     }
 
-    // Converte o valor inserido localmente de volta para o formato UTC
-    const momentoExatoDaConclusao = new Date(inputHoraValue).toISOString(); 
-    
+    // CORREÇÃO: Removida a conversão .toISOString() que estava jogando a hora local para UTC e somando +3hrs
+    // O inputHoraValue vai no formato idêntico ao gravado pelo navegador (Y-m-dTH:M) respeitando sua escolha local
     const { error } = await supabaseClient
         .from('ordens_servico')
         .update({ 
             status: 'Concluída',
-            data_conclusao: momentoExatoDaConclusao 
+            data_conclusao: inputHoraValue 
         })
         .eq('id', osSelecionadaParaConclusao);
 
@@ -657,7 +654,6 @@ function abrirModalServicoExtra(id) {
     document.getElementById('extraServicoDescricao').value = '';
     
     if (os && os.previsao) {
-        // Formata a previsão antiga para o input datetime-local do navegador
         const dataLocal = new Date(new Date(os.previsao).getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
         document.getElementById('extraServicoPrevisao').value = dataLocal;
     } else {
@@ -690,11 +686,9 @@ async function salvarServicoExtra() {
     const os = ordensServico.find(o => o.id === osSelecionadaParaServicoExtra);
     if (!os) return;
 
-    // Anexa a nova informação ao campo de problema sem apagar a original
     const problemaAtual = os.problema ? os.problema : '';
     const problemaAtualizado = problemaAtual + " | [SERVIÇO EXTRA]: " + descricao;
 
-    // Atualiza a tabela jogando a nova previsão e a string [SERVIÇO EXTRA] no banco
     const { error } = await supabaseClient
         .from('ordens_servico')
         .update({ 
@@ -746,7 +740,6 @@ function imprimirOS(id) {
     const dataConclusaoFormatada = os.data_conclusao ? formatarDataHoraBrasil(os.data_conclusao) : 'Em andamento';
     const numeroOSFormatado = String(os.id).padStart(4, '0');
     
-    // Agora verifica especificamente o username também se os.aberto_por vier vazio
     let infoAbertoPor = os.aberto_por;
     
     if (!infoAbertoPor || infoAbertoPor === 'undefined' || infoAbertoPor === 'Desconhecido') {
@@ -952,7 +945,6 @@ function renderizarCardsTV() {
     document.getElementById('tvRelogio').innerText = agora.toLocaleTimeString('pt-BR');
     document.getElementById('tvData').innerText = agora.toLocaleDateString('pt-BR');
 
-    // Filtra removendo os Sinistros para não mostrar na tela de oficina
     const osAtivas = ordensServico.filter(o => 
         (o.status === 'Aguardando Oficina' || o.status === 'Em Manutenção') && 
         o.tipo !== 'Sinistro'
@@ -1000,10 +992,8 @@ function renderizarCardsTV() {
             
         } else if (os.status === 'Em Manutenção' && os.previsao) {
             
-            // --- CORREÇÃO DO FUSO HORÁRIO APLICADA AQUI NA PREVISÃO ---
             let stringPrevisao = os.previsao;
             if (stringPrevisao) {
-                // Remove o UTC do banco para igualar a data ao nosso horário local Brasil (-03)
                 stringPrevisao = stringPrevisao.replace('Z', '').replace('+00:00', '');
             }
             if (!stringPrevisao.includes('T')) {
@@ -1098,4 +1088,203 @@ function renderizarCardsTV() {
     });
 
     container.innerHTML = html;
+}
+
+// ==================== PARTE 5: SESSÃO DE DISPONIBILIDADE MECÂNICA (ATUALIZADA) ====================
+
+window.listaDisponibilidadeAtual = []; 
+
+function renderizarDisponibilidadeMecanica() {
+    const tbody = document.getElementById('tabelaDisponibilidade');
+    if (!tbody) return;
+
+    // Se o filtro estiver preenchido, calculamos o histórico, senão o tempo real.
+    const inputFiltro = document.getElementById('filtroDataDisponibilidade');
+    const dataFiltroVal = inputFiltro ? inputFiltro.value : '';
+    
+    let totalCavalos = frotasManutencao.length;
+    let disponiveis = 0;
+    let emManutencao = 0;
+    let sinistrados = 0;
+
+    let listaStatus = [];
+    
+    const agora = new Date();
+    const fimDoDiaRef = dataFiltroVal ? dataFiltroVal + 'T23:59:59' : null;
+    const dataRefTempo = dataFiltroVal ? new Date(fimDoDiaRef) : agora;
+
+    frotasManutencao.forEach(f => {
+        let osAberta = null;
+
+        if (dataFiltroVal) {
+            // HISTÓRICO: Busca O.S que já estava aberta até aquele dia
+            const ordensDoCavalo = ordensServico.filter(o => o.placa === f.cavalo && o.data_abertura <= fimDoDiaRef);
+            
+            if (ordensDoCavalo.length > 0) {
+                // Ordena e pega a mais recente
+                ordensDoCavalo.sort((a, b) => a.data_abertura < b.data_abertura ? 1 : -1);
+                const ultimaOS = ordensDoCavalo[0];
+                
+                // Se não tinha sido concluída, ou a conclusão ocorreu após esse dia, estava "quebrado" no dia
+                if (!ultimaOS.data_conclusao || ultimaOS.data_conclusao > fimDoDiaRef) {
+                    osAberta = ultimaOS;
+                }
+            }
+        } else {
+            // TEMPO REAL
+            osAberta = ordensServico.find(o => o.placa === f.cavalo && o.status !== 'Concluída');
+        }
+        
+        let statusBadge = '';
+        let statusTexto = 'Disponível';
+        let dataAbertura = '-';
+        let motivo = '-';
+        let osId = '-';
+        let tempoIndisponivel = '-';
+
+        if (osAberta) {
+            if (osAberta.tipo === 'Sinistro' || osAberta.status === 'Sinistrado') {
+                sinistrados++;
+                statusTexto = 'Sinistrado';
+                statusBadge = `<span style="background: rgba(239, 68, 68, 0.2); color: #ef4444; padding: 4px 8px; border-radius: 4px; font-weight: bold;">🚨 Sinistrado</span>`;
+            } else if (osAberta.status === 'Agendada' && !dataFiltroVal) {
+                // Se for Histórico, agendado vira passado. Só mostramos como agendado no dia atual.
+                disponiveis++;
+                statusTexto = 'Disponível (Agendado)';
+                statusBadge = `<span style="background: rgba(139, 92, 246, 0.2); color: #8b5cf6; padding: 4px 8px; border-radius: 4px;">📅 Agendado</span>`;
+            } else {
+                emManutencao++;
+                statusTexto = 'Em Manutenção';
+                statusBadge = `<span style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; padding: 4px 8px; border-radius: 4px;">🔧 Em Oficina</span>`;
+            }
+
+            dataAbertura = formatarDataHoraBrasil(osAberta.data_abertura);
+            motivo = osAberta.problema || osAberta.tipo;
+            osId = `#${osAberta.id}`;
+
+            // Calculando diferença de horas entre a Abertura e o Dia de Referência (Hoje ou o Filtro)
+            if (osAberta.data_abertura && statusTexto !== 'Disponível (Agendado)') {
+                let strData = osAberta.data_abertura.replace('Z', '').replace('+00:00', '');
+                if (!strData.includes('T')) strData += 'T00:00:00';
+                
+                const dataAbert = new Date(strData);
+                let diffMs = dataRefTempo - dataAbert;
+                if (diffMs < 0) diffMs = 0; 
+                
+                const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+                const diffDias = Math.floor(diffHrs / 24);
+                
+                if (diffDias > 0) {
+                    tempoIndisponivel = `${diffDias} dia(s) e ${diffHrs % 24}h`;
+                } else {
+                    tempoIndisponivel = diffHrs > 0 ? `${diffHrs}h` : '< 1h';
+                }
+            }
+        } else {
+            disponiveis++;
+            statusBadge = `<span style="background: rgba(61, 220, 132, 0.2); color: var(--ccol-green-bright); padding: 4px 8px; border-radius: 4px; font-weight: bold;">✅ Disponível</span>`;
+        }
+
+        listaStatus.push({
+            cavalo: f.cavalo,
+            go: f.go,
+            statusBadge,
+            statusTexto,
+            osId,
+            dataAbertura,
+            motivo,
+            tempoIndisponivel,
+            osObject: osAberta 
+        });
+    });
+
+    // Atualiza KPIs com a % real daquele dia/momento
+    const pctDisponibilidade = totalCavalos > 0 ? ((disponiveis / totalCavalos) * 100).toFixed(1) : 0;
+    
+    document.getElementById('kpiDispTotal').innerText = totalCavalos;
+    document.getElementById('kpiDispDisponiveis').innerText = disponiveis;
+    document.getElementById('kpiDispManutencao').innerText = emManutencao;
+    document.getElementById('kpiDispSinistro').innerText = sinistrados;
+    document.getElementById('kpiDispTaxa').innerText = pctDisponibilidade + '%';
+
+    // Atualiza o Título da Tabela para dar feedback ao usuário se ele está olhando o passado
+    const tituloTabela = document.getElementById('tituloTabelaDisponibilidade');
+    if (tituloTabela) {
+        if (dataFiltroVal) {
+            tituloTabela.innerHTML = `<span style="color: #f59e0b;">⏳ Exibindo Situação do Dia: <b>${dataFiltroVal.split('-').reverse().join('/')}</b></span>`;
+        } else {
+            tituloTabela.innerHTML = `Situação da Frota (Tempo Real)`;
+        }
+    }
+
+    // Ordenação (Mais críticos primeiro)
+    listaStatus.sort((a, b) => {
+        const orderMap = { 'Sinistrado': 1, 'Em Manutenção': 2, 'Disponível (Agendado)': 3, 'Disponível': 4 };
+        if (orderMap[a.statusTexto] !== orderMap[b.statusTexto]) {
+            return orderMap[a.statusTexto] - orderMap[b.statusTexto];
+        }
+        return a.cavalo.localeCompare(b.cavalo);
+    });
+
+    tbody.innerHTML = listaStatus.map(item => `
+        <tr>
+            <td style="color: var(--ccol-blue-bright); font-weight: bold; font-size: 1.1rem;">${item.cavalo}</td>
+            <td style="font-weight: bold; color: #a1a1aa;">${item.go || '-'}</td>
+            <td>${item.statusBadge}</td>
+            <td style="font-family: monospace;">${item.osId}</td>
+            <td style="color: var(--text-secondary);">${item.dataAbertura}</td>
+            <td style="max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #d4d4d8;" title="${item.motivo}">${item.motivo}</td>
+            <td style="color: #ef4444; font-weight: bold;">${item.tempoIndisponivel}</td>
+        </tr>
+    `).join('');
+
+    window.listaDisponibilidadeAtual = listaStatus;
+}
+
+function exportarDisponibilidadeExcel() {
+    if (!window.listaDisponibilidadeAtual || window.listaDisponibilidadeAtual.length === 0) {
+        alert('Não há dados de frota registrados para exportar.');
+        return;
+    }
+
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
+    csvContent += "Placa do Cavalo;GO;Status de Disponibilidade;O.S Vinculada;Data de Abertura;Tempo Indisponivel;Motivo da Parada;Tipo de Manutencao;Motorista Responsavel\n";
+
+    window.listaDisponibilidadeAtual.forEach(item => {
+        const os = item.osObject || {};
+        const tipoOS = os.tipo || 'N/A';
+        const motoristaOS = os.motorista || 'N/A';
+        
+        const limpaCSV = (str) => {
+            if (!str || str === '-') return '-';
+            return `"${String(str).replace(/"/g, '""').replace(/\n/g, ' ')}"`;
+        };
+
+        const linha = [
+            item.cavalo,
+            item.go || '-',
+            item.statusTexto,
+            item.osId.replace('#', ''),
+            item.dataAbertura,
+            item.tempoIndisponivel,
+            limpaCSV(item.motivo),
+            limpaCSV(tipoOS),
+            limpaCSV(motoristaOS)
+        ].join(';');
+
+        csvContent += linha + "\n";
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    
+    const inputFiltro = document.getElementById('filtroDataDisponibilidade');
+    const dataExcel = (inputFiltro && inputFiltro.value) ? inputFiltro.value : new Date().toISOString().split('T')[0];
+    
+    link.setAttribute("download", `Relatorio_Disponibilidade_${dataExcel}.csv`);
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
