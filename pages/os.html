@@ -65,8 +65,9 @@
 </div>
 
 <div id="telaHistoricoOS" class="content-panel" style="display: none;">
-    <div class="panel-header">
-        <h3>🗄️ Histórico Geral de Ordens de Serviço</h3>
+    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+        <h3 style="margin: 0;">🗄️ Histórico Geral de Ordens de Serviço</h3>
+        <button class="btn-primary-green" onclick="exportarHistoricoOSExcel()" style="padding: 8px 15px;">📥 Exportar Histórico (Excel)</button>
     </div>
     <div class="form-grid" style="margin-bottom: 15px; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;">
         <div class="form-group-dark">

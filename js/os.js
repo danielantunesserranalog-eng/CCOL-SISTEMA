@@ -498,6 +498,81 @@ function renderizarTabelaHistoricoOS() {
     }).join('');
 }
 
+// === FUNÇÃO NOVA: EXPORTAÇÃO PARA EXCEL ===
+function exportarHistoricoOSExcel() {
+    if (!ordensServico || ordensServico.length === 0) {
+        alert('Não há dados de O.S. para exportar.');
+        return;
+    }
+
+    // Puxa os mesmos filtros que estão na tela para caso o usuário queira baixar uma busca específica
+    const numTerm = document.getElementById('filtroHistOSNum').value.toLowerCase().trim();
+    const placaTerm = document.getElementById('filtroHistPlaca').value.toLowerCase().trim();
+    const motTerm = document.getElementById('filtroHistMotorista').value.toLowerCase().trim();
+    const dataTerm = document.getElementById('filtroHistData').value; 
+
+    const filtradas = ordensServico.filter(os => {
+        const matchNum = numTerm === '' || String(os.id).includes(numTerm);
+        const matchPlaca = placaTerm === '' || os.placa.toLowerCase().includes(placaTerm);
+        const matchMot = motTerm === '' || os.motorista.toLowerCase().includes(motTerm);
+        
+        let matchData = true;
+        if (dataTerm) {
+            const osData = os.data_abertura.split('T')[0];
+            matchData = osData === dataTerm;
+        }
+
+        return matchNum && matchPlaca && matchMot && matchData;
+    });
+
+    if (filtradas.length === 0) {
+        alert('Nenhuma O.S. encontrada com os filtros atuais para exportar.');
+        return;
+    }
+
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
+    csvContent += "N OS;Placa do Cavalo;Motorista;Data Abertura;Data Conclusao;Tipo de Servico;Prioridade;Status;Hodometro;Problema Relatado;Observacoes;Mecanico Responsavel;Aberto Por\n";
+
+    const limpaCSV = (str) => {
+        if (!str || str === '-') return '-';
+        return `"${String(str).replace(/"/g, '""').replace(/\n/g, ' ')}"`;
+    };
+
+    filtradas.forEach(os => {
+        const dataAbert = formatarDataHoraBrasil(os.data_abertura);
+        const dataConc = os.data_conclusao ? formatarDataHoraBrasil(os.data_conclusao) : '-';
+
+        const linha = [
+            os.id,
+            limpaCSV(os.placa),
+            limpaCSV(os.motorista),
+            dataAbert,
+            dataConc,
+            limpaCSV(os.tipo),
+            limpaCSV(os.prioridade),
+            limpaCSV(os.status),
+            limpaCSV(os.hodometro),
+            limpaCSV(os.problema),
+            limpaCSV(os.observacoes),
+            limpaCSV(os.mecanico_responsavel),
+            limpaCSV(os.aberto_por)
+        ].join(';');
+
+        csvContent += linha + "\n";
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    
+    const dataAtual = new Date().toISOString().split('T')[0];
+    link.setAttribute("download", `Historico_Ordens_Servico_${dataAtual}.csv`);
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
 async function salvarNovaOS() {
     const placa = document.getElementById('osPlaca').value;
     const motorista = document.getElementById('osMotorista').value;
@@ -624,8 +699,6 @@ async function salvarConclusaoOS() {
         return;
     }
 
-    // CORREÇÃO: Removida a conversão .toISOString() que estava jogando a hora local para UTC e somando +3hrs
-    // O inputHoraValue vai no formato idêntico ao gravado pelo navegador (Y-m-dTH:M) respeitando sua escolha local
     const { error } = await supabaseClient
         .from('ordens_servico')
         .update({ 
