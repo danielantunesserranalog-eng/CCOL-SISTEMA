@@ -112,7 +112,6 @@ async function salvarNovaOS() {
     if (modoEntrada === 'agendada') statusInicial = 'Agendada';
     else if (tipo === 'Sinistro') statusInicial = 'Sinistrado';
 
-    // 1. Cria o pacote SEM as colunas de pneu e sem 'criado_por'
     let pacoteDadosOS = {
         placa: placa,
         data_abertura: data_abertura,
@@ -124,7 +123,6 @@ async function salvarNovaOS() {
     if (motorista) pacoteDadosOS.motorista = motorista;
     if (observacoes) pacoteDadosOS.observacoes = observacoes;
 
-    // 2. Blindagem do Hodômetro
     if (hodometro) {
         let apenasNumeros = hodometro.replace(/[^0-9]/g, '');
         if (apenasNumeros !== '') {
@@ -132,32 +130,28 @@ async function salvarNovaOS() {
         }
     }
 
-    // 3. Embutir os dados de Borracharia dentro do "Problema" para não dar erro no banco!
     let problemaFinal = problema;
+    let pneuPosicao = '';
+    let pneuServico = '';
+    let pneuMotivo = '';
+    
     if (tipo === 'Borracharia (PNEU)') {
-        const pneuPosicao = document.getElementById('osPneuPosicao').value.trim() || 'N/I';
-        const pneuServico = document.getElementById('osPneuServico').value || 'N/I';
-        const pneuMotivo = document.getElementById('osPneuMotivo').value.trim() || 'N/I';
+        pneuPosicao = document.getElementById('osPneuPosicao').value.trim();
+        pneuServico = document.getElementById('osPneuServico').value;
+        pneuMotivo = document.getElementById('osPneuMotivo').value.trim();
         
-        const textoPneu = `[DADOS DO PNEU] Posição: ${pneuPosicao} | Serviço: ${pneuServico} | Motivo: ${pneuMotivo}`;
-        
-        if (problemaFinal) {
-            problemaFinal = textoPneu + "\n\n" + problemaFinal;
-        } else {
-            problemaFinal = textoPneu;
-        }
+        const textoPneu = `[PNEU] Posição: ${pneuPosicao || 'N/I'} | Serviço: ${pneuServico || 'N/I'} | Motivo: ${pneuMotivo || 'N/I'}`;
+        problemaFinal = problemaFinal ? textoPneu + "\n" + problemaFinal : textoPneu;
     }
 
     if (problemaFinal) pacoteDadosOS.problema = problemaFinal;
 
     try {
-        const { error } = await supabaseClient
-            .from('ordens_servico')
-            .insert([pacoteDadosOS]);
+        const { error } = await supabaseClient.from('ordens_servico').insert([pacoteDadosOS]);
 
         if (error) {
             console.error("ERRO SUPABASE DETALHADO:", error);
-            alert("A Base de Dados recusou: " + (error.message || "Veja o F12"));
+            alert("A Base de Dados recusou a gravação. Verifique os dados.");
             return;
         }
         
@@ -335,68 +329,132 @@ async function salvarServicoExtra() {
     }
 }
 
+// =========================================================================
+// NOVO LAYOUT DE IMPRESSÃO: EXATAMENTE IGUAL AO PDF FORNECIDO
+// =========================================================================
 async function imprimirOS(osId) {
     const os = ordensServico.find(o => o.id === osId);
     if (!os) return;
-    const frota = frotasManutencao.find(f => f.cavalo === os.placa) || {};
-    const numeroOSFormatado = String(os.id).padStart(5, '0');
     
+    // Busca dados do Tritrem na frota de manutenção
+    const frota = frotasManutencao.find(f => f.cavalo === os.placa) || {};
+    const go = frota.go || 'N/I';
+    const c1 = frota.carreta1 || '-';
+    const c2 = frota.carreta2 || '-';
+    const c3 = frota.carreta3 || '-';
+
     let dataAberturaFormatada = os.data_abertura;
+    let dataConclusaoFormatada = os.data_conclusao || 'Em andamento';
+    
     try {
         if(typeof formatarDataHoraBrasil === 'function') {
             dataAberturaFormatada = formatarDataHoraBrasil(os.data_abertura);
+            if(os.data_conclusao) dataConclusaoFormatada = formatarDataHoraBrasil(os.data_conclusao);
         }
     } catch(e) {}
     
+    let painelBorracharia = '';
+    if (os.tipo === 'Borracharia (PNEU)') {
+        painelBorracharia = `
+            <div style="margin-top:10px; padding: 5px; border: 1px dashed #000;">
+                <strong>🛞 DETALHES DE BORRACHARIA:</strong>
+                <p style="margin: 3px 0;">Posição: <b>${os.pneu_posicao || '-'}</b> | Serviço: <b>${os.pneu_servico || '-'}</b> | Motivo: <b>${os.pneu_motivo || '-'}</b></p>
+            </div>
+        `;
+    }
+
+    // Linhas da Tabela de Serviços (com o 1°() 2°() 3°() em todas as linhas como no modelo)
     let linhasServicos = '';
-    for(let i=0; i<5; i++) {
-        linhasServicos += `<tr style="height: 30px;"><td></td><td></td><td></td><td></td><td></td><td></td></tr>`;
+    for(let i=0; i<8; i++) {
+        linhasServicos += `
+        <tr style="height: 35px;">
+            <td></td>
+            <td></td>
+            <td style="text-align:center; font-size:10px;">1°( ) 2°( ) 3°( )</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>`;
     }
 
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
         <html>
         <head>
-            <title>Ordem de Serviço #${numeroOSFormatado}</title>
+            <title>OS ${os.placa}</title>
             <style>
-                body { font-family: sans-serif; padding: 20px; font-size: 12px; }
-                .container { border: 2px solid #000; padding: 15px; }
-                .header { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 10px; }
-                .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 10px; }
-                .box { border: 1px solid #000; padding: 5px; }
-                .box strong { display: block; font-size: 10px; }
-                table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                th, td { border: 1px solid #000; padding: 5px; text-align: left; }
-                .assinaturas { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 40px; text-align: center; }
-                .linha { border-top: 1px solid #000; padding-top: 5px; font-weight: bold; }
-                .diagnostico-box { white-space: pre-wrap; background: #f8fafc; padding: 10px; border: 1px dashed #ccc; margin-top: 10px; }
+                body { font-family: Arial, sans-serif; padding: 20px; font-size: 13px; color: #000; }
+                .header-title { text-align: center; font-weight: bold; font-size: 16px; margin-bottom: 5px; text-transform: uppercase; }
+                .header-subtitle { text-align: center; font-size: 14px; margin-bottom: 25px; }
+                
+                .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 15px; }
+                .info-line { margin-bottom: 10px; }
+                .info-label { font-weight: bold; }
+                
+                .section-title { font-weight: bold; margin-top: 20px; margin-bottom: 5px; }
+                .box-diagnostico { padding: 5px; min-height: 40px; border-bottom: 1px solid #ccc; font-weight: bold; text-transform: uppercase; }
+                
+                table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+                th, td { border: 1px solid #000; padding: 5px; text-align: left; font-size: 11px; }
+                th { text-align: center; font-weight: bold; }
+                
+                .assinaturas { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; margin-top: 70px; text-align: center; }
+                .linha-ass { border-top: 1px solid #000; padding-top: 5px; font-weight: bold; }
             </style>
         </head>
         <body>
-            <div class="container">
-                <div class="header">
-                    <h2>ORDEM DE SERVIÇO DE MANUTENÇÃO</h2>
-                    <div style="text-align:right">Nº <b>${numeroOSFormatado}</b></div>
+            <div class="header-title">ORDEM DE SERVIÇO / OCORRÊNCIA - MANUTENÇÃO E FROTAS</div>
+            <div class="header-subtitle">Serrana Florestal - CCOL</div>
+
+            <div class="info-grid">
+                <div>
+                    <div class="info-line"><span class="info-label">Cavalo:</span> ${os.placa}</div>
+                    <div class="info-line"><span class="info-label">Abertura:</span> ${dataAberturaFormatada}</div>
                 </div>
-                <div class="grid-4">
-                    <div class="box"><strong>Abertura:</strong> ${dataAberturaFormatada}</div>
-                    <div class="box"><strong>Prioridade:</strong> ${os.prioridade}</div>
-                    <div class="box"><strong>Cavalo:</strong> ${os.placa}</div>
-                    <div class="box"><strong>Motorista:</strong> ${os.motorista || '-'}</div>
+                <div>
+                    <div class="info-line"><span class="info-label">GO:</span> ${go}</div>
+                    <div class="info-line"><span class="info-label">Conclusão:</span> ${dataConclusaoFormatada}</div>
+                    <div class="info-line"><span class="info-label">Mecânico/Responsável:</span> A Definir</div>
+                    <div class="info-line"><span class="info-label">Status:</span> ${os.status}</div>
                 </div>
-                
-                <p><b>Diagnóstico / Detalhes:</b></p>
-                <div class="diagnostico-box">${os.problema || 'Nenhum diagnóstico informado.'}</div>
-                
-                <table>
-                    <thead><tr><th>Serviço Executado</th><th>Mecânico</th><th>Eixo</th><th>Hrs</th></tr></thead>
-                    <tbody>${linhasServicos}</tbody>
-                </table>
-                <div class="assinaturas">
-                    <div class="linha">Motorista</div>
-                    <div class="linha">Oficina</div>
-                    <div class="linha">CCOL</div>
-                </div>
+            </div>
+
+            <div class="info-line">
+                <span class="info-label">Composição do Tritrem (Carretas vinculadas):</span><br>
+                1º Comp: ${c1} | 2° Comp: ${c2} | 3° Comp: ${c3}
+            </div>
+
+            <div class="info-line" style="margin-top: 15px;">
+                <span class="info-label">Classificação da Manutenção / Tipo:</span> ${os.tipo}
+            </div>
+
+            <div class="section-title">Diagnóstico Inicial do Condutor / Problema / Detalhes Sinistro:</div>
+            <div class="box-diagnostico">${os.problema ? os.problema.replace(/\n/g, '<br>') : ''}</div>
+            ${painelBorracharia}
+
+            <div class="section-title">Serviços Executados (Preenchimento da Oficina):</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 35%;">Descrição do Serviço</th>
+                        <th style="width: 8%;">Hora<br>Início</th>
+                        <th style="width: 15%;">Compartimentos<br>(Tritrem)</th>
+                        <th style="width: 8%;">LD/LE<br>Eixo</th>
+                        <th style="width: 12%;">PLACA</th>
+                        <th style="width: 14%;">Mecânico</th>
+                        <th style="width: 8%;">Hora<br>Fim</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${linhasServicos}
+                </tbody>
+            </table>
+
+            <div class="assinaturas">
+                <div class="linha-ass">Motorista</div>
+                <div class="linha-ass">Oficina</div>
+                <div class="linha-ass">CCOL</div>
             </div>
             <script>window.onload = function(){ window.print(); }</script>
         </body>
