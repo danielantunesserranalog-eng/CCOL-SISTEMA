@@ -29,6 +29,19 @@
     .pro-title-box p { margin: 4px 0 0 0; font-size: 1.05rem; color: #94a3b8; font-weight: 600; letter-spacing: 2px; }
     .pro-logo { height: 68px; object-fit: contain; } 
 
+    /* DETALHE: DATA, HORA E CONTROLADOR PEQUENOS NO CABEÇALHO */
+    .header-details-badge {
+        margin-top: 12px; 
+        display: inline-flex; 
+        gap: 20px; 
+        background: rgba(0,0,0,0.3); 
+        padding: 6px 20px; 
+        border-radius: 20px; 
+        border: 1px solid rgba(255,255,255,0.05); 
+        font-size: 0.9rem; 
+        font-weight: bold;
+    }
+
     /* TOPO: 4 KPIs */
     .dash-pro-kpis {
         display: grid;
@@ -112,38 +125,13 @@
     .text-green { color: #22c55e !important; }
     .text-orange { color: #f59e0b !important; }
 
-    /* PARTE DE BAIXO */
+    /* PARTE DE BAIXO DIVIDIDA (GRÁFICO vs FROTAS PARADAS) */
     .dash-bottom-split {
-        display: grid; grid-template-columns: 65% 35%; gap: 22px; align-items: stretch; flex-grow: 1; 
+        display: grid; grid-template-columns: 1.6fr 1fr; gap: 22px; align-items: stretch; flex-grow: 1; 
     }
 
-    .dash-left-frentes { display: flex; flex-direction: column; height: 100%; width: 100%; }
+    .dash-left-frentes, .dash-right-info { display: flex; flex-direction: column; height: 100%; width: 100%; }
     .pro-list-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; height: 100%; }
-
-    .dash-right-info { display: flex; flex-direction: column; height: 100%; }
-    .info-bars-container { display: flex; flex-direction: column; gap: 18px; height: 100%; flex-grow: 1; }
-
-    .info-bar-item {
-        background: #0f172a; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
-        padding: 0 20px; display: flex; justify-content: space-between; align-items: center;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3); border-left: 5px solid transparent; flex: 1; 
-    }
-
-    .bar-data { border-left-color: #10b981; }
-    .bar-turno { border-left-color: #f59e0b; }
-    .bar-controlador { border-left-color: #38bdf8; }
-
-    .info-bar-label { font-size: 1.1rem; color: #ffffff !important; font-weight: 700; text-transform: uppercase; display: flex; align-items: center; gap: 10px; } 
-    .info-bar-value { font-size: 1.5rem; color: #ffffff !important; font-weight: 900; text-transform: uppercase; } 
-
-    #dash-data, #dash-hora {
-        font-size: 1.5rem !important; 
-        font-family: inherit !important;
-        color: #ffffff !important;
-        font-weight: 900 !important;
-        margin: 0 !important;
-        line-height: 1 !important;
-    }
 
     /* Customização da barra de rolagem */
     .lista-scroll::-webkit-scrollbar { width: 6px; }
@@ -165,6 +153,11 @@
         <div class="header-center pro-title-box">
             <h2>STATUS DA OPERAÇÃO LOGÍSTICA - SERRANALOG</h2>
             <p>CCOL - CENTRO DE CONTROLE OPERACIONAL</p>
+            
+            <div class="header-details-badge">
+                <span style="color: #38bdf8;"><i class="fas fa-clock"></i> <span id="dash-data">--/--/----</span> às <span id="dash-hora">--:--:--</span></span>
+                <span style="color: #a855f7;"><i class="fas fa-user-shield"></i> Controlador: <span id="dash-controlador-nome">AGUARDANDO...</span></span>
+            </div>
         </div>
         <div class="header-right">
             <img src="assets/logo.png" alt="Serrana" class="pro-logo">
@@ -228,7 +221,6 @@
     </section>
 
     <div class="dash-bottom-split">
-        
         <div class="dash-left-frentes">
             <div class="pro-list-panel glass-panel" style="justify-content: flex-start;">
                 <div class="list-header" style="padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.05);">
@@ -241,20 +233,12 @@
         </div>
 
         <div class="dash-right-info">
-            <div class="info-bars-container">
-                <div class="info-bar-item bar-data">
-                    <span class="info-bar-label"><i class="fas fa-clock"></i> Data e Hora</span>
-                    <span class="info-bar-value">
-                        <span id="dash-data">--/--/----</span> - <span id="dash-hora">--:--:--</span>
-                    </span>
+            <div class="pro-list-panel glass-panel" style="justify-content: flex-start;">
+                <div class="list-header" style="padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="color: #ef4444; font-size: 1.2rem; margin: 0;"><i class="fas fa-tools" style="margin-right: 8px;"></i> Frotas Paradas (OS Abertas)</h3>
                 </div>
-                <div class="info-bar-item bar-turno" id="container-barra-turno">
-                    <span class="info-bar-label"><i id="dash-turno-icon" class="fas fa-sun"></i> Turno Atual</span>
-                    <span class="info-bar-value" id="dash-turno">TURNO --</span>
-                </div>
-                <div class="info-bar-item bar-controlador">
-                    <span class="info-bar-label"><i class="fas fa-user-shield"></i> Controlador</span>
-                    <span class="info-bar-value" id="dash-controlador-nome">AGUARDANDO...</span>
+                <div id="lista-frotas-paradas" class="lista-scroll" style="flex-grow: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; max-height: 320px;">
+                    <div class="empty-state">Buscando frotas paradas...</div>
                 </div>
             </div>
         </div>

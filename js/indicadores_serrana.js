@@ -3,21 +3,19 @@ window.carregarDadosDashboardSerrana = async function() {
     carregarControladorAtualSerrana();
     carregarFrentesTvSerrana();
     carregarOcorrenciasTvSerrana();
+    carregarFrotasParadasSerrana(); // Carrega a lista nova
     
-    // Pequeno atraso para garantir que a tela HTML carregou as larguras corretas
+    // Pequeno atraso para garantir que a tela HTML carregou as larguras corretas do gráfico
     setTimeout(() => {
         renderizarGraficoEvolucaoDmSerrana();
     }, 300);
     
+    // Atualização em Tempo Real (A cada 60s)
     setInterval(() => {
         carregarOcorrenciasTvSerrana(); 
+        carregarFrotasParadasSerrana();
         renderizarGraficoEvolucaoDmSerrana(); 
     }, 60000); 
-
-    if(typeof atualizarFrentesDeTrabalhoSerrana === 'function') {
-        atualizarFrentesDeTrabalhoSerrana();
-        setInterval(atualizarFrentesDeTrabalhoSerrana, 60000);
-    }
 }
 
 window.atualizarRelogioSerrana = function() {
@@ -33,25 +31,6 @@ window.atualizarRelogioSerrana = function() {
     const elData = document.getElementById('dash-data');
     if(elHora) elHora.textContent = `${horas}:${minutos}:${segundos}`;
     if(elData) elData.textContent = `${dia}/${mes}/${ano}`;
-}
-
-window.atualizarFrentesDeTrabalhoSerrana = function() {
-    const agora = new Date();
-    const hora = agora.getHours();
-    
-    const elTurnoBarText = document.getElementById('dash-turno');
-    const elTurnoBarIcon = document.getElementById('dash-turno-icon');
-    const elTurnoBarContainer = document.getElementById('container-barra-turno');
-
-    if (hora >= 6 && hora < 18) {
-        if(elTurnoBarText) { elTurnoBarText.textContent = "TURNO: 06:00 às 18:00"; elTurnoBarText.style.color = "#ffffff"; }
-        if(elTurnoBarIcon) elTurnoBarIcon.className = "fas fa-sun";
-        if(elTurnoBarContainer) elTurnoBarContainer.style.borderLeftColor = "#f59e0b";
-    } else {
-        if(elTurnoBarText) { elTurnoBarText.textContent = "TURNO: 18:00 às 06:00"; elTurnoBarText.style.color = "#ffffff"; }
-        if(elTurnoBarIcon) elTurnoBarIcon.className = "fas fa-moon";
-        if(elTurnoBarContainer) elTurnoBarContainer.style.borderLeftColor = "#38bdf8";
-    }
 }
 
 async function atualizarPonteirosSerrana() {
@@ -121,6 +100,59 @@ async function atualizarPonteirosSerrana() {
     if(elFrotaTotal) elFrotaTotal.textContent = totalPlacasCadastradas;
     if(elManut) elManut.textContent = totalManutencao;
     if(elOcorrencias) elOcorrencias.textContent = totalOcorrencias;
+}
+
+// =========================================================================
+// NOVA LISTA: FROTAS PARADAS (PUXANDO O.S ABERTAS)
+// =========================================================================
+async function carregarFrotasParadasSerrana() {
+    const container = document.getElementById('lista-frotas-paradas');
+    if(!container) return;
+
+    try {
+        const { data: osData } = await supabaseClient
+            .from('ordens_servico')
+            .select('placa, problema, status, tipo')
+            .in('status', ['Aguardando Oficina', 'Em Manutenção', 'Sinistrado'])
+            .order('created_at', { ascending: false });
+        
+        let html = '';
+        
+        if (osData && osData.length > 0) {
+            osData.forEach(os => {
+                let corBorder = '#ef4444'; // vermelho padrão (Aguardando / Sinistro)
+                let icon = 'fas fa-tools';
+                
+                if (os.status === 'Em Manutenção') {
+                    corBorder = '#f59e0b'; // laranja
+                    icon = 'fas fa-wrench';
+                } else if (os.status === 'Sinistrado') {
+                    corBorder = '#b91c1c'; // vermelho escuro
+                    icon = 'fas fa-exclamation-triangle';
+                }
+
+                html += `
+                <div style="background: rgba(15, 23, 42, 0.6); border-left: 4px solid ${corBorder}; padding: 12px; border-radius: 6px; display: flex; flex-direction: column; gap: 6px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 900; color: #fff; font-size: 1.1rem;"><i class="${icon}" style="color: ${corBorder}; margin-right: 5px; font-size: 0.9rem;"></i> ${os.placa || 'N/I'}</span>
+                        <span style="font-size: 0.75rem; background: ${corBorder}20; color: ${corBorder}; padding: 3px 8px; border-radius: 4px; font-weight: bold; border: 1px solid ${corBorder}40;">${os.status}</span>
+                    </div>
+                    <span style="font-size: 0.85rem; color: #94a3b8; line-height: 1.3;">${os.problema ? os.problema : 'Sem detalhes relatados.'}</span>
+                </div>
+                `;
+            });
+        } else {
+            html = `
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; opacity: 0.5;">
+                <i class="fas fa-check-circle" style="font-size: 3rem; color: #22c55e; margin-bottom: 10px;"></i>
+                <div style="color: #22c55e; font-weight: bold; font-size: 1.1rem;">Nenhuma frota parada!</div>
+            </div>`;
+        }
+        
+        container.innerHTML = html;
+    } catch(e) {
+        console.error("Erro Frotas Paradas:", e);
+    }
 }
 
 async function carregarControladorAtualSerrana() {
@@ -199,7 +231,6 @@ async function renderizarGraficoEvolucaoDmSerrana() {
             });
         }
         
-        // Exemplo: Descobre que existem 30 frotas no total
         const totalFrotas = [...new Set(frotas)].length; 
 
         if(totalFrotas === 0) {
@@ -211,7 +242,6 @@ async function renderizarGraficoEvolucaoDmSerrana() {
         const { data: osData } = await supabaseClient.from('ordens_servico').select('placa, data_abertura, data_conclusao, status').neq('status', 'Agendada');
         let ordensServico = osData || [];
 
-        // 3. Busca a quantidade de Sinistros Pendentes (Frotas que estão paradas fora da oficina)
         const { count: countSinistros } = await supabaseClient.from('dashboard_ocorrencias').select('*', { count: 'exact', head: true }).eq('status', 'Pendente');
         const qtdSinistrosPendentes = countSinistros || 0;
 
@@ -221,21 +251,17 @@ async function renderizarGraficoEvolucaoDmSerrana() {
         const dadosDM = [];
         const msPorHora = 60 * 60 * 1000; 
         
-        // Se temos 30 caminhões, temos 30 "horas disponíveis" em cada intervalo de 1 hora
         const totalMsDisponivelPorHora = totalFrotas * msPorHora; 
         
-        // Função para garantir que não haja erros de digitação nas placas
         const limpaPlaca = p => String(p || 'DESCONHECIDO').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
         const placasEmOS = [...new Set(ordensServico.map(os => limpaPlaca(os.placa)))];
 
-        // Loop de 00:00 até 23:59
         for (let h = 0; h < 24; h++) {
             const inicioHora = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), h, 0, 0, 0);
             const fimHora = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), h, 59, 59, 999);
             
             let msManutencaoNestaHora = 0;
 
-            // Para cada placa que tem O.S. aberta
             placasEmOS.forEach(placaOS => {
                 let tempoParadoDoCavalo = 0;
                 const osDesteCavalo = ordensServico.filter(o => limpaPlaca(o.placa) === placaOS);
@@ -247,7 +273,7 @@ async function renderizarGraficoEvolucaoDmSerrana() {
                         if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
                         osInicio = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
                     } else if (os.status === 'Concluída' || os.status === 'Resolvido') {
-                        return; // O.S velha e já fechada
+                        return;
                     }
                     
                     let osFim = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 23, 59, 59, 999);
@@ -267,12 +293,10 @@ async function renderizarGraficoEvolucaoDmSerrana() {
                     }
                 });
                 
-                // Limita a 1 hora de manutenção por caminhão dentro dessa janela de 60 minutos
                 if (tempoParadoDoCavalo > msPorHora) tempoParadoDoCavalo = msPorHora;
                 msManutencaoNestaHora += tempoParadoDoCavalo;
             });
 
-            // SOMA AS HORAS PERDIDAS POR SINISTROS (Ex: 1 sinistro = 1 caminhão parado aquela hora inteira)
             msManutencaoNestaHora += (qtdSinistrosPendentes * msPorHora);
 
             let dispNestaHora = totalMsDisponivelPorHora - msManutencaoNestaHora;
@@ -285,7 +309,6 @@ async function renderizarGraficoEvolucaoDmSerrana() {
             
             categoriasHoras.push(`${String(h).padStart(2,'0')}:00`);
             
-            // Oculta a linha no gráfico se a hora ainda não chegou
             if (inicioHora > agora) {
                 dadosDM.push(null); 
             } else {
@@ -295,12 +318,9 @@ async function renderizarGraficoEvolucaoDmSerrana() {
 
         if (typeof echarts === 'undefined') return;
 
-        // --- CORREÇÃO AQUI: Removemos o chartDom.innerHTML = ''; ---
         let myChart = echarts.getInstanceByDom(chartDom);
         if (!myChart) {
             myChart = echarts.init(chartDom);
-            
-            // O Evento de redimensionar agora só é criado uma única vez
             window.addEventListener('resize', () => {
                 if(myChart) myChart.resize();
             });
@@ -356,7 +376,6 @@ async function renderizarGraficoEvolucaoDmSerrana() {
             }]
         };
 
-        // setOption atualiza o gráfico nativamente, sem destruir a div
         myChart.setOption(option);
         
     } catch(e) {
