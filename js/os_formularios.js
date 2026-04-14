@@ -531,7 +531,7 @@ async function imprimirOS(osId) {
             <div class="assinaturas">
                 <div class="linha-ass">Motorista / Relator</div>
                 <div class="linha-ass">Chefe de Oficina / Mecânico</div>
-                <div class="linha-ass">Visto CCOL / Gestor</div>
+                <div class="linha-ass">CCOL / Gestor</div>
             </div>
             
             <script>
