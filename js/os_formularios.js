@@ -330,7 +330,7 @@ async function salvarServicoExtra() {
 }
 
 // =========================================================================
-// LAYOUT DE IMPRESSÃO ANTIGO: PADRÃO CCOL ORIGINAL RESTAURADO
+// LAYOUT DE IMPRESSÃO: PADRÃO CCOL (HORIZONTAL E MULTIPÁGINA)
 // =========================================================================
 async function imprimirOS(osId) {
     const os = ordensServico.find(o => o.id === osId);
@@ -362,7 +362,8 @@ async function imprimirOS(osId) {
     }
 
     let linhasServicos = '';
-    for(let i=0; i<8; i++) {
+    // AQUI FOI REDUZIDO DE 8 PARA 5 LINHAS CONFORME SOLICITADO
+    for(let i=0; i<5; i++) {
         linhasServicos += `
             <tr>
                 <td style="height: 35px;"></td>
@@ -375,7 +376,7 @@ async function imprimirOS(osId) {
     }
 
     let linhasPecas = '';
-    for(let i=0; i<4; i++) {
+    for(let i=0; i<10; i++) {
         linhasPecas += `
             <tr>
                 <td style="height: 35px;"></td>
@@ -391,18 +392,25 @@ async function imprimirOS(osId) {
             <title>Ordem de Serviço #${numeroOSFormatado}</title>
             <style>
                 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+                @page { 
+                    size: landscape; 
+                    margin: 10mm; 
+                }
                 body { 
                     font-family: 'Roboto', sans-serif; 
                     margin: 0; 
-                    padding: 20px; 
+                    padding: 0; 
                     color: #000;
                     background: #fff;
                     font-size: 13px;
                 }
+                .page {
+                    page-break-after: always;
+                    width: 100%;
+                }
                 .container {
                     border: 2px solid #000;
                     padding: 15px;
-                    max-width: 800px;
                     margin: 0 auto;
                 }
                 .header {
@@ -413,9 +421,6 @@ async function imprimirOS(osId) {
                     padding-bottom: 15px;
                     margin-bottom: 15px;
                 }
-                .header img {
-                    height: 50px;
-                }
                 .header-title {
                     text-align: center;
                     flex: 1;
@@ -424,11 +429,6 @@ async function imprimirOS(osId) {
                     margin: 0;
                     font-size: 22px;
                     text-transform: uppercase;
-                }
-                .header-title p {
-                    margin: 5px 0 0 0;
-                    font-size: 14px;
-                    font-weight: bold;
                 }
                 .os-number {
                     border: 2px solid #000;
@@ -442,20 +442,10 @@ async function imprimirOS(osId) {
                 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
                 .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px; }
                 
-                .box {
-                    border: 1px solid #000;
-                    padding: 8px;
-                }
-                .box strong {
-                    display: block;
-                    font-size: 11px;
-                    color: #555;
-                    margin-bottom: 4px;
-                }
-                .box span {
-                    font-size: 14px;
-                    font-weight: bold;
-                }
+                .box { border: 1px solid #000; padding: 8px; }
+                .box strong { display: block; font-size: 11px; color: #555; margin-bottom: 4px; }
+                .box span { font-size: 14px; font-weight: bold; }
+                
                 .full-box {
                     border: 1px solid #000;
                     padding: 10px;
@@ -468,24 +458,15 @@ async function imprimirOS(osId) {
                     border-collapse: collapse;
                     margin-bottom: 15px;
                 }
-                table, th, td {
-                    border: 1px solid #000;
-                }
-                th {
-                    background: #e5e7eb;
-                    padding: 8px;
-                    font-size: 11px;
-                    text-align: left;
-                }
-                td {
-                    padding: 6px;
-                }
+                table, th, td { border: 1px solid #000; }
+                th { background: #e5e7eb; padding: 8px; font-size: 11px; text-align: left; }
+                td { padding: 6px; }
                 
                 .assinaturas {
                     display: grid;
                     grid-template-columns: 1fr 1fr 1fr;
                     gap: 20px;
-                    margin-top: 50px;
+                    margin-top: 30px;
                     text-align: center;
                 }
                 .linha-assinatura {
@@ -496,107 +477,94 @@ async function imprimirOS(osId) {
                 }
                 
                 @media print {
-                    @page { margin: 1cm; }
                     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                 }
             </style>
         </head>
         <body>
-            <div class="container">
-                <div class="header">
-                    <img src="assets/logo.png" alt="Serrana Log" onerror="this.style.display='none'">
-                    <div class="header-title">
-                        <h2>ORDEM DE SERVIÇO DE MANUTENÇÃO</h2>
-                        <p>CCOL - Centro de Controle Operacional Logístico</p>
+            <div class="page">
+                <div class="container">
+                    <div class="header">
+                        <div class="header-title">
+                            <h2>ORDEM DE SERVIÇO DE MANUTENÇÃO</h2>
+                            <p>Serrana Log - CCOL</p>
+                        </div>
+                        <div class="os-number">
+                            O.S. Nº<br>
+                            <span style="font-size: 24px; color: #dc2626;">${numeroOSFormatado}</span>
+                        </div>
                     </div>
-                    <div class="os-number">
-                        O.S. Nº<br>
-                        <span style="font-size: 24px; color: #dc2626;">${numeroOSFormatado}</span>
+
+                    <div class="grid-4">
+                        <div class="box"><strong>Data de Abertura:</strong> <span>${dataAberturaFormatada}</span></div>
+                        <div class="box"><strong>Prioridade:</strong> <span>${os.prioridade}</span></div>
+                        <div class="box"><strong>Tipo:</strong> <span>${os.tipo}</span></div>
+                        <div class="box"><strong>Status:</strong> <span>${os.status}</span></div>
+                    </div>
+
+                    <div class="grid-4">
+                        <div class="box"><strong>Placa:</strong> <span>${os.placa || '-'}</span></div>
+                        <div class="box"><strong>C1:</strong> <span>${frota.carreta1 || '-'}</span></div>
+                        <div class="box"><strong>C2:</strong> <span>${frota.carreta2 || '-'}</span></div>
+                        <div class="box"><strong>C3:</strong> <span>${frota.carreta3 || '-'}</span></div>
+                    </div>
+
+                    <div class="full-box">
+                        <strong>PROBLEMA RELATADO / DIAGNÓSTICO:</strong>
+                        <div style="margin-top: 5px;">${os.problema ? os.problema.replace(/\n/g, '<br>') : 'N/I'}</div>
+                    </div>
+                    
+                    ${painelBorracharia}
+
+                    <div style="font-weight: bold; margin-bottom: 5px;">DESCRIÇÃO DE SERVIÇOS EXECUTADOS:</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 40%;">Serviço Executado</th>
+                                <th style="width: 15%;">Mecânico</th>
+                                <th style="width: 15%;">Aplicação</th>
+                                <th style="width: 10%;">Início</th>
+                                <th style="width: 10%;">Fim</th>
+                                <th style="width: 10%;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>${linhasServicos}</tbody>
+                    </table>
+
+                    <div class="assinaturas">
+                        <div><div class="linha-assinatura">Motorista</div></div>
+                        <div><div class="linha-assinatura">Mecânico / Oficina</div></div>
+                        <div><div class="linha-assinatura">Visto CCOL</div></div>
                     </div>
                 </div>
+            </div>
 
-                <div class="grid-4">
-                    <div class="box"><strong>Data de Abertura:</strong> <span>${dataAberturaFormatada}</span></div>
-                    <div class="box"><strong>Prioridade:</strong> <span>${os.prioridade}</span></div>
-                    <div class="box"><strong>Tipo de Serviço:</strong> <span>${os.tipo}</span></div>
-                    <div class="box"><strong>Status:</strong> <span>${os.status}</span></div>
-                </div>
-
-                <div class="grid-4">
-                    <div class="box"><strong>Placa (Cavalo):</strong> <span>${os.placa || '-'}</span></div>
-                    <div class="box"><strong>1ª Carreta:</strong> <span>${frota.carreta1 || '-'}</span></div>
-                    <div class="box"><strong>2ª Carreta:</strong> <span>${frota.carreta2 || '-'}</span></div>
-                    <div class="box"><strong>3ª Carreta:</strong> <span>${frota.carreta3 || '-'}</span></div>
-                </div>
-
-                <div class="grid-2">
-                    <div class="box"><strong>Motorista Solicitante / Relator:</strong> <span>${os.motorista || 'Não informado'}</span></div>
-                    <div class="box"><strong>Km / Hodômetro Atual:</strong> <span>${os.hodometro || 'Não informado'}</span></div>
-                </div>
-
-                <div class="full-box">
-                    <strong>PROBLEMA RELATADO PELO MOTORISTA / DIAGNÓSTICO INICIAL:</strong>
-                    <div style="margin-top: 5px; font-size: 14px;">${os.problema ? os.problema.replace(/\n/g, '<br>') : 'Nenhum detalhe adicional informado.'}</div>
-                </div>
-                
-                ${painelBorracharia}
-
-                <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px; border-bottom: 1px solid #000; padding-bottom: 5px;">DESCRIÇÃO DE SERVIÇOS EXECUTADOS (A preencher pela Oficina)</div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width: 40%;">Serviço Executado</th>
-                            <th style="width: 15%;">Mecânico Resp.</th>
-                            <th style="width: 15%;">Aplicação (Eixo/Comp)</th>
-                            <th style="width: 10%;">Início</th>
-                            <th style="width: 10%;">Fim</th>
-                            <th style="width: 10%;">Total Hrs</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${linhasServicos}
-                    </tbody>
-                </table>
-
-                <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px; border-bottom: 1px solid #000; padding-bottom: 5px;">REQUISIÇÃO DE PEÇAS / MATERIAIS UTILIZADOS</div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width: 15%;">Código</th>
-                            <th style="width: 65%;">Descrição da Peça / Material</th>
-                            <th style="width: 20%;">Quantidade</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${linhasPecas}
-                    </tbody>
-                </table>
-                
-                <div class="full-box" style="min-height: 60px;">
-                    <strong>OBSERVAÇÕES GERAIS DA MANUTENÇÃO:</strong>
-                </div>
-                
-                <div style="text-align: right; font-size: 11px; margin-top: 20px;">
-                    O.S. Emitida eletronicamente por: <strong>${infoAbertoPor}</strong> via sistema CCOL.
-                </div>
-
-                <div class="assinaturas">
-                    <div>
-                        <div class="linha-assinatura">Assinatura do Motorista</div>
+            <div class="page" style="page-break-after: auto;">
+                <div class="container">
+                    <div style="font-weight: bold; font-size: 16px; margin-bottom: 15px; border-bottom: 2px solid #000;">REQUISIÇÃO DE PEÇAS / MATERIAIS UTILIZADOS (O.S. #${numeroOSFormatado})</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 15%;">Código</th>
+                                <th style="width: 65%;">Descrição da Peça / Material</th>
+                                <th style="width: 20%;">Quantidade</th>
+                            </tr>
+                        </thead>
+                        <tbody>${linhasPecas}</tbody>
+                    </table>
+                    
+                    <div class="full-box" style="min-height: 120px;">
+                        <strong>OBSERVAÇÕES GERAIS DA MANUTENÇÃO:</strong>
                     </div>
-                    <div>
-                        <div class="linha-assinatura">Assinatura Mecânico / Chefe Oficina</div>
-                    </div>
-                    <div>
-                        <div class="linha-assinatura">Visto CCOL / Gestor Frota</div>
+
+                    <div style="text-align: right; font-size: 11px; margin-top: 20px;">
+                        Emitida por: <strong>${infoAbertoPor}</strong> em ${new Date().toLocaleString('pt-BR')}
                     </div>
                 </div>
             </div>
             
             <script>
-                window.onload = function() {
-                    window.print();
-                }
+                window.onload = function() { window.print(); }
             </script>
         </body>
         </html>
