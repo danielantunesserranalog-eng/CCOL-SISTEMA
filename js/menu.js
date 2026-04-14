@@ -58,6 +58,11 @@ window.renderizarMenu = function() {
         navHtml += `<button class="nav-item" onclick="navegarPara('indicadores', this)" style="color: #3498db; font-weight: bold;">📈 Indicadores</button>`;
     }
 
+    // NOVO MENU: INDICADORES SERRANA
+    if (meusMenus.includes('indicadores_serrana') || isAdmin) {
+        navHtml += `<button class="nav-item" onclick="navegarPara('indicadores_serrana', this)" style="color: #2ecc71; font-weight: bold;">📊 Indicadores Serrana</button>`;
+    }
+
     // Configurações: Apenas o Admin vê
     if (isAdmin) navHtml += `<button id="navConfigBtn" class="nav-item" onclick="navegarPara('config', this)">⚙️ Configurações</button>`;
 
@@ -105,7 +110,10 @@ window.navegarPara = async function(pagina, elementoClicado) {
     try {
         if (!pageCache[pagina]) {
             mainContent.innerHTML = '<div style="padding: 20px; text-align: center; color: #fff;">A carregar módulo...</div>';
-            const response = await fetch(`pages/${pagina}.html`);
+            
+            // AQUI ESTÁ A CORREÇÃO DE CACHE: O "?v=" com o tempo atual obriga o navegador a baixar a versão mais recente do HTML sempre que você clicar no menu.
+            const response = await fetch(`pages/${pagina}.html?v=` + new Date().getTime());
+            
             if (!response.ok) throw new Error('Página não encontrada');
             pageCache[pagina] = await response.text();
         }
@@ -123,7 +131,7 @@ window.navegarPara = async function(pagina, elementoClicado) {
         if (pagina === 'ssma' && typeof window.renderizarSSMA === 'function') window.renderizarSSMA();
         if (pagina === 'recados' && typeof window.carregarRecados === 'function') window.carregarRecados();
 
-        // NOVO: INICIALIZAÇÃO TREINAMENTO
+        // INICIALIZAÇÃO TREINAMENTO
         if (pagina === 'treinamento' && typeof window.renderizarPaginaTreinamento === 'function') {
             window.renderizarPaginaTreinamento();
         }
@@ -134,6 +142,16 @@ window.navegarPara = async function(pagina, elementoClicado) {
                 window.atualizarRelogio();
                 if (window.intervaloRelogio) clearInterval(window.intervaloRelogio);
                 window.intervaloRelogio = setInterval(window.atualizarRelogio, 1000);
+            }
+        }
+
+        // INICIALIZAÇÃO INDICADORES SERRANA
+        if (pagina === 'indicadores_serrana') {
+            if (typeof window.carregarDadosDashboardSerrana === 'function') window.carregarDadosDashboardSerrana();
+            if (typeof window.atualizarRelogioSerrana === 'function') {
+                window.atualizarRelogioSerrana();
+                if (window.intervaloRelogioSerrana) clearInterval(window.intervaloRelogioSerrana);
+                window.intervaloRelogioSerrana = setInterval(window.atualizarRelogioSerrana, 1000);
             }
         }
 
