@@ -183,7 +183,7 @@ async function renderizarGraficoEvolucaoDmSerrana() {
     if (!chartDom) return;
 
     try {
-        // 1. Busca total da frota
+        // 1. Busca total da frota para saber qual é o 100% de disponibilidade
         const { data: conjuntosData } = await supabaseClient.from('conjuntos').select('caminhoes');
         let frotas = [];
         if (conjuntosData) {
@@ -199,46 +199,56 @@ async function renderizarGraficoEvolucaoDmSerrana() {
             });
         }
         
-        // Remove duplicações e garante que são apenas strings limpas em maiúsculas (Solução do bug dos 100%)
-        frotas = [...new Set(frotas.map(f => String(f).trim().toUpperCase()))]; 
+        // Exemplo: Descobre que existem 30 frotas no total
+        const totalFrotas = [...new Set(frotas)].length; 
 
-        if(frotas.length === 0) {
+        if(totalFrotas === 0) {
             chartDom.innerHTML = '<div class="empty-state">Sem dados de frota para calcular DM.</div>';
             return;
         }
 
-        // 2. Busca todas O.S. (Ignorando as 'Agendadas')
+        // 2. Busca TODAS as O.S. e Sinistros
         const { data: osData } = await supabaseClient.from('ordens_servico').select('placa, data_abertura, data_conclusao, status').neq('status', 'Agendada');
         let ordensServico = osData || [];
 
-        // 3. CÁLCULO INTRA-HORA (HOJE, de 00:00 até 23:59)
+        // 3. Busca a quantidade de Sinistros Pendentes (Frotas que estão paradas fora da oficina)
+        const { count: countSinistros } = await supabaseClient.from('dashboard_ocorrencias').select('*', { count: 'exact', head: true }).eq('status', 'Pendente');
+        const qtdSinistrosPendentes = countSinistros || 0;
+
+        // 4. Lógica de cálculo Hora a Hora
         const agora = new Date();
         const categoriasHoras = [];
         const dadosDM = [];
         const msPorHora = 60 * 60 * 1000; 
-        const totalMsDisponivelPorHora = frotas.length * msPorHora;
         
-        // Loop pelas 24 horas de HOJE (0 a 23)
+        // Se temos 30 caminhões, temos 30 "horas disponíveis" em cada intervalo de 1 hora
+        const totalMsDisponivelPorHora = totalFrotas * msPorHora; 
+        
+        // Função para garantir que não haja erros de digitação nas placas
+        const limpaPlaca = p => String(p || 'DESCONHECIDO').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+        const placasEmOS = [...new Set(ordensServico.map(os => limpaPlaca(os.placa)))];
+
+        // Loop de 00:00 até 23:59
         for (let h = 0; h < 24; h++) {
             const inicioHora = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), h, 0, 0, 0);
             const fimHora = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), h, 59, 59, 999);
             
             let msManutencaoNestaHora = 0;
 
-            frotas.forEach(placaFrota => {
-                let manutencaoCavalo = 0;
+            // Para cada placa que tem O.S. aberta
+            placasEmOS.forEach(placaOS => {
+                let tempoParadoDoCavalo = 0;
+                const osDesteCavalo = ordensServico.filter(o => limpaPlaca(o.placa) === placaOS);
                 
-                // Filtro blindado: compara a placa da OS e a placa da Frota removendo espaços vazios
-                const todasOSCavalo = ordensServico.filter(o => 
-                    String(o.placa || '').trim().toUpperCase() === placaFrota
-                );
-                
-                todasOSCavalo.forEach(os => {
-                    let osInicioStr = String(os.data_abertura || '');
-                    if (!osInicioStr || osInicioStr === 'null') return; 
-                    if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
-                    const osInicio = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
-                    if (isNaN(osInicio.getTime())) return;
+                osDesteCavalo.forEach(os => {
+                    let osInicio = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 0, 0, 0); 
+                    if (os.data_abertura && os.data_abertura !== 'null') {
+                        let osInicioStr = String(os.data_abertura);
+                        if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
+                        osInicio = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
+                    } else if (os.status === 'Concluída' || os.status === 'Resolvido') {
+                        return; // O.S velha e já fechada
+                    }
                     
                     let osFim = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 23, 59, 59, 999);
                     if (os.data_conclusao && os.data_conclusao !== 'null') {
@@ -247,20 +257,26 @@ async function renderizarGraficoEvolucaoDmSerrana() {
                         osFim = new Date(osFimStr.replace('Z', '').replace('+00:00', ''));
                     }
 
+                    if (isNaN(osInicio.getTime())) osInicio = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 0, 0, 0);
+
                     const overlapInicio = osInicio > inicioHora ? osInicio : inicioHora;
                     const overlapFim = osFim < fimHora ? osFim : fimHora;
 
                     if (overlapInicio < overlapFim) {
-                        manutencaoCavalo += (overlapFim - overlapInicio);
+                        tempoParadoDoCavalo += (overlapFim - overlapInicio);
                     }
                 });
                 
-                if (manutencaoCavalo > msPorHora) manutencaoCavalo = msPorHora;
-                msManutencaoNestaHora += manutencaoCavalo;
+                // Limita a 1 hora de manutenção por caminhão dentro dessa janela de 60 minutos
+                if (tempoParadoDoCavalo > msPorHora) tempoParadoDoCavalo = msPorHora;
+                msManutencaoNestaHora += tempoParadoDoCavalo;
             });
 
+            // SOMA AS HORAS PERDIDAS POR SINISTROS (Ex: 1 sinistro = 1 caminhão parado aquela hora inteira)
+            msManutencaoNestaHora += (qtdSinistrosPendentes * msPorHora);
+
             let dispNestaHora = totalMsDisponivelPorHora - msManutencaoNestaHora;
-            if(dispNestaHora < 0) dispNesteHora = 0;
+            if(dispNestaHora < 0) dispNestaHora = 0;
             
             let percentDM = 100;
             if (totalMsDisponivelPorHora > 0) {
@@ -269,6 +285,7 @@ async function renderizarGraficoEvolucaoDmSerrana() {
             
             categoriasHoras.push(`${String(h).padStart(2,'0')}:00`);
             
+            // Oculta a linha no gráfico se a hora ainda não chegou
             if (inicioHora > agora) {
                 dadosDM.push(null); 
             } else {
@@ -290,7 +307,7 @@ async function renderizarGraficoEvolucaoDmSerrana() {
                 borderColor: '#38bdf8',
                 textStyle: { color: '#fff' } 
             },
-            grid: { left: '3%', right: '4%', bottom: '5%', top: '15%', containLabel: true },
+            grid: { left: '3%', right: '4%', bottom: '5%', top: '25%', containLabel: true },
             xAxis: {
                 type: 'category',
                 boundaryGap: false,
@@ -312,15 +329,15 @@ async function renderizarGraficoEvolucaoDmSerrana() {
                 smooth: true,
                 symbol: 'circle',
                 symbolSize: 6,
-                // ADICIONADO: Exibe a percentagem em cima de cada bolinha
+                // AQUI ATIVA O NÚMERO EM CIMA DA BOLINHA
                 label: {
                     show: true,
                     position: 'top',
                     formatter: '{c}%',
                     color: '#e2e8f0', 
-                    fontSize: 10, 
+                    fontSize: 11, 
                     fontWeight: 'bold',
-                    distance: 5
+                    distance: 6
                 },
                 itemStyle: { color: '#38bdf8' },
                 lineStyle: { width: 3, color: '#38bdf8' },
