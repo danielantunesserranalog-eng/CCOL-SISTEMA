@@ -330,133 +330,274 @@ async function salvarServicoExtra() {
 }
 
 // =========================================================================
-// NOVO LAYOUT DE IMPRESSÃO: EXATAMENTE IGUAL AO PDF FORNECIDO
+// LAYOUT DE IMPRESSÃO ANTIGO: PADRÃO CCOL ORIGINAL RESTAURADO
 // =========================================================================
 async function imprimirOS(osId) {
     const os = ordensServico.find(o => o.id === osId);
     if (!os) return;
     
-    // Busca dados do Tritrem na frota de manutenção
     const frota = frotasManutencao.find(f => f.cavalo === os.placa) || {};
-    const go = frota.go || 'N/I';
-    const c1 = frota.carreta1 || '-';
-    const c2 = frota.carreta2 || '-';
-    const c3 = frota.carreta3 || '-';
+    const infoAbertoPor = typeof currentUserEmail !== 'undefined' ? currentUserEmail : (os.criado_por || 'Sistema CCOL');
+    const numeroOSFormatado = String(os.id).padStart(4, '0');
 
     let dataAberturaFormatada = os.data_abertura;
-    let dataConclusaoFormatada = os.data_conclusao || 'Em andamento';
-    
     try {
         if(typeof formatarDataHoraBrasil === 'function') {
             dataAberturaFormatada = formatarDataHoraBrasil(os.data_abertura);
-            if(os.data_conclusao) dataConclusaoFormatada = formatarDataHoraBrasil(os.data_conclusao);
+        } else if (os.data_abertura) {
+            dataAberturaFormatada = new Date(os.data_abertura).toLocaleString('pt-BR');
         }
     } catch(e) {}
     
     let painelBorracharia = '';
     if (os.tipo === 'Borracharia (PNEU)') {
         painelBorracharia = `
-            <div style="margin-top:10px; padding: 5px; border: 1px dashed #000;">
+            <div class="full-box">
                 <strong>🛞 DETALHES DE BORRACHARIA:</strong>
-                <p style="margin: 3px 0;">Posição: <b>${os.pneu_posicao || '-'}</b> | Serviço: <b>${os.pneu_servico || '-'}</b> | Motivo: <b>${os.pneu_motivo || '-'}</b></p>
+                <div style="margin-top: 5px; font-size: 14px;">
+                    Posição: <b>${os.pneu_posicao || '-'}</b> | Serviço: <b>${os.pneu_servico || '-'}</b> | Motivo: <b>${os.pneu_motivo || '-'}</b>
+                </div>
             </div>
         `;
     }
 
-    // Linhas da Tabela de Serviços (com o 1°() 2°() 3°() em todas as linhas como no modelo)
     let linhasServicos = '';
     for(let i=0; i<8; i++) {
         linhasServicos += `
-        <tr style="height: 35px;">
-            <td></td>
-            <td></td>
-            <td style="text-align:center; font-size:10px;">1°( ) 2°( ) 3°( )</td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-        </tr>`;
+            <tr>
+                <td style="height: 35px;"></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>`;
+    }
+
+    let linhasPecas = '';
+    for(let i=0; i<4; i++) {
+        linhasPecas += `
+            <tr>
+                <td style="height: 35px;"></td>
+                <td></td>
+                <td></td>
+            </tr>`;
     }
 
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
         <html>
         <head>
-            <title>OS ${os.placa}</title>
+            <title>Ordem de Serviço #${numeroOSFormatado}</title>
             <style>
-                body { font-family: Arial, sans-serif; padding: 20px; font-size: 13px; color: #000; }
-                .header-title { text-align: center; font-weight: bold; font-size: 16px; margin-bottom: 5px; text-transform: uppercase; }
-                .header-subtitle { text-align: center; font-size: 14px; margin-bottom: 25px; }
+                @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+                body { 
+                    font-family: 'Roboto', sans-serif; 
+                    margin: 0; 
+                    padding: 20px; 
+                    color: #000;
+                    background: #fff;
+                    font-size: 13px;
+                }
+                .container {
+                    border: 2px solid #000;
+                    padding: 15px;
+                    max-width: 800px;
+                    margin: 0 auto;
+                }
+                .header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-bottom: 2px solid #000;
+                    padding-bottom: 15px;
+                    margin-bottom: 15px;
+                }
+                .header img {
+                    height: 50px;
+                }
+                .header-title {
+                    text-align: center;
+                    flex: 1;
+                }
+                .header-title h2 {
+                    margin: 0;
+                    font-size: 22px;
+                    text-transform: uppercase;
+                }
+                .header-title p {
+                    margin: 5px 0 0 0;
+                    font-size: 14px;
+                    font-weight: bold;
+                }
+                .os-number {
+                    border: 2px solid #000;
+                    padding: 10px;
+                    text-align: center;
+                    font-weight: bold;
+                    background: #f3f4f6;
+                    font-size: 18px;
+                }
                 
-                .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 15px; }
-                .info-line { margin-bottom: 10px; }
-                .info-label { font-weight: bold; }
+                .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+                .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px; }
                 
-                .section-title { font-weight: bold; margin-top: 20px; margin-bottom: 5px; }
-                .box-diagnostico { padding: 5px; min-height: 40px; border-bottom: 1px solid #ccc; font-weight: bold; text-transform: uppercase; }
+                .box {
+                    border: 1px solid #000;
+                    padding: 8px;
+                }
+                .box strong {
+                    display: block;
+                    font-size: 11px;
+                    color: #555;
+                    margin-bottom: 4px;
+                }
+                .box span {
+                    font-size: 14px;
+                    font-weight: bold;
+                }
+                .full-box {
+                    border: 1px solid #000;
+                    padding: 10px;
+                    margin-bottom: 15px;
+                    background: #f9fafb;
+                }
                 
-                table { width: 100%; border-collapse: collapse; margin-top: 5px; }
-                th, td { border: 1px solid #000; padding: 5px; text-align: left; font-size: 11px; }
-                th { text-align: center; font-weight: bold; }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 15px;
+                }
+                table, th, td {
+                    border: 1px solid #000;
+                }
+                th {
+                    background: #e5e7eb;
+                    padding: 8px;
+                    font-size: 11px;
+                    text-align: left;
+                }
+                td {
+                    padding: 6px;
+                }
                 
-                .assinaturas { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; margin-top: 70px; text-align: center; }
-                .linha-ass { border-top: 1px solid #000; padding-top: 5px; font-weight: bold; }
+                .assinaturas {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr 1fr;
+                    gap: 20px;
+                    margin-top: 50px;
+                    text-align: center;
+                }
+                .linha-assinatura {
+                    border-top: 1px solid #000;
+                    padding-top: 5px;
+                    font-size: 12px;
+                    font-weight: bold;
+                }
+                
+                @media print {
+                    @page { margin: 1cm; }
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                }
             </style>
         </head>
         <body>
-            <div class="header-title">ORDEM DE SERVIÇO / OCORRÊNCIA - MANUTENÇÃO E FROTAS</div>
-            <div class="header-subtitle">Serrana Florestal - CCOL</div>
-
-            <div class="info-grid">
-                <div>
-                    <div class="info-line"><span class="info-label">Cavalo:</span> ${os.placa}</div>
-                    <div class="info-line"><span class="info-label">Abertura:</span> ${dataAberturaFormatada}</div>
+            <div class="container">
+                <div class="header">
+                    <img src="assets/logo.png" alt="Serrana Log" onerror="this.style.display='none'">
+                    <div class="header-title">
+                        <h2>ORDEM DE SERVIÇO DE MANUTENÇÃO</h2>
+                        <p>CCOL - Centro de Controle Operacional Logístico</p>
+                    </div>
+                    <div class="os-number">
+                        O.S. Nº<br>
+                        <span style="font-size: 24px; color: #dc2626;">${numeroOSFormatado}</span>
+                    </div>
                 </div>
-                <div>
-                    <div class="info-line"><span class="info-label">GO:</span> ${go}</div>
-                    <div class="info-line"><span class="info-label">Conclusão:</span> ${dataConclusaoFormatada}</div>
-                    <div class="info-line"><span class="info-label">Mecânico/Responsável:</span> A Definir</div>
-                    <div class="info-line"><span class="info-label">Status:</span> ${os.status}</div>
+
+                <div class="grid-4">
+                    <div class="box"><strong>Data de Abertura:</strong> <span>${dataAberturaFormatada}</span></div>
+                    <div class="box"><strong>Prioridade:</strong> <span>${os.prioridade}</span></div>
+                    <div class="box"><strong>Tipo de Serviço:</strong> <span>${os.tipo}</span></div>
+                    <div class="box"><strong>Status:</strong> <span>${os.status}</span></div>
+                </div>
+
+                <div class="grid-4">
+                    <div class="box"><strong>Placa (Cavalo):</strong> <span>${os.placa || '-'}</span></div>
+                    <div class="box"><strong>1ª Carreta:</strong> <span>${frota.carreta1 || '-'}</span></div>
+                    <div class="box"><strong>2ª Carreta:</strong> <span>${frota.carreta2 || '-'}</span></div>
+                    <div class="box"><strong>3ª Carreta:</strong> <span>${frota.carreta3 || '-'}</span></div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="box"><strong>Motorista Solicitante / Relator:</strong> <span>${os.motorista || 'Não informado'}</span></div>
+                    <div class="box"><strong>Km / Hodômetro Atual:</strong> <span>${os.hodometro || 'Não informado'}</span></div>
+                </div>
+
+                <div class="full-box">
+                    <strong>PROBLEMA RELATADO PELO MOTORISTA / DIAGNÓSTICO INICIAL:</strong>
+                    <div style="margin-top: 5px; font-size: 14px;">${os.problema ? os.problema.replace(/\n/g, '<br>') : 'Nenhum detalhe adicional informado.'}</div>
+                </div>
+                
+                ${painelBorracharia}
+
+                <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px; border-bottom: 1px solid #000; padding-bottom: 5px;">DESCRIÇÃO DE SERVIÇOS EXECUTADOS (A preencher pela Oficina)</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 40%;">Serviço Executado</th>
+                            <th style="width: 15%;">Mecânico Resp.</th>
+                            <th style="width: 15%;">Aplicação (Eixo/Comp)</th>
+                            <th style="width: 10%;">Início</th>
+                            <th style="width: 10%;">Fim</th>
+                            <th style="width: 10%;">Total Hrs</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${linhasServicos}
+                    </tbody>
+                </table>
+
+                <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px; border-bottom: 1px solid #000; padding-bottom: 5px;">REQUISIÇÃO DE PEÇAS / MATERIAIS UTILIZADOS</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 15%;">Código</th>
+                            <th style="width: 65%;">Descrição da Peça / Material</th>
+                            <th style="width: 20%;">Quantidade</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${linhasPecas}
+                    </tbody>
+                </table>
+                
+                <div class="full-box" style="min-height: 60px;">
+                    <strong>OBSERVAÇÕES GERAIS DA MANUTENÇÃO:</strong>
+                </div>
+                
+                <div style="text-align: right; font-size: 11px; margin-top: 20px;">
+                    O.S. Emitida eletronicamente por: <strong>${infoAbertoPor}</strong> via sistema CCOL.
+                </div>
+
+                <div class="assinaturas">
+                    <div>
+                        <div class="linha-assinatura">Assinatura do Motorista</div>
+                    </div>
+                    <div>
+                        <div class="linha-assinatura">Assinatura Mecânico / Chefe Oficina</div>
+                    </div>
+                    <div>
+                        <div class="linha-assinatura">Visto CCOL / Gestor Frota</div>
+                    </div>
                 </div>
             </div>
-
-            <div class="info-line">
-                <span class="info-label">Composição do Tritrem (Carretas vinculadas):</span><br>
-                1º Comp: ${c1} | 2° Comp: ${c2} | 3° Comp: ${c3}
-            </div>
-
-            <div class="info-line" style="margin-top: 15px;">
-                <span class="info-label">Classificação da Manutenção / Tipo:</span> ${os.tipo}
-            </div>
-
-            <div class="section-title">Diagnóstico Inicial do Condutor / Problema / Detalhes Sinistro:</div>
-            <div class="box-diagnostico">${os.problema ? os.problema.replace(/\n/g, '<br>') : ''}</div>
-            ${painelBorracharia}
-
-            <div class="section-title">Serviços Executados (Preenchimento da Oficina):</div>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 35%;">Descrição do Serviço</th>
-                        <th style="width: 8%;">Hora<br>Início</th>
-                        <th style="width: 15%;">Compartimentos<br>(Tritrem)</th>
-                        <th style="width: 8%;">LD/LE<br>Eixo</th>
-                        <th style="width: 12%;">PLACA</th>
-                        <th style="width: 14%;">Mecânico</th>
-                        <th style="width: 8%;">Hora<br>Fim</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${linhasServicos}
-                </tbody>
-            </table>
-
-            <div class="assinaturas">
-                <div class="linha-ass">Motorista</div>
-                <div class="linha-ass">Oficina</div>
-                <div class="linha-ass">CCOL</div>
-            </div>
-            <script>window.onload = function(){ window.print(); }</script>
+            
+            <script>
+                window.onload = function() {
+                    window.print();
+                }
+            </script>
         </body>
         </html>
     `);
