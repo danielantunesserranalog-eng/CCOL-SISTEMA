@@ -53,9 +53,9 @@ window.renderizarMenu = function() {
         navHtml += `<button class="nav-item" onclick="navegarPara('treinamento', this)" style="color: #a855f7; font-weight: bold;">🎓 Treinamento</button>`;
     }
 
-    // INDICADORES (DASHBOARD)
+    // INDICADORES (DASHBOARD) - NOME ALTERADO PARA SUZANO
     if (meusMenus.includes('indicadores') || isAdmin) {
-        navHtml += `<button class="nav-item" onclick="navegarPara('indicadores', this)" style="color: #3498db; font-weight: bold;">📈 Indicadores</button>`;
+        navHtml += `<button class="nav-item" onclick="navegarPara('indicadores', this)" style="color: #3498db; font-weight: bold;">📈 Indicadores Suzano</button>`;
     }
 
     // NOVO MENU: INDICADORES SERRANA
