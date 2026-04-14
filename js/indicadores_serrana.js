@@ -176,7 +176,7 @@ async function carregarFrentesTvSerrana() {
 }
 
 // =========================================================================
-// GRÁFICO EVOLUÇÃO DIÁRIA DA DISPONIBILIDADE MECÂNICA (DM) SERRANA
+// GRÁFICO EVOLUÇÃO DIÁRIA (POR HORA) DA DISPONIBILIDADE MECÂNICA (DM) 
 // =========================================================================
 async function renderizarGraficoEvolucaoDmSerrana() {
     const chartDom = document.getElementById('graficoEvolucaoDmSerrana');
@@ -198,77 +198,80 @@ async function renderizarGraficoEvolucaoDmSerrana() {
                 }
             });
         }
-        frotas = [...new Set(frotas)]; // Remove duplicações
+        frotas = [...new Set(frotas)]; 
 
         if(frotas.length === 0) {
             chartDom.innerHTML = '<div class="empty-state">Sem dados de frota para calcular DM.</div>';
             return;
         }
 
-        // 2. Busca todas O.S. (Ignorando as 'Agendadas')
+        // 2. Busca todas O.S.
         const { data: osData } = await supabaseClient.from('ordens_servico').select('placa, data_abertura, data_conclusao, status').neq('status', 'Agendada');
         let ordensServico = osData || [];
 
-        // 3. Cálculo de intersecção de tempo Diário (00:00 até 23:59)
+        // 3. CÁLCULO INTRA-HORA (HOJE, de 00:00 até 23:59)
         const agora = new Date();
-        const categoriasDias = [];
+        const categoriasHoras = [];
         const dadosDM = [];
-        const msPorDia = 24 * 60 * 60 * 1000;
-        const totalMsDisponivelPorDia = frotas.length * msPorDia;
+        const msPorHora = 60 * 60 * 1000; // Milissegundos em 1 hora
+        const totalMsDisponivelPorHora = frotas.length * msPorHora;
         
-        const diasARenderizar = 15; 
-
-        for (let i = diasARenderizar - 1; i >= 0; i--) {
-            const dataDia = new Date(agora.getTime() - (i * msPorDia));
-            const inicioDia = new Date(dataDia.getFullYear(), dataDia.getMonth(), dataDia.getDate(), 0, 0, 0);
-            const fimDia = new Date(dataDia.getFullYear(), dataDia.getMonth(), dataDia.getDate(), 23, 59, 59, 999);
+        // Loop pelas 24 horas de HOJE (0 a 23)
+        for (let h = 0; h < 24; h++) {
+            const inicioHora = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), h, 0, 0, 0);
+            const fimHora = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), h, 59, 59, 999);
             
-            let msManutencaoNesteDia = 0;
+            let msManutencaoNestaHora = 0;
 
             frotas.forEach(placa => {
                 let manutencaoCavalo = 0;
                 const todasOSCavalo = ordensServico.filter(o => o.placa === placa);
                 
                 todasOSCavalo.forEach(os => {
-                    // Proteção extra contra datas inválidas no banco
                     let osInicioStr = String(os.data_abertura || '');
                     if (!osInicioStr || osInicioStr === 'null') return; 
                     if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
-                    
                     const osInicio = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
+                    if (isNaN(osInicio.getTime())) return;
                     
-                    let osFim = agora;
+                    // Se não tiver data de conclusão (OS Aberta), consideramos que fica quebrada até o fim do dia de hoje
+                    let osFim = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 23, 59, 59, 999);
                     if (os.data_conclusao && os.data_conclusao !== 'null') {
                         let osFimStr = String(os.data_conclusao);
                         if (!osFimStr.includes('T')) osFimStr += 'T00:00:00';
                         osFim = new Date(osFimStr.replace('Z', '').replace('+00:00', ''));
                     }
 
-                    // Se a data for inválida, pula
-                    if (isNaN(osInicio.getTime())) return;
-
-                    const overlapInicio = osInicio > inicioDia ? osInicio : inicioDia;
-                    const overlapFim = osFim < fimDia ? osFim : fimDia;
+                    // Verifica sobreposição de tempo exatamente dentro daquela HORA específica
+                    const overlapInicio = osInicio > inicioHora ? osInicio : inicioHora;
+                    const overlapFim = osFim < fimHora ? osFim : fimHora;
 
                     if (overlapInicio < overlapFim) {
                         manutencaoCavalo += (overlapFim - overlapInicio);
                     }
                 });
                 
-                if (manutencaoCavalo > msPorDia) manutencaoCavalo = msPorDia;
-                msManutencaoNesteDia += manutencaoCavalo;
+                if (manutencaoCavalo > msPorHora) manutencaoCavalo = msPorHora;
+                msManutencaoNestaHora += manutencaoCavalo;
             });
 
-            let dispNesteDia = totalMsDisponivelPorDia - msManutencaoNesteDia;
-            if(dispNesteDia < 0) dispNesteDia = 0;
+            let dispNestaHora = totalMsDisponivelPorHora - msManutencaoNestaHora;
+            if(dispNestaHora < 0) dispNestaHora = 0;
             
             let percentDM = 100;
-            if (totalMsDisponivelPorDia > 0) {
-                percentDM = (dispNesteDia / totalMsDisponivelPorDia) * 100;
+            if (totalMsDisponivelPorHora > 0) {
+                percentDM = (dispNestaHora / totalMsDisponivelPorHora) * 100;
             }
             
-            categoriasDias.push(`${String(dataDia.getDate()).padStart(2,'0')}/${String(dataDia.getMonth()+1).padStart(2,'0')}`);
-            dadosDM.push(percentDM.toFixed(1));
+            // Adiciona a hora formatada na categoria do eixo X (ex: 00:00, 01:00)
+            categoriasHoras.push(`${String(h).padStart(2,'0')}:00`);
+            
+            // Lógica para não desenhar gráfico no futuro!
+            if (inicioHora > agora) {
+                dadosDM.push(null); // Retorna nulo para horas que ainda não aconteceram
+            } else {
+                dadosDM.push(percentDM.toFixed(1));
+            }
         }
 
         // 4. Injeta os dados no ECharts
@@ -277,16 +280,14 @@ async function renderizarGraficoEvolucaoDmSerrana() {
             return;
         }
 
-        // LIMPA QUALQUER TEXTO ANTES DE RENDERIZAR
         chartDom.innerHTML = '';
-
         let myChart = echarts.getInstanceByDom(chartDom);
         if (!myChart) myChart = echarts.init(chartDom);
 
         const option = {
             tooltip: { 
                 trigger: 'axis', 
-                formatter: '{b} <br/> DM Serrana: <b>{c}%</b>', 
+                formatter: '{b} <br/> DM da Hora: <b>{c}%</b>', 
                 backgroundColor: 'rgba(0,0,0,0.85)', 
                 borderColor: '#38bdf8',
                 textStyle: { color: '#fff' } 
@@ -295,7 +296,7 @@ async function renderizarGraficoEvolucaoDmSerrana() {
             xAxis: {
                 type: 'category',
                 boundaryGap: false,
-                data: categoriasDias,
+                data: categoriasHoras,
                 axisLabel: { color: '#94a3b8', fontWeight: 'bold' },
                 axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } }
             },
@@ -307,21 +308,14 @@ async function renderizarGraficoEvolucaoDmSerrana() {
                 splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)', type: 'dashed' } }
             },
             series: [{
-                name: 'DM Diário',
+                name: 'DM Hora',
                 type: 'line',
                 data: dadosDM,
                 smooth: true,
                 symbol: 'circle',
-                symbolSize: 8,
+                symbolSize: 6,
                 label: {
-                    show: true,
-                    position: 'top',
-                    formatter: '{c}%',
-                    color: '#ffffff',
-                    fontSize: 12,
-                    fontWeight: 'bold',
-                    textBorderColor: 'rgba(0,0,0,0.8)',
-                    textBorderWidth: 2
+                    show: false, // Desligado para não poluir, são 24 pontos agora
                 },
                 itemStyle: { color: '#38bdf8' },
                 lineStyle: { width: 3, color: '#38bdf8' },
@@ -341,7 +335,6 @@ async function renderizarGraficoEvolucaoDmSerrana() {
         
     } catch(e) {
         console.error("Erro Crítico DM Serrana:", e);
-        // Em caso de erro, mostramos o motivo real na tela
         if (chartDom) {
             chartDom.innerHTML = `<div class="empty-state" style="color:#ef4444; font-size:0.9rem;">Falha ao desenhar gráfico: ${e.message}</div>`;
         }
