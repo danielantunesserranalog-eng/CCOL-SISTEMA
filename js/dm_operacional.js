@@ -70,7 +70,10 @@ async function processarImportacaoDM(event) {
             
             const chartDiv = document.getElementById('graficoDmOperacional');
             if (chartDiv) chartDiv.removeAttribute('data-rendered');
-            window.renderizarGraficoDMOperacional();
+            
+            const selectFiltro = document.getElementById('filtroPeriodoDM');
+            const filtroVal = selectFiltro ? selectFiltro.value : '30';
+            window.renderizarGraficoDMOperacional(filtroVal);
             
         } catch (error) {
             console.error("Erro na importação:", error);
@@ -82,37 +85,50 @@ async function processarImportacaoDM(event) {
     reader.readAsArrayBuffer(file);
 }
 
-window.renderizarGraficoDMOperacional = async function() {
+// ADICIONADO: O parâmetro filtroPeriodo para respeitar a escolha na tela
+window.renderizarGraficoDMOperacional = async function(filtroPeriodo = '30') {
     const divGrafico = document.getElementById('graficoDmOperacional');
     if (!divGrafico || divGrafico.offsetWidth === 0) return;
 
+    // LÓGICA DE FILTRO DE DATAS
+    const hoje = new Date();
+    let dataStrCorte = '';
+
+    if (filtroPeriodo === 'mes_atual') {
+        const y = hoje.getFullYear();
+        const m = String(hoje.getMonth() + 1).padStart(2, '0');
+        dataStrCorte = `${y}-${m}-01`;
+    } else {
+        const dias = parseInt(filtroPeriodo) || 30;
+        const dataPassada = new Date(hoje.getTime() - (dias * 24 * 60 * 60 * 1000));
+        const y = dataPassada.getFullYear();
+        const m = String(dataPassada.getMonth() + 1).padStart(2, '0');
+        const d = String(dataPassada.getDate()).padStart(2, '0');
+        dataStrCorte = `${y}-${m}-${d}`;
+    }
+
     try {
+        // FILTRO NO BANCO: Puxa apenas registros maiores ou iguais à data de corte
         const { data, error } = await supabaseClient
             .from('dm_operacional')
             .select('*')
-            .order('data_registro', { ascending: false })
-            .limit(30);
+            .gte('data_registro', dataStrCorte)
+            .order('data_registro', { ascending: false });
 
         if (error) {
             divGrafico.innerHTML = `<div style="color:#ef4444; display:flex; justify-content:center; align-items:center; height:100%; font-weight:bold; text-align:center; padding: 20px;">🚨 Erro ao ler banco de dados: ${error.message}</div>`;
             return;
         }
 
-        if (!data || data.length === 0) {
-            divGrafico.innerHTML = `<div style="color:#94a3b8; display:flex; justify-content:center; align-items:center; height:100%; border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px; text-align:center; padding: 20px;">📂 Nenhum dado operacional encontrado.<br>Importe a planilha Excel nas configurações.</div>`;
-            return;
-        }
-
-        // ========================================================
-        // CORREÇÃO AQUI: Destrói o gráfico antigo antes de criar um novo
-        // Isso impede que o gráfico "pisque" ou suma da tela
         if (typeof echarts !== 'undefined') {
             let chartExistente = echarts.getInstanceByDom(divGrafico);
-            if (chartExistente) {
-                chartExistente.dispose();
-            }
+            if (chartExistente) chartExistente.dispose();
         }
-        // ========================================================
+
+        if (!data || data.length === 0) {
+            divGrafico.innerHTML = `<div style="color:#94a3b8; display:flex; justify-content:center; align-items:center; height:100%; border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px; text-align:center; padding: 20px;">📂 Nenhum dado operacional encontrado neste período (${filtroPeriodo === 'mes_atual' ? 'Mês Atual' : filtroPeriodo + ' dias'}).<br>Importe a planilha Excel nas configurações.</div>`;
+            return;
+        }
 
         divGrafico.innerHTML = '';
         const dadosOrdenados = data.reverse();
@@ -204,8 +220,7 @@ window.renderizarGraficoDMOperacional = async function() {
 
         chart.setOption(option);
         
-        // Garante que o redimensionamento do gráfico funcione se a tela mudar de tamanho
-        window.removeEventListener('resize', chart.resize); // Remove eventos antigos
+        window.removeEventListener('resize', chart.resize); 
         window.addEventListener('resize', () => chart.resize());
 
     } catch (err) {
@@ -213,11 +228,12 @@ window.renderizarGraficoDMOperacional = async function() {
     }
 }
 
-// O observador que verifica se o usuário trocou de aba e recarrega o gráfico
 setInterval(() => {
     const divGrafico = document.getElementById('graficoDmOperacional');
     if (divGrafico && divGrafico.offsetWidth > 0 && !divGrafico.getAttribute('data-rendered')) {
         divGrafico.setAttribute('data-rendered', 'true');
-        window.renderizarGraficoDMOperacional();
+        const selectFiltro = document.getElementById('filtroPeriodoDM');
+        const filtroVal = selectFiltro ? selectFiltro.value : '30';
+        window.renderizarGraficoDMOperacional(filtroVal);
     }
 }, 1000);

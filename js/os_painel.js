@@ -359,7 +359,6 @@ function renderizarRelatorioDM() {
     
     window.dmDataAtualExport = dmData;
     
-    // MÁGICA DOS GRÁFICOS: O setTimeout garante que a aba estará aberta na tela antes do ECharts tentar desenhar!
     setTimeout(() => {
         if(typeof window.renderizarGraficoEvolucaoDM === 'function') {
             window.renderizarGraficoEvolucaoDM(filtroValue);
@@ -368,7 +367,9 @@ function renderizarRelatorioDM() {
         if(typeof window.renderizarGraficoDMOperacional === 'function') {
             const divGrafico = document.getElementById('graficoDmOperacional');
             if (divGrafico) divGrafico.removeAttribute('data-rendered');
-            window.renderizarGraficoDMOperacional();
+            
+            // ADICIONADO: Envia a escolha do filtro para a DM Operacional
+            window.renderizarGraficoDMOperacional(filtroValue); 
         }
     }, 250);
 }
@@ -460,16 +461,13 @@ function entrarModoTV() {
         document.documentElement.requestFullscreen().catch(err => console.warn("Fullscreen falhou:", err));
     }
 
-    // Inicia o Relógio da TV
     atualizarRelogioTV();
     if (!window.tvClockInterval) {
         window.tvClockInterval = setInterval(atualizarRelogioTV, 1000);
     }
 
-    // Desenha os cards imediatamente, aguardando 100ms para o DOM liberar a tela
     setTimeout(renderizarCardsTV, 100);
 
-    // Configura a renovação dos dados a cada 15 segundos
     if (tvInterval) clearInterval(tvInterval);
     tvInterval = setInterval(() => {
         if(typeof carregarDadosOS === 'function') {
@@ -557,7 +555,7 @@ function renderizarCardsTV() {
             .join('');
 
         let avisoPrevisao = '';
-        let campoPrevisao = os.previsao_entrega || os.previsao; // Proteção extra para campos
+        let campoPrevisao = os.previsao_entrega || os.previsao;
         
         if (campoPrevisao) {
             const dataPrevisao = new Date(campoPrevisao);
