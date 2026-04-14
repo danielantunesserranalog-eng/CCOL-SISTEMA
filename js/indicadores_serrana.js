@@ -295,9 +295,16 @@ async function renderizarGraficoEvolucaoDmSerrana() {
 
         if (typeof echarts === 'undefined') return;
 
-        chartDom.innerHTML = '';
+        // --- CORREÇÃO AQUI: Removemos o chartDom.innerHTML = ''; ---
         let myChart = echarts.getInstanceByDom(chartDom);
-        if (!myChart) myChart = echarts.init(chartDom);
+        if (!myChart) {
+            myChart = echarts.init(chartDom);
+            
+            // O Evento de redimensionar agora só é criado uma única vez
+            window.addEventListener('resize', () => {
+                if(myChart) myChart.resize();
+            });
+        }
 
         const option = {
             tooltip: { 
@@ -329,7 +336,6 @@ async function renderizarGraficoEvolucaoDmSerrana() {
                 smooth: true,
                 symbol: 'circle',
                 symbolSize: 6,
-                // AQUI ATIVA O NÚMERO EM CIMA DA BOLINHA
                 label: {
                     show: true,
                     position: 'top',
@@ -350,10 +356,8 @@ async function renderizarGraficoEvolucaoDmSerrana() {
             }]
         };
 
+        // setOption atualiza o gráfico nativamente, sem destruir a div
         myChart.setOption(option);
-        
-        window.removeEventListener('resize', myChart.resize);
-        window.addEventListener('resize', () => myChart.resize());
         
     } catch(e) {
         console.error("Erro Crítico DM Serrana:", e);
