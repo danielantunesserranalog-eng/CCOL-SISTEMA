@@ -54,15 +54,35 @@ async function carregarMotoristasSelectOS() {
     }
 }
 
+// CORREÇÃO DEFINITIVA: Busca os cavalos cadastrados na tabela de Manutenção ('frotas_manutencao')
 async function carregarSelectCavalosOS() {
     const select = document.getElementById('osPlaca');
     if (!select) return;
+    
     try {
-        const { data } = await supabaseClient.from('conjuntos').select('cavalo').order('cavalo');
+        const { data, error } = await supabaseClient
+            .from('frotas_manutencao')
+            .select('cavalo')
+            .order('cavalo', { ascending: true });
+
+        if (error) throw error;
+
         let options = '<option value="">Selecione o Conjunto...</option>';
-        data.forEach(c => options += `<option value="${c.cavalo}">${c.cavalo}</option>`);
+        if (data && data.length > 0) {
+            data.forEach(f => {
+                if (f.cavalo) {
+                    options += `<option value="${f.cavalo.trim().toUpperCase()}">${f.cavalo.trim().toUpperCase()}</option>`;
+                }
+            });
+        } else {
+            options = '<option value="">Nenhum conjunto cadastrado...</option>';
+        }
+        
         select.innerHTML = options;
-    } catch(e) {}
+    } catch(e) {
+        console.error("Erro ao carregar placas da frota na O.S:", e);
+        select.innerHTML = '<option value="">Erro ao carregar placas</option>';
+    }
 }
 
 async function salvarNovaOS() {
@@ -223,8 +243,10 @@ async function salvarConclusaoOS() {
 
         fecharModalConclusaoOS();
         await carregarDadosOS();
-        renderizarTabelaOS();
-        renderizarTabelaSinistro();
+        
+        if(typeof renderizarTabelaOS === 'function') renderizarTabelaOS();
+        if(typeof renderizarTabelaSinistro === 'function') renderizarTabelaSinistro();
+        
         alert("Ordem de Serviço concluída com sucesso!");
 
     } catch (error) {
@@ -284,8 +306,10 @@ async function salvarServicoExtra() {
 
         fecharModalServicoExtra();
         await carregarDadosOS();
-        renderizarTabelaOS();
-        renderizarTabelaSinistro();
+        
+        if(typeof renderizarTabelaOS === 'function') renderizarTabelaOS();
+        if(typeof renderizarTabelaSinistro === 'function') renderizarTabelaSinistro();
+        
         alert("Atualização salva com sucesso!");
 
     } catch (error) {
@@ -299,7 +323,14 @@ async function imprimirOS(osId) {
     if (!os) return;
     const frota = frotasManutencao.find(f => f.cavalo === os.placa) || {};
     const numeroOSFormatado = String(os.id).padStart(5, '0');
-    const dataAberturaFormatada = formatarDataHoraBrasil(os.data_abertura);
+    
+    let dataAberturaFormatada = os.data_abertura;
+    try {
+        if(typeof formatarDataHoraBrasil === 'function') {
+            dataAberturaFormatada = formatarDataHoraBrasil(os.data_abertura);
+        }
+    } catch(e) {}
+    
     const infoAbertoPor = os.criado_por || 'Sistema CCOL';
 
     let painelBorracharia = '';
@@ -315,11 +346,6 @@ async function imprimirOS(osId) {
     let linhasServicos = '';
     for(let i=0; i<5; i++) {
         linhasServicos += `<tr style="height: 30px;"><td></td><td></td><td></td><td></td><td></td><td></td></tr>`;
-    }
-
-    let linhasPecas = '';
-    for(let i=0; i<4; i++) {
-        linhasPecas += `<tr style="height: 30px;"><td></td><td></td><td></td></tr>`;
     }
 
     const printWindow = window.open('', '_blank');
