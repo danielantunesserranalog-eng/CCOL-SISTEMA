@@ -3,12 +3,16 @@ window.carregarDadosDashboardSerrana = async function() {
     carregarControladorAtualSerrana();
     carregarFrentesTvSerrana();
     carregarOcorrenciasTvSerrana();
-    carregarFrotasParadasSerrana(); 
+    
+    // Pequeno atraso para garantir que a tela HTML carregou as larguras corretas
+    setTimeout(() => {
+        renderizarGraficoEvolucaoDmSerrana();
+    }, 300);
     
     setInterval(() => {
         carregarOcorrenciasTvSerrana(); 
-        carregarFrotasParadasSerrana(); 
-    }, 10000);
+        renderizarGraficoEvolucaoDmSerrana(); 
+    }, 60000); 
 
     if(typeof atualizarFrentesDeTrabalhoSerrana === 'function') {
         atualizarFrentesDeTrabalhoSerrana();
@@ -139,9 +143,7 @@ async function carregarFrentesTvSerrana() {
     try {
         const { data } = await supabaseClient.from('frentes_trabalho').select('*').eq('status', 'Ativa');
         
-        // Procura tanto no ID novo quanto no antigo pra forçar a renderização
         const containerNovo = document.getElementById('kpi-lista-frentes-nomes');
-        const containerAntigo = document.getElementById('lista-frentes-tv');
         const containerConfig = document.getElementById('config-lista-frentes');
         const elKpiFrentes = document.getElementById('kpi-frentes');
         
@@ -161,80 +163,188 @@ async function carregarFrentesTvSerrana() {
                 htmlConfig += `<div class="mini-item"><span>${f.nome}</span> <button class="btn-remover-mini" onclick="removerFrenteDashSerrana('${f.id}')"><i class="fas fa-trash"></i></button></div>`;
             });
             
-            // Injeta o HTML gerado onde quer que ele ache espaço
             if(containerNovo) containerNovo.innerHTML = htmlCaixinhas;
-            if(containerAntigo) containerAntigo.innerHTML = htmlCaixinhas;
             if(containerConfig) containerConfig.innerHTML = htmlConfig;
-            
-            if(typeof atualizarFrentesDeTrabalhoSerrana === 'function') atualizarFrentesDeTrabalhoSerrana();
             
         } else {
             if(elKpiFrentes) elKpiFrentes.textContent = '0';
             const msgVazia = '<div class="empty-state" style="font-size: 0.85rem; color: #94a3b8; font-weight: bold;">Nenhuma frente ativa.</div>';
             if(containerNovo) containerNovo.innerHTML = msgVazia;
-            if(containerAntigo) containerAntigo.innerHTML = msgVazia;
             if(containerConfig) containerConfig.innerHTML = '';
         }
-    } catch(e) {
-        console.error("Erro ao carregar Frentes Serrana:", e);
-    }
+    } catch(e) { console.error("Erro Frentes:", e); }
 }
 
-async function carregarFrotasParadasSerrana() {
+// =========================================================================
+// GRÁFICO EVOLUÇÃO DIÁRIA DA DISPONIBILIDADE MECÂNICA (DM) SERRANA
+// =========================================================================
+async function renderizarGraficoEvolucaoDmSerrana() {
+    const chartDom = document.getElementById('graficoEvolucaoDmSerrana');
+    if (!chartDom) return;
+
     try {
-        const { data, error } = await supabaseClient
-            .from('ordens_servico')
-            .select('placa, tipo, status') 
-            .in('status', ['Aguardando Oficina', 'Em Manutenção']); 
+        // 1. Busca total da frota
+        const { data: conjuntosData } = await supabaseClient.from('conjuntos').select('caminhoes');
+        let frotas = [];
+        if (conjuntosData) {
+            conjuntosData.forEach(conj => {
+                if (conj.caminhoes && Array.isArray(conj.caminhoes)) {
+                    frotas.push(...conj.caminhoes);
+                } else if (typeof conj.caminhoes === 'string') {
+                    try {
+                        const arr = JSON.parse(conj.caminhoes);
+                        if (Array.isArray(arr)) frotas.push(...arr);
+                    } catch(e) {}
+                }
+            });
+        }
+        frotas = [...new Set(frotas)]; // Remove duplicações
 
-        if (error) throw error;
-
-        const container = document.getElementById('frotas-paradas-list');
-        if(!container) return;
-
-        if (!data || data.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state" style="text-align: center; margin-top: 20px; grid-column: 1 / -1;">
-                    ✅ Nenhuma frota parada no momento.
-                </div>
-            `;
+        if(frotas.length === 0) {
+            chartDom.innerHTML = '<div class="empty-state">Sem dados de frota para calcular DM.</div>';
             return;
         }
 
-        let htmlParadas = '';
-        data.forEach(os => {
-            let tipoString = os.tipo ? os.tipo.toLowerCase() : 'corretiva';
-            let classeCss = 'corretiva'; 
-            let icone = 'fas fa-wrench';
-            let textColor = 'text-red';
+        // 2. Busca todas O.S. (Ignorando as 'Agendadas')
+        const { data: osData } = await supabaseClient.from('ordens_servico').select('placa, data_abertura, data_conclusao, status').neq('status', 'Agendada');
+        let ordensServico = osData || [];
+
+        // 3. Cálculo de intersecção de tempo Diário (00:00 até 23:59)
+        const agora = new Date();
+        const categoriasDias = [];
+        const dadosDM = [];
+        const msPorDia = 24 * 60 * 60 * 1000;
+        const totalMsDisponivelPorDia = frotas.length * msPorDia;
+        
+        const diasARenderizar = 15; 
+
+        for (let i = diasARenderizar - 1; i >= 0; i--) {
+            const dataDia = new Date(agora.getTime() - (i * msPorDia));
+            const inicioDia = new Date(dataDia.getFullYear(), dataDia.getMonth(), dataDia.getDate(), 0, 0, 0);
+            const fimDia = new Date(dataDia.getFullYear(), dataDia.getMonth(), dataDia.getDate(), 23, 59, 59, 999);
             
-            if (tipoString.includes('preventiva')) {
-                classeCss = 'preventiva';
-                icone = 'fas fa-clipboard-check';
-                textColor = 'text-orange';
-            }
-            if (tipoString.includes('borracharia') || tipoString.includes('pneu')) {
-                classeCss = 'borracharia';
-                icone = 'fas fa-life-ring';
-                textColor = 'text-blue';
-            }
+            let msManutencaoNesteDia = 0;
 
-            htmlParadas += `
-                <div class="item-frota-parada ${classeCss}">
-                    <div class="cavalo-info">
-                        <i class="${icone} ${textColor}" style="font-size: 1.3rem;"></i>
-                        <span class="identificacao-cavalo">${os.placa || 'N/I'}</span>
-                    </div>
-                    <div class="badge-tipo ${classeCss}">
-                        ${os.tipo ? os.tipo.toUpperCase() : 'CORRETIVA'}
-                    </div>
-                </div>
-            `;
-        });
-        container.innerHTML = htmlParadas;
+            frotas.forEach(placa => {
+                let manutencaoCavalo = 0;
+                const todasOSCavalo = ordensServico.filter(o => o.placa === placa);
+                
+                todasOSCavalo.forEach(os => {
+                    // Proteção extra contra datas inválidas no banco
+                    let osInicioStr = String(os.data_abertura || '');
+                    if (!osInicioStr || osInicioStr === 'null') return; 
+                    if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
+                    
+                    const osInicio = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
+                    
+                    let osFim = agora;
+                    if (os.data_conclusao && os.data_conclusao !== 'null') {
+                        let osFimStr = String(os.data_conclusao);
+                        if (!osFimStr.includes('T')) osFimStr += 'T00:00:00';
+                        osFim = new Date(osFimStr.replace('Z', '').replace('+00:00', ''));
+                    }
 
-    } catch (error) {
-        console.error("Erro frotas paradas Serrana:", error);
+                    // Se a data for inválida, pula
+                    if (isNaN(osInicio.getTime())) return;
+
+                    const overlapInicio = osInicio > inicioDia ? osInicio : inicioDia;
+                    const overlapFim = osFim < fimDia ? osFim : fimDia;
+
+                    if (overlapInicio < overlapFim) {
+                        manutencaoCavalo += (overlapFim - overlapInicio);
+                    }
+                });
+                
+                if (manutencaoCavalo > msPorDia) manutencaoCavalo = msPorDia;
+                msManutencaoNesteDia += manutencaoCavalo;
+            });
+
+            let dispNesteDia = totalMsDisponivelPorDia - msManutencaoNesteDia;
+            if(dispNesteDia < 0) dispNesteDia = 0;
+            
+            let percentDM = 100;
+            if (totalMsDisponivelPorDia > 0) {
+                percentDM = (dispNesteDia / totalMsDisponivelPorDia) * 100;
+            }
+            
+            categoriasDias.push(`${String(dataDia.getDate()).padStart(2,'0')}/${String(dataDia.getMonth()+1).padStart(2,'0')}`);
+            dadosDM.push(percentDM.toFixed(1));
+        }
+
+        // 4. Injeta os dados no ECharts
+        if (typeof echarts === 'undefined') {
+            chartDom.innerHTML = '<div class="empty-state" style="color:#ef4444;">Erro: Biblioteca de gráficos ECharts não encontrada.</div>';
+            return;
+        }
+
+        // LIMPA QUALQUER TEXTO ANTES DE RENDERIZAR
+        chartDom.innerHTML = '';
+
+        let myChart = echarts.getInstanceByDom(chartDom);
+        if (!myChart) myChart = echarts.init(chartDom);
+
+        const option = {
+            tooltip: { 
+                trigger: 'axis', 
+                formatter: '{b} <br/> DM Serrana: <b>{c}%</b>', 
+                backgroundColor: 'rgba(0,0,0,0.85)', 
+                borderColor: '#38bdf8',
+                textStyle: { color: '#fff' } 
+            },
+            grid: { left: '3%', right: '4%', bottom: '5%', top: '15%', containLabel: true },
+            xAxis: {
+                type: 'category',
+                boundaryGap: false,
+                data: categoriasDias,
+                axisLabel: { color: '#94a3b8', fontWeight: 'bold' },
+                axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } }
+            },
+            yAxis: {
+                type: 'value',
+                min: 0,
+                max: 100,
+                axisLabel: { formatter: '{value}%', color: '#94a3b8' },
+                splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)', type: 'dashed' } }
+            },
+            series: [{
+                name: 'DM Diário',
+                type: 'line',
+                data: dadosDM,
+                smooth: true,
+                symbol: 'circle',
+                symbolSize: 8,
+                label: {
+                    show: true,
+                    position: 'top',
+                    formatter: '{c}%',
+                    color: '#ffffff',
+                    fontSize: 12,
+                    fontWeight: 'bold',
+                    textBorderColor: 'rgba(0,0,0,0.8)',
+                    textBorderWidth: 2
+                },
+                itemStyle: { color: '#38bdf8' },
+                lineStyle: { width: 3, color: '#38bdf8' },
+                areaStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: 'rgba(56, 189, 248, 0.4)' },
+                        { offset: 1, color: 'rgba(56, 189, 248, 0)' }
+                    ])
+                }
+            }]
+        };
+
+        myChart.setOption(option);
+        
+        window.removeEventListener('resize', myChart.resize);
+        window.addEventListener('resize', () => myChart.resize());
+        
+    } catch(e) {
+        console.error("Erro Crítico DM Serrana:", e);
+        // Em caso de erro, mostramos o motivo real na tela
+        if (chartDom) {
+            chartDom.innerHTML = `<div class="empty-state" style="color:#ef4444; font-size:0.9rem;">Falha ao desenhar gráfico: ${e.message}</div>`;
+        }
     }
 }
 
