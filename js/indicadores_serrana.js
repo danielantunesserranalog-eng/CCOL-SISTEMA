@@ -103,45 +103,34 @@ async function atualizarPonteirosSerrana() {
 }
 
 // =========================================================================
-// LISTA: FROTAS PARADAS + CÁLCULO DE TEMPO
+// LISTA: FROTAS PARADAS + CÁLCULO DE TEMPO + ORDENAÇÃO DECRESCENTE
 // =========================================================================
 async function carregarFrotasParadasSerrana() {
     const container = document.getElementById('lista-frotas-paradas');
     if(!container) return;
 
     try {
-        // Agora buscamos a data_abertura também para calcular o tempo
         const { data: osData } = await supabaseClient
             .from('ordens_servico')
             .select('placa, problema, status, tipo, data_abertura')
-            .in('status', ['Aguardando Oficina', 'Em Manutenção', 'Sinistrado'])
-            .order('created_at', { ascending: false });
+            .in('status', ['Aguardando Oficina', 'Em Manutenção', 'Sinistrado']);
         
         let html = '';
         const agora = new Date();
         
         if (osData && osData.length > 0) {
-            osData.forEach(os => {
-                let corBorder = '#ef4444'; // vermelho padrão (Aguardando / Sinistro)
-                let icon = 'fas fa-tools';
-                
-                if (os.status === 'Em Manutenção') {
-                    corBorder = '#f59e0b'; // laranja
-                    icon = 'fas fa-wrench';
-                } else if (os.status === 'Sinistrado') {
-                    corBorder = '#b91c1c'; // vermelho escuro
-                    icon = 'fas fa-exclamation-triangle';
-                }
-
-                // ===== Lógica de Cálculo do Tempo Parado =====
+            // 1. Processar dados para calcular o tempo e guardar na variável "diffMs"
+            let frotasProcessadas = osData.map(os => {
+                let diffMs = 0;
                 let textoTempo = 'N/I';
+
                 if (os.data_abertura) {
                     let osInicioStr = String(os.data_abertura);
                     if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
                     let inicio = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
                     
                     if (!isNaN(inicio.getTime())) {
-                        const diffMs = agora - inicio;
+                        diffMs = agora - inicio;
                         if (diffMs > 0) {
                             const diffMinutos = Math.floor(diffMs / (1000 * 60));
                             const dias = Math.floor(diffMinutos / (60 * 24));
@@ -153,10 +142,29 @@ async function carregarFrotasParadasSerrana() {
                             else textoTempo = `${minutos}m`;
                         } else {
                             textoTempo = 'Agora';
+                            diffMs = 0; // Evitar números negativos
                         }
                     }
                 }
-                // =============================================
+                
+                return { ...os, diffMs, textoTempo };
+            });
+
+            // 2. ORDENAÇÃO: Quem tem o maior diffMs (mais tempo parado) fica no topo
+            frotasProcessadas.sort((a, b) => b.diffMs - a.diffMs);
+
+            // 3. Montar o HTML
+            frotasProcessadas.forEach(os => {
+                let corBorder = '#ef4444'; // vermelho padrão (Aguardando / Sinistro)
+                let icon = 'fas fa-tools';
+                
+                if (os.status === 'Em Manutenção') {
+                    corBorder = '#f59e0b'; // laranja
+                    icon = 'fas fa-wrench';
+                } else if (os.status === 'Sinistrado') {
+                    corBorder = '#b91c1c'; // vermelho escuro
+                    icon = 'fas fa-exclamation-triangle';
+                }
 
                 html += `
                 <div style="background: rgba(15, 23, 42, 0.6); border-left: 4px solid ${corBorder}; padding: 12px; border-radius: 6px; display: flex; flex-direction: column; gap: 6px;">
@@ -164,7 +172,7 @@ async function carregarFrotasParadasSerrana() {
                         <span style="font-weight: 900; color: #fff; font-size: 1.1rem;"><i class="${icon}" style="color: ${corBorder}; margin-right: 5px; font-size: 0.9rem;"></i> ${os.placa || 'N/I'}</span>
                         
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 0.75rem; background: rgba(255,255,255,0.08); color: #cbd5e1; padding: 3px 8px; border-radius: 4px; font-weight: bold; border: 1px solid rgba(255,255,255,0.1);"><i class="fas fa-clock" style="color: #94a3b8; margin-right: 3px;"></i> Parado há: ${textoTempo}</span>
+                            <span style="font-size: 0.75rem; background: rgba(255,255,255,0.08); color: #cbd5e1; padding: 3px 8px; border-radius: 4px; font-weight: bold; border: 1px solid rgba(255,255,255,0.1);"><i class="fas fa-clock" style="color: #94a3b8; margin-right: 3px;"></i> Parado há: ${os.textoTempo}</span>
                             <span style="font-size: 0.75rem; background: ${corBorder}20; color: ${corBorder}; padding: 3px 8px; border-radius: 4px; font-weight: bold; border: 1px solid ${corBorder}40;">${os.status}</span>
                         </div>
                     </div>
