@@ -103,7 +103,7 @@ async function atualizarPonteirosSerrana() {
 }
 
 // =========================================================================
-// LISTA: FROTAS PARADAS + CÁLCULO DE TEMPO + ORDENAÇÃO DECRESCENTE
+// LISTA: FROTAS PARADAS + CÁLCULO DE TEMPO + ORDENAÇÃO + TIPO DE O.S.
 // =========================================================================
 async function carregarFrotasParadasSerrana() {
     const container = document.getElementById('lista-frotas-paradas');
@@ -119,7 +119,7 @@ async function carregarFrotasParadasSerrana() {
         const agora = new Date();
         
         if (osData && osData.length > 0) {
-            // 1. Processar dados para calcular o tempo e guardar na variável "diffMs"
+            // 1. Processar dados para calcular o tempo
             let frotasProcessadas = osData.map(os => {
                 let diffMs = 0;
                 let textoTempo = 'N/I';
@@ -142,7 +142,7 @@ async function carregarFrotasParadasSerrana() {
                             else textoTempo = `${minutos}m`;
                         } else {
                             textoTempo = 'Agora';
-                            diffMs = 0; // Evitar números negativos
+                            diffMs = 0; 
                         }
                     }
                 }
@@ -150,12 +150,12 @@ async function carregarFrotasParadasSerrana() {
                 return { ...os, diffMs, textoTempo };
             });
 
-            // 2. ORDENAÇÃO: Quem tem o maior diffMs (mais tempo parado) fica no topo
+            // 2. ORDENAÇÃO: Maior tempo parado no topo
             frotasProcessadas.sort((a, b) => b.diffMs - a.diffMs);
 
             // 3. Montar o HTML
             frotasProcessadas.forEach(os => {
-                let corBorder = '#ef4444'; // vermelho padrão (Aguardando / Sinistro)
+                let corBorder = '#ef4444'; // vermelho
                 let icon = 'fas fa-tools';
                 
                 if (os.status === 'Em Manutenção') {
@@ -166,14 +166,29 @@ async function carregarFrotasParadasSerrana() {
                     icon = 'fas fa-exclamation-triangle';
                 }
 
+                // Trata o campo TIPO para não ficar vazio
+                const tipoTexto = os.tipo ? os.tipo : 'Não Informado';
+
                 html += `
-                <div style="background: rgba(15, 23, 42, 0.6); border-left: 4px solid ${corBorder}; padding: 12px; border-radius: 6px; display: flex; flex-direction: column; gap: 6px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-weight: 900; color: #fff; font-size: 1.1rem;"><i class="${icon}" style="color: ${corBorder}; margin-right: 5px; font-size: 0.9rem;"></i> ${os.placa || 'N/I'}</span>
+                <div style="background: rgba(15, 23, 42, 0.6); border-left: 4px solid ${corBorder}; padding: 12px; border-radius: 6px; display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px;">
                         
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 0.75rem; background: rgba(255,255,255,0.08); color: #cbd5e1; padding: 3px 8px; border-radius: 4px; font-weight: bold; border: 1px solid rgba(255,255,255,0.1);"><i class="fas fa-clock" style="color: #94a3b8; margin-right: 3px;"></i> Parado há: ${os.textoTempo}</span>
-                            <span style="font-size: 0.75rem; background: ${corBorder}20; color: ${corBorder}; padding: 3px 8px; border-radius: 4px; font-weight: bold; border: 1px solid ${corBorder}40;">${os.status}</span>
+                        <span style="font-weight: 900; color: #fff; font-size: 1.1rem; white-space: nowrap;">
+                            <i class="${icon}" style="color: ${corBorder}; margin-right: 5px; font-size: 0.9rem;"></i> ${os.placa || 'N/I'}
+                        </span>
+                        
+                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
+                            <span style="font-size: 0.7rem; background: rgba(56, 189, 248, 0.1); color: #38bdf8; padding: 3px 6px; border-radius: 4px; font-weight: bold; border: 1px solid rgba(56, 189, 248, 0.3);">
+                                <i class="fas fa-tag" style="margin-right: 3px;"></i> ${tipoTexto}
+                            </span>
+                            
+                            <span style="font-size: 0.7rem; background: rgba(255,255,255,0.08); color: #cbd5e1; padding: 3px 6px; border-radius: 4px; font-weight: bold; border: 1px solid rgba(255,255,255,0.1);">
+                                <i class="fas fa-clock" style="color: #94a3b8; margin-right: 3px;"></i> Parado: ${os.textoTempo}
+                            </span>
+                            
+                            <span style="font-size: 0.7rem; background: ${corBorder}20; color: ${corBorder}; padding: 3px 6px; border-radius: 4px; font-weight: bold; border: 1px solid ${corBorder}40;">
+                                ${os.status}
+                            </span>
                         </div>
                     </div>
                     <span style="font-size: 0.85rem; color: #94a3b8; line-height: 1.3;">${os.problema ? os.problema : 'Sem detalhes relatados.'}</span>
