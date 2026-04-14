@@ -21,25 +21,29 @@
         padding-bottom: 18px; 
     }
 
-    .header-left { display: flex; justify-content: flex-start; }
+    .header-left { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; justify-content: center; }
     .header-center { text-align: center; }
-    .header-right { display: flex; justify-content: flex-end; }
+    .header-right { display: flex; justify-content: flex-end; align-items: center; }
 
     .pro-title-box h2 { margin: 0; font-size: 2rem; font-weight: 900; letter-spacing: 1px; color: #fff; } 
     .pro-title-box p { margin: 4px 0 0 0; font-size: 1.05rem; color: #94a3b8; font-weight: 600; letter-spacing: 2px; }
     .pro-logo { height: 68px; object-fit: contain; } 
 
-    /* DETALHE: DATA, HORA E CONTROLADOR PEQUENOS NO CABEÇALHO */
-    .header-details-badge {
-        margin-top: 12px; 
-        display: inline-flex; 
-        gap: 20px; 
-        background: rgba(0,0,0,0.3); 
-        padding: 6px 20px; 
-        border-radius: 20px; 
-        border: 1px solid rgba(255,255,255,0.05); 
-        font-size: 0.9rem; 
-        font-weight: bold;
+    /* CAIXINHAS PEQUENAS LADO ESQUERDO */
+    .header-badge-small {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(255,255,255,0.08);
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        color: #cbd5e1;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
 
     /* TOPO: 4 KPIs */
@@ -127,7 +131,7 @@
 
     /* PARTE DE BAIXO DIVIDIDA (GRÁFICO vs FROTAS PARADAS) */
     .dash-bottom-split {
-        display: grid; grid-template-columns: 1.6fr 1fr; gap: 22px; align-items: stretch; flex-grow: 1; 
+        display: grid; grid-template-columns: 1.3fr 1.1fr; gap: 22px; align-items: stretch; flex-grow: 1; 
     }
 
     .dash-left-frentes, .dash-right-info { display: flex; flex-direction: column; height: 100%; width: 100%; }
@@ -145,21 +149,27 @@
 
 <div id="area-print-dash" class="dash-pro-wrapper fade-in">
     <header class="dash-pro-header">
+        
         <div class="header-left">
-            <button id="btn-gerar-print" class="btn-pro-print" onclick="exportarDashboardPNGSerrana()">
-                <i class="fas fa-camera"></i> Salvar Imagem
-            </button>
+            <div class="header-badge-small">
+                <i class="fas fa-clock" style="color: #38bdf8; font-size: 0.9rem;"></i> 
+                <span id="dash-data">--/--/----</span> &nbsp;|&nbsp; <span id="dash-hora">--:--:--</span>
+            </div>
+            <div class="header-badge-small">
+                <i class="fas fa-user-shield" style="color: #a855f7; font-size: 0.9rem;"></i> 
+                CTRL: <span id="dash-controlador-nome" style="font-weight: 900; color: #fff;">AGUARDANDO...</span>
+            </div>
         </div>
+
         <div class="header-center pro-title-box">
             <h2>STATUS DA OPERAÇÃO LOGÍSTICA - SERRANALOG</h2>
             <p>CCOL - CENTRO DE CONTROLE OPERACIONAL</p>
-            
-            <div class="header-details-badge">
-                <span style="color: #38bdf8;"><i class="fas fa-clock"></i> <span id="dash-data">--/--/----</span> às <span id="dash-hora">--:--:--</span></span>
-                <span style="color: #a855f7;"><i class="fas fa-user-shield"></i> Controlador: <span id="dash-controlador-nome">AGUARDANDO...</span></span>
-            </div>
         </div>
+
         <div class="header-right">
+            <button id="btn-gerar-print" class="btn-pro-print" onclick="exportarDashboardPNGSerrana()" style="margin-right: 20px;">
+                <i class="fas fa-camera"></i> Salvar Imagem
+            </button>
             <img src="assets/logo.png" alt="Serrana" class="pro-logo">
         </div>
     </header>
@@ -237,7 +247,7 @@
                 <div class="list-header" style="padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
                     <h3 style="color: #ef4444; font-size: 1.2rem; margin: 0;"><i class="fas fa-tools" style="margin-right: 8px;"></i> Frotas Paradas (OS Abertas)</h3>
                 </div>
-                <div id="lista-frotas-paradas" class="lista-scroll" style="flex-grow: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; max-height: 320px;">
+                <div id="lista-frotas-paradas" class="lista-scroll" style="flex-grow: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
                     <div class="empty-state">Buscando frotas paradas...</div>
                 </div>
             </div>

@@ -3,7 +3,7 @@ window.carregarDadosDashboardSerrana = async function() {
     carregarControladorAtualSerrana();
     carregarFrentesTvSerrana();
     carregarOcorrenciasTvSerrana();
-    carregarFrotasParadasSerrana(); // Carrega a lista nova
+    carregarFrotasParadasSerrana(); 
     
     // Pequeno atraso para garantir que a tela HTML carregou as larguras corretas do gráfico
     setTimeout(() => {
@@ -103,20 +103,22 @@ async function atualizarPonteirosSerrana() {
 }
 
 // =========================================================================
-// NOVA LISTA: FROTAS PARADAS (PUXANDO O.S ABERTAS)
+// LISTA: FROTAS PARADAS + CÁLCULO DE TEMPO
 // =========================================================================
 async function carregarFrotasParadasSerrana() {
     const container = document.getElementById('lista-frotas-paradas');
     if(!container) return;
 
     try {
+        // Agora buscamos a data_abertura também para calcular o tempo
         const { data: osData } = await supabaseClient
             .from('ordens_servico')
-            .select('placa, problema, status, tipo')
+            .select('placa, problema, status, tipo, data_abertura')
             .in('status', ['Aguardando Oficina', 'Em Manutenção', 'Sinistrado'])
             .order('created_at', { ascending: false });
         
         let html = '';
+        const agora = new Date();
         
         if (osData && osData.length > 0) {
             osData.forEach(os => {
@@ -131,11 +133,40 @@ async function carregarFrotasParadasSerrana() {
                     icon = 'fas fa-exclamation-triangle';
                 }
 
+                // ===== Lógica de Cálculo do Tempo Parado =====
+                let textoTempo = 'N/I';
+                if (os.data_abertura) {
+                    let osInicioStr = String(os.data_abertura);
+                    if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
+                    let inicio = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
+                    
+                    if (!isNaN(inicio.getTime())) {
+                        const diffMs = agora - inicio;
+                        if (diffMs > 0) {
+                            const diffMinutos = Math.floor(diffMs / (1000 * 60));
+                            const dias = Math.floor(diffMinutos / (60 * 24));
+                            const horas = Math.floor((diffMinutos % (60 * 24)) / 60);
+                            const minutos = diffMinutos % 60;
+                            
+                            if (dias > 0) textoTempo = `${dias}d ${horas}h ${minutos}m`;
+                            else if (horas > 0) textoTempo = `${horas}h ${minutos}m`;
+                            else textoTempo = `${minutos}m`;
+                        } else {
+                            textoTempo = 'Agora';
+                        }
+                    }
+                }
+                // =============================================
+
                 html += `
                 <div style="background: rgba(15, 23, 42, 0.6); border-left: 4px solid ${corBorder}; padding: 12px; border-radius: 6px; display: flex; flex-direction: column; gap: 6px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: 900; color: #fff; font-size: 1.1rem;"><i class="${icon}" style="color: ${corBorder}; margin-right: 5px; font-size: 0.9rem;"></i> ${os.placa || 'N/I'}</span>
-                        <span style="font-size: 0.75rem; background: ${corBorder}20; color: ${corBorder}; padding: 3px 8px; border-radius: 4px; font-weight: bold; border: 1px solid ${corBorder}40;">${os.status}</span>
+                        
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 0.75rem; background: rgba(255,255,255,0.08); color: #cbd5e1; padding: 3px 8px; border-radius: 4px; font-weight: bold; border: 1px solid rgba(255,255,255,0.1);"><i class="fas fa-clock" style="color: #94a3b8; margin-right: 3px;"></i> Parado há: ${textoTempo}</span>
+                            <span style="font-size: 0.75rem; background: ${corBorder}20; color: ${corBorder}; padding: 3px 8px; border-radius: 4px; font-weight: bold; border: 1px solid ${corBorder}40;">${os.status}</span>
+                        </div>
                     </div>
                     <span style="font-size: 0.85rem; color: #94a3b8; line-height: 1.3;">${os.problema ? os.problema : 'Sem detalhes relatados.'}</span>
                 </div>
@@ -215,7 +246,6 @@ async function renderizarGraficoEvolucaoDmSerrana() {
     if (!chartDom) return;
 
     try {
-        // 1. Busca total da frota para saber qual é o 100% de disponibilidade
         const { data: conjuntosData } = await supabaseClient.from('conjuntos').select('caminhoes');
         let frotas = [];
         if (conjuntosData) {
@@ -238,14 +268,12 @@ async function renderizarGraficoEvolucaoDmSerrana() {
             return;
         }
 
-        // 2. Busca TODAS as O.S. e Sinistros
         const { data: osData } = await supabaseClient.from('ordens_servico').select('placa, data_abertura, data_conclusao, status').neq('status', 'Agendada');
         let ordensServico = osData || [];
 
         const { count: countSinistros } = await supabaseClient.from('dashboard_ocorrencias').select('*', { count: 'exact', head: true }).eq('status', 'Pendente');
         const qtdSinistrosPendentes = countSinistros || 0;
 
-        // 4. Lógica de cálculo Hora a Hora
         const agora = new Date();
         const categoriasHoras = [];
         const dadosDM = [];
