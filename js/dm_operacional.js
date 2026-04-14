@@ -16,7 +16,6 @@ async function processarImportacaoDM(event) {
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         
-        // Pega os dados sem converter automaticamente para evitar conflitos de fuso horário
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
         const registrosParaSalvar = [];
         
@@ -29,26 +28,22 @@ async function processarImportacaoDM(event) {
             let total = parseInt(row[2]) || 0;
             let dataFormatada = null;
 
-            // TRATAMENTO DE DATA À PROVA DE FALHAS
             if (typeof dataStr === 'number') {
-                // Excel salva data como número serial. A conta abaixo converte pra UTC real.
                 const dateObj = new Date((dataStr - 25569) * 86400 * 1000);
                 const d = dateObj.getUTCDate();
                 const m = dateObj.getUTCMonth() + 1;
                 const y = dateObj.getUTCFullYear();
                 dataFormatada = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             } else if (typeof dataStr === 'string') {
-                // Se o Excel leu como texto (DD/MM/YYYY)
                 const strTratada = dataStr.trim().replace(/-/g, '/');
                 const partes = strTratada.split('/');
                 if (partes.length >= 3) {
-                    let ano = partes[2].substring(0, 4); // Previne caso tenha horas na string
+                    let ano = partes[2].substring(0, 4);
                     if (ano.length === 2) ano = '20' + ano;
                     dataFormatada = `${ano}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
                 }
             }
 
-            // Apenas envia pro banco se a data tiver o formato correto "YYYY-MM-DD"
             if (dataFormatada && dataFormatada.length === 10 && dataFormatada.startsWith('20')) {
                 registrosParaSalvar.push({
                     data_registro: dataFormatada,
@@ -65,7 +60,7 @@ async function processarImportacaoDM(event) {
         }
 
         try {
-            // UPSERT: Graças ao 'onConflict: data_registro', ele atualiza a linha se o dia já existir!
+            // Upsert: Atualiza se a data já existir
             const { error } = await supabaseClient
                 .from('dm_operacional')
                 .upsert(registrosParaSalvar, { onConflict: 'data_registro' });
@@ -74,7 +69,6 @@ async function processarImportacaoDM(event) {
             
             alert(`✅ Sucesso! ${registrosParaSalvar.length} dias atualizados/importados.`);
             
-            // Força a re-renderização do gráfico
             const chartDiv = document.getElementById('graficoDmOperacional');
             if (chartDiv) chartDiv.removeAttribute('data-rendered');
             window.renderizarGraficoDMOperacional();
@@ -94,7 +88,6 @@ window.renderizarGraficoDMOperacional = async function() {
     if (!divGrafico || divGrafico.offsetWidth === 0) return;
 
     try {
-        // CORREÇÃO AQUI: Puxa os 30 MAIS RECENTES (ascending: false)
         const { data, error } = await supabaseClient
             .from('dm_operacional')
             .select('*')
@@ -102,33 +95,37 @@ window.renderizarGraficoDMOperacional = async function() {
             .limit(30);
 
         if (error) {
-            divGrafico.innerHTML = `<div style="color:#ef4444; display:flex; justify-content:center; align-items:center; height:100%; font-weight:bold; text-align:center; padding: 20px;">🚨 Erro ao ler banco de dados. Motivo: ${error.message}</div>`;
+            divGrafico.innerHTML = `<div style="color:#ef4444; display:flex; justify-content:center; align-items:center; height:100%; font-weight:bold; text-align:center; padding: 20px;">🚨 Erro ao ler banco de dados: ${error.message}</div>`;
             return;
         }
 
         if (!data || data.length === 0) {
-            divGrafico.innerHTML = `<div style="color:#94a3b8; display:flex; justify-content:center; align-items:center; height:100%; border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px; text-align:center; padding: 20px;">📂 Nenhum dado operacional encontrado.<br>Vá no Painel de Controle e importe a planilha Excel para gerar o gráfico.</div>`;
+            divGrafico.innerHTML = `<div style="color:#94a3b8; display:flex; justify-content:center; align-items:center; height:100%; border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px; text-align:center; padding: 20px;">📂 Nenhum dado operacional encontrado.<br>Importe a planilha Excel nas configurações.</div>`;
             return;
         }
 
         divGrafico.innerHTML = '';
-        
-        // CORREÇÃO AQUI: Inverte o array para a linha do gráfico fluir da esquerda pra direita (cronológico)
         const dadosOrdenados = data.reverse();
 
         const eixoXDias = [];
-        const eixoYPorcentagem = [];
+        const seriesData = [];
 
         dadosOrdenados.forEach(reg => {
             const partes = reg.data_registro.split('-');
-            const formatada = `${partes[2]}/${partes[1]}`; // Extrai apenas Dia/Mês
+            const formatada = `${partes[2]}/${partes[1]}`;
             eixoXDias.push(formatada);
             
             let pct = 0;
             if (reg.total_frota > 0) {
                 pct = (reg.carros_rodaram / reg.total_frota) * 100;
             }
-            eixoYPorcentagem.push(pct.toFixed(1));
+            
+            // Armazenamos um objeto com todos os valores
+            seriesData.push({
+                value: pct.toFixed(1),
+                rodaram: reg.carros_rodaram,
+                total: reg.total_frota
+            });
         });
 
         if (typeof echarts === 'undefined') return;
@@ -137,12 +134,18 @@ window.renderizarGraficoDMOperacional = async function() {
         const option = {
             tooltip: {
                 trigger: 'axis',
-                formatter: '{b}<br/>DM Operacional: <b>{c}%</b>',
-                backgroundColor: 'rgba(0,0,0,0.8)',
+                backgroundColor: 'rgba(0,0,0,0.85)',
                 borderColor: '#10b981',
-                textStyle: { color: '#fff' }
+                textStyle: { color: '#fff' },
+                formatter: function (params) {
+                    const d = params[0].data;
+                    return `<div style="font-weight:bold; margin-bottom:5px; border-bottom:1px solid #444;">Data: ${params[0].name}</div>` +
+                           `<span style="color:#10b981;">●</span> DM Operacional: <b>${d.value}%</b><br/>` +
+                           `<span style="color:#38bdf8;">●</span> Rodando: <b>${d.rodaram}</b> cam.<br/>` +
+                           `<span style="color:#94a3b8;">●</span> Frota Total: <b>${d.total}</b> cam.`;
+                }
             },
-            grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+            grid: { left: '3%', right: '4%', bottom: '5%', containLabel: true },
             xAxis: {
                 type: 'category',
                 boundaryGap: false,
@@ -160,16 +163,24 @@ window.renderizarGraficoDMOperacional = async function() {
             series: [{
                 name: 'DM Operacional',
                 type: 'line',
-                data: eixoYPorcentagem,
+                data: seriesData,
                 smooth: true,
                 symbol: 'circle',
                 symbolSize: 8,
                 label: {
                     show: true,
                     position: 'top',
-                    color: '#10b981',
-                    formatter: '{c}%',
-                    fontSize: 10
+                    color: '#ffffff',
+                    fontFamily: "'Inter', sans-serif", // Fonte mais limpa
+                    fontSize: 12, // Tamanho ligeiramente maior
+                    fontWeight: 800, // Fonte bem grossa
+                    textBorderColor: 'rgba(0, 0, 0, 0.8)', // Contorno preto ao redor do texto
+                    textBorderWidth: 2.5, // Grossura do contorno
+                    formatter: function (params) {
+                        return params.data.value + '%\n(' + params.data.rodaram + ' / ' + params.data.total + ')';
+                    },
+                    lineHeight: 16,
+                    align: 'center'
                 },
                 itemStyle: { color: '#10b981' },
                 lineStyle: { color: '#10b981', width: 3 },
@@ -190,7 +201,6 @@ window.renderizarGraficoDMOperacional = async function() {
     }
 }
 
-// Observador inteligente
 setInterval(() => {
     const divGrafico = document.getElementById('graficoDmOperacional');
     if (divGrafico && divGrafico.offsetWidth > 0 && !divGrafico.getAttribute('data-rendered')) {
