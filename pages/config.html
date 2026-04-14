@@ -67,6 +67,15 @@
                 </div>
                 <button class="btn-primary-blue btn-full" onclick="salvarPermissoesPerfil()" style="margin-top: 15px;">💾 Salvar Permissões</button>
             </div>
+
+            <div class="content-panel form-panel-dark" style="margin: 0; background: rgba(16, 185, 129, 0.1); border: 1px solid var(--ccol-green-bright);">
+                <div class="panel-header" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px;">
+                    <h4 style="color: var(--ccol-green-bright); margin: 0;">📊 Importar DM Operacional (Excel)</h4>
+                </div>
+                <p style="color: #94a3b8; font-size: 0.85rem; margin-top: 15px; margin-bottom: 15px;">A planilha deve conter 3 colunas em ordem: <strong>Data (DD/MM/AAAA)</strong>, <strong>Carros Rodaram</strong>, e <strong>Total Frota</strong>.</p>
+                <input type="file" id="uploadDMExcel" accept=".xlsx, .xls, .csv" style="display: none;" onchange="processarImportacaoDM(event)">
+                <button class="btn-primary-green btn-full" onclick="document.getElementById('uploadDMExcel').click()">📥 Selecionar Planilha e Importar</button>
+            </div>
             
         </div>
 
