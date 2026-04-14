@@ -1,4 +1,4 @@
-// js/dm_operacional.js
+// ==================== js/dm_operacional.js ====================
 
 async function processarImportacaoDM(event) {
     const file = event.target.files[0];
@@ -60,7 +60,6 @@ async function processarImportacaoDM(event) {
         }
 
         try {
-            // Upsert: Atualiza se a data já existir
             const { error } = await supabaseClient
                 .from('dm_operacional')
                 .upsert(registrosParaSalvar, { onConflict: 'data_registro' });
@@ -104,6 +103,17 @@ window.renderizarGraficoDMOperacional = async function() {
             return;
         }
 
+        // ========================================================
+        // CORREÇÃO AQUI: Destrói o gráfico antigo antes de criar um novo
+        // Isso impede que o gráfico "pisque" ou suma da tela
+        if (typeof echarts !== 'undefined') {
+            let chartExistente = echarts.getInstanceByDom(divGrafico);
+            if (chartExistente) {
+                chartExistente.dispose();
+            }
+        }
+        // ========================================================
+
         divGrafico.innerHTML = '';
         const dadosOrdenados = data.reverse();
 
@@ -120,7 +130,6 @@ window.renderizarGraficoDMOperacional = async function() {
                 pct = (reg.carros_rodaram / reg.total_frota) * 100;
             }
             
-            // Armazenamos um objeto com todos os valores
             seriesData.push({
                 value: pct.toFixed(1),
                 rodaram: reg.carros_rodaram,
@@ -171,11 +180,11 @@ window.renderizarGraficoDMOperacional = async function() {
                     show: true,
                     position: 'top',
                     color: '#ffffff',
-                    fontFamily: "'Inter', sans-serif", // Fonte mais limpa
-                    fontSize: 12, // Tamanho ligeiramente maior
-                    fontWeight: 800, // Fonte bem grossa
-                    textBorderColor: 'rgba(0, 0, 0, 0.8)', // Contorno preto ao redor do texto
-                    textBorderWidth: 2.5, // Grossura do contorno
+                    fontFamily: "'Inter', sans-serif",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    textBorderColor: 'rgba(0, 0, 0, 0.8)',
+                    textBorderWidth: 2.5,
                     formatter: function (params) {
                         return params.data.value + '%\n(' + params.data.rodaram + ' / ' + params.data.total + ')';
                     },
@@ -194,6 +203,9 @@ window.renderizarGraficoDMOperacional = async function() {
         };
 
         chart.setOption(option);
+        
+        // Garante que o redimensionamento do gráfico funcione se a tela mudar de tamanho
+        window.removeEventListener('resize', chart.resize); // Remove eventos antigos
         window.addEventListener('resize', () => chart.resize());
 
     } catch (err) {
@@ -201,6 +213,7 @@ window.renderizarGraficoDMOperacional = async function() {
     }
 }
 
+// O observador que verifica se o usuário trocou de aba e recarrega o gráfico
 setInterval(() => {
     const divGrafico = document.getElementById('graficoDmOperacional');
     if (divGrafico && divGrafico.offsetWidth > 0 && !divGrafico.getAttribute('data-rendered')) {
