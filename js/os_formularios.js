@@ -120,6 +120,22 @@ async function salvarNovaOS() {
         status: statusInicial
     };
 
+    // =========================================================================
+    // NOVIDADE AQUI: CAPTURANDO QUEM ESTÁ ABRINDO A O.S
+    // =========================================================================
+    try {
+        const { data: userData } = await supabaseClient.auth.getUser();
+        if (userData && userData.user) {
+            // Se tiver o nome salvo nos metadados, usa o nome, senão usa o email
+            pacoteDadosOS.criado_por = userData.user.user_metadata?.nome || userData.user.email;
+        } else if (typeof currentUserEmail !== 'undefined' && currentUserEmail) {
+            pacoteDadosOS.criado_por = currentUserEmail;
+        }
+    } catch (e) {
+        console.warn("Não foi possível capturar o usuário logado automaticamente.", e);
+    }
+    // =========================================================================
+
     if (motorista) pacoteDadosOS.motorista = motorista;
     if (observacoes) pacoteDadosOS.observacoes = observacoes;
 
@@ -339,7 +355,6 @@ async function imprimirOS(osId) {
     const frota = frotasManutencao.find(f => f.cavalo === os.placa) || {};
     
     // ATUALIZAÇÃO: Busca o usuário diretamente do banco de dados na ordem de serviço. 
-    // Se a coluna no seu banco for diferente, ajuste 'os.criado_por' para 'os.nome_da_sua_coluna'
     const infoAbertoPor = os.criado_por || os.usuario || os.aberto_por || 'Não Informado';
     
     const numeroOSFormatado = String(os.id).padStart(4, '0');
