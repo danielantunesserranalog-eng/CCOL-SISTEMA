@@ -367,8 +367,6 @@ function renderizarRelatorioDM() {
         if(typeof window.renderizarGraficoDMOperacional === 'function') {
             const divGrafico = document.getElementById('graficoDmOperacional');
             if (divGrafico) divGrafico.removeAttribute('data-rendered');
-            
-            // ADICIONADO: Envia a escolha do filtro para a DM Operacional
             window.renderizarGraficoDMOperacional(filtroValue); 
         }
     }, 250);
@@ -448,14 +446,21 @@ function exportarRelatorioDMExcel() {
     document.body.removeChild(link);
 }
 
-// ---------------- FUNÇÕES DO PAINEL TV ----------------
+// ---------------- FUNÇÕES DO PAINEL TV CORRIGIDAS ----------------
 
 function entrarModoTV() {
-    const appLayout = document.getElementById('appLayout');
     const telaTV = document.getElementById('telaPainelTV');
-    
-    if (appLayout) appLayout.style.display = 'none';
-    if (telaTV) telaTV.style.display = 'block';
+    if (!telaTV) return;
+
+    // Em vez de dar display none no app inteiro, joga a TV em tela cheia por cima
+    telaTV.style.display = 'block';
+    telaTV.style.position = 'fixed';
+    telaTV.style.top = '0';
+    telaTV.style.left = '0';
+    telaTV.style.width = '100vw';
+    telaTV.style.height = '100vh';
+    telaTV.style.zIndex = '99999'; // Fica por cima de absolutamente tudo
+    telaTV.style.overflowY = 'auto'; // Permite rolagem se tiver muitos cards
     
     if (document.documentElement.requestFullscreen) {
         document.documentElement.requestFullscreen().catch(err => console.warn("Fullscreen falhou:", err));
@@ -468,8 +473,8 @@ function entrarModoTV() {
 
     setTimeout(renderizarCardsTV, 100);
 
-    if (tvInterval) clearInterval(tvInterval);
-    tvInterval = setInterval(() => {
+    if (window.tvInterval) clearInterval(window.tvInterval);
+    window.tvInterval = setInterval(() => {
         if(typeof carregarDadosOS === 'function') {
             carregarDadosOS().then(renderizarCardsTV);
         } else {
@@ -479,13 +484,14 @@ function entrarModoTV() {
 }
 
 function sairModoTV() {
-    const appLayout = document.getElementById('appLayout');
     const telaTV = document.getElementById('telaPainelTV');
+    if (telaTV) {
+        telaTV.style.display = 'none';
+        telaTV.style.position = ''; // reseta os estilos de sobreposição
+        telaTV.style.zIndex = '';
+    }
     
-    if (appLayout) appLayout.style.display = 'flex';
-    if (telaTV) telaTV.style.display = 'none';
-    
-    if (tvInterval) clearInterval(tvInterval);
+    if (window.tvInterval) clearInterval(window.tvInterval);
     if (window.tvClockInterval) {
         clearInterval(window.tvClockInterval);
         window.tvClockInterval = null;
