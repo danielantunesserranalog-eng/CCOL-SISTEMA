@@ -337,8 +337,11 @@ async function imprimirOS(osId) {
     if (!os) return;
     
     const frota = frotasManutencao.find(f => f.cavalo === os.placa) || {};
-    // Pegar o email do usuário atual logado
-    const infoAbertoPor = typeof currentUserEmail !== 'undefined' ? currentUserEmail : (os.criado_por || 'Sistema CCOL');
+    
+    // ATUALIZAÇÃO: Busca o usuário diretamente do banco de dados na ordem de serviço. 
+    // Se a coluna no seu banco for diferente, ajuste 'os.criado_por' para 'os.nome_da_sua_coluna'
+    const infoAbertoPor = os.criado_por || os.usuario || os.aberto_por || 'Não Informado';
+    
     const numeroOSFormatado = String(os.id).padStart(4, '0');
 
     let dataAberturaFormatada = os.data_abertura;
@@ -446,7 +449,7 @@ async function imprimirOS(osId) {
                     <td><strong>Cavalo:</strong> ${os.placa || '-'}</td>
                     <td><strong>Abertura:</strong> ${dataAberturaFormatada}</td>
                     <td><strong>Status:</strong> ${os.status}</td>
-                    <td><strong>Aberto Por:</strong> ${infoAbertoPor}</td>
+                    <td><strong>Aberto Por:</strong> <span style="font-size: 13px; font-weight: bold;">${infoAbertoPor}</span></td>
                 </tr>
                 <tr>
                     <td><strong>Motorista:</strong> ${os.motorista || '-'}</td>
