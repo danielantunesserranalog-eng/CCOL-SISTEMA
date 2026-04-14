@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Permissões padrão caso o banco esteja vazio
 const permissoesPadrao = {
-    "Admin": ["escala", "alocacao", "motoristas", "caminhoes", "os", "troca", "jornada", "treinamento"],
+    "Admin": ["escala", "alocacao", "motoristas", "caminhoes", "os", "troca", "jornada", "treinamento", "indicadores", "indicadores_serrana"],
     "Controlador de Trefego": ["escala", "alocacao", "troca", "jornada"],
     "SSMA": ["motoristas", "treinamento", "jornada"],
     "Controle de Manutencao": ["caminhoes", "os"],
