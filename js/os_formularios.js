@@ -120,13 +120,10 @@ async function salvarNovaOS() {
         status: statusInicial
     };
 
-    // =========================================================================
-    // NOVIDADE AQUI: CAPTURANDO QUEM ESTÁ ABRINDO A O.S
-    // =========================================================================
+    // CAPTURANDO QUEM ESTÁ ABRINDO A O.S
     try {
         const { data: userData } = await supabaseClient.auth.getUser();
         if (userData && userData.user) {
-            // Se tiver o nome salvo nos metadados, usa o nome, senão usa o email
             pacoteDadosOS.criado_por = userData.user.user_metadata?.nome || userData.user.email;
         } else if (typeof currentUserEmail !== 'undefined' && currentUserEmail) {
             pacoteDadosOS.criado_por = currentUserEmail;
@@ -134,7 +131,6 @@ async function salvarNovaOS() {
     } catch (e) {
         console.warn("Não foi possível capturar o usuário logado automaticamente.", e);
     }
-    // =========================================================================
 
     if (motorista) pacoteDadosOS.motorista = motorista;
     if (observacoes) pacoteDadosOS.observacoes = observacoes;
@@ -353,8 +349,6 @@ async function imprimirOS(osId) {
     if (!os) return;
     
     const frota = frotasManutencao.find(f => f.cavalo === os.placa) || {};
-    
-    // ATUALIZAÇÃO: Busca o usuário diretamente do banco de dados na ordem de serviço. 
     const infoAbertoPor = os.criado_por || os.usuario || os.aberto_por || 'Não Informado';
     
     const numeroOSFormatado = String(os.id).padStart(4, '0');
@@ -396,12 +390,14 @@ async function imprimirOS(osId) {
         </tr>`;
     }
 
+    // ALTERAÇÃO AQUI: Adicionado a coluna de compartimentos na lista de Peças/Materiais
     let linhasPecas = '';
     for(let i=0; i<5; i++) {
         linhasPecas += `
         <tr style="height: 25px;">
             <td></td>
             <td></td>
+            <td style="text-align:center; font-size:10px; font-weight:bold;">1º(&nbsp;&nbsp;)&nbsp;&nbsp;2º(&nbsp;&nbsp;)&nbsp;&nbsp;3º(&nbsp;&nbsp;)</td>
             <td></td>
             <td></td>
             <td></td>
@@ -513,11 +509,12 @@ async function imprimirOS(osId) {
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 15%;">Código</th>
-                        <th style="width: 50%;">Descrição da Peça / Material Utilizado</th>
+                        <th style="width: 10%;">Código</th>
+                        <th style="width: 35%;">Descrição da Peça / Material Utilizado</th>
+                        <th style="width: 15%;">Compartimentos</th>
                         <th style="width: 5%;">Qtd</th>
-                        <th style="width: 15%;">Data/Hora Solicitação</th>
-                        <th style="width: 15%;">Data/Hora Retirada</th>
+                        <th style="width: 15%;">Data/Hora Solicit.</th>
+                        <th style="width: 20%;">Data/Hora Retirada</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -531,7 +528,7 @@ async function imprimirOS(osId) {
             <div class="assinaturas">
                 <div class="linha-ass">Motorista / Relator</div>
                 <div class="linha-ass">Chefe de Oficina / Mecânico</div>
-                <div class="linha-ass">CCOL / Gestor</div>
+                <div class="linha-ass">Visto CCOL / Gestor</div>
             </div>
             
             <script>
