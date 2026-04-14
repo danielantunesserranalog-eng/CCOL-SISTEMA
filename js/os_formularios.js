@@ -54,7 +54,6 @@ async function carregarMotoristasSelectOS() {
     }
 }
 
-// CORREÇÃO DEFINITIVA: Busca os cavalos cadastrados na tabela de Manutenção ('frotas_manutencao')
 async function carregarSelectCavalosOS() {
     const select = document.getElementById('osPlaca');
     if (!select) return;
@@ -90,21 +89,11 @@ async function salvarNovaOS() {
     const motorista = document.getElementById('osMotorista').value;
     const modoEntrada = document.getElementById('osModoEntrada').value;
     let data_abertura = document.getElementById('osDataAbertura').value;
-    const hodometro = document.getElementById('osHodometro').value;
+    const hodometro = document.getElementById('osHodometro').value.trim();
     const prioridade = document.getElementById('osPrioridade').value;
     const tipo = document.getElementById('osTipo').value;
     const problema = document.getElementById('osProblema').value.trim();
     const observacoes = document.getElementById('osObservacoes').value.trim();
-
-    let pneuPosicao = null;
-    let pneuServico = null;
-    let pneuMotivo = null;
-
-    if (tipo === 'Borracharia (PNEU)') {
-        pneuPosicao = document.getElementById('osPneuPosicao').value.trim();
-        pneuServico = document.getElementById('osPneuServico').value;
-        pneuMotivo = document.getElementById('osPneuMotivo').value.trim();
-    }
 
     if (!placa || !data_abertura || !tipo) {
         alert("Preencha ao menos Placa, Data de Abertura e Tipo de Serviço.");
@@ -123,26 +112,54 @@ async function salvarNovaOS() {
     if (modoEntrada === 'agendada') statusInicial = 'Agendada';
     else if (tipo === 'Sinistro') statusInicial = 'Sinistrado';
 
+    // 1. Cria o pacote SEM as colunas de pneu e sem 'criado_por'
+    let pacoteDadosOS = {
+        placa: placa,
+        data_abertura: data_abertura,
+        prioridade: prioridade,
+        tipo: tipo,
+        status: statusInicial
+    };
+
+    if (motorista) pacoteDadosOS.motorista = motorista;
+    if (observacoes) pacoteDadosOS.observacoes = observacoes;
+
+    // 2. Blindagem do Hodômetro
+    if (hodometro) {
+        let apenasNumeros = hodometro.replace(/[^0-9]/g, '');
+        if (apenasNumeros !== '') {
+            pacoteDadosOS.hodometro = Number(apenasNumeros);
+        }
+    }
+
+    // 3. Embutir os dados de Borracharia dentro do "Problema" para não dar erro no banco!
+    let problemaFinal = problema;
+    if (tipo === 'Borracharia (PNEU)') {
+        const pneuPosicao = document.getElementById('osPneuPosicao').value.trim() || 'N/I';
+        const pneuServico = document.getElementById('osPneuServico').value || 'N/I';
+        const pneuMotivo = document.getElementById('osPneuMotivo').value.trim() || 'N/I';
+        
+        const textoPneu = `[DADOS DO PNEU] Posição: ${pneuPosicao} | Serviço: ${pneuServico} | Motivo: ${pneuMotivo}`;
+        
+        if (problemaFinal) {
+            problemaFinal = textoPneu + "\n\n" + problemaFinal;
+        } else {
+            problemaFinal = textoPneu;
+        }
+    }
+
+    if (problemaFinal) pacoteDadosOS.problema = problemaFinal;
+
     try {
         const { error } = await supabaseClient
             .from('ordens_servico')
-            .insert([{
-                placa,
-                motorista,
-                data_abertura,
-                hodometro,
-                prioridade,
-                tipo,
-                problema,
-                observacoes,
-                status: statusInicial,
-                pneu_posicao: pneuPosicao,
-                pneu_servico: pneuServico,
-                pneu_motivo: pneuMotivo,
-                criado_por: typeof currentUserEmail !== 'undefined' ? currentUserEmail : 'Sistema'
-            }]);
+            .insert([pacoteDadosOS]);
 
-        if (error) throw error;
+        if (error) {
+            console.error("ERRO SUPABASE DETALHADO:", error);
+            alert("A Base de Dados recusou: " + (error.message || "Veja o F12"));
+            return;
+        }
         
         await carregarDadosOS();
         
@@ -151,8 +168,8 @@ async function salvarNovaOS() {
         else alternarTelaOS('lista');
         
     } catch (error) {
-        console.error("Erro ao abrir OS:", error);
-        alert("Erro ao abrir Ordem de Serviço.");
+        console.error("Erro ao tentar salvar O.S:", error);
+        alert("Falha na conexão ao tentar salvar a Ordem de Serviço.");
     }
 }
 
@@ -331,18 +348,6 @@ async function imprimirOS(osId) {
         }
     } catch(e) {}
     
-    const infoAbertoPor = os.criado_por || 'Sistema CCOL';
-
-    let painelBorracharia = '';
-    if (os.tipo === 'Borracharia (PNEU)') {
-        painelBorracharia = `
-            <div class="full-box" style="border-color: #3b82f6; background: rgba(59, 130, 246, 0.05);">
-                <strong>🛞 DETALHES DE BORRACHARIA:</strong>
-                <p>Posição: <b>${os.pneu_posicao || '-'}</b> | Serviço: <b>${os.pneu_servico || '-'}</b> | Motivo: <b>${os.pneu_motivo || '-'}</b></p>
-            </div>
-        `;
-    }
-
     let linhasServicos = '';
     for(let i=0; i<5; i++) {
         linhasServicos += `<tr style="height: 30px;"><td></td><td></td><td></td><td></td><td></td><td></td></tr>`;
@@ -364,6 +369,7 @@ async function imprimirOS(osId) {
                 th, td { border: 1px solid #000; padding: 5px; text-align: left; }
                 .assinaturas { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 40px; text-align: center; }
                 .linha { border-top: 1px solid #000; padding-top: 5px; font-weight: bold; }
+                .diagnostico-box { white-space: pre-wrap; background: #f8fafc; padding: 10px; border: 1px dashed #ccc; margin-top: 10px; }
             </style>
         </head>
         <body>
@@ -376,10 +382,12 @@ async function imprimirOS(osId) {
                     <div class="box"><strong>Abertura:</strong> ${dataAberturaFormatada}</div>
                     <div class="box"><strong>Prioridade:</strong> ${os.prioridade}</div>
                     <div class="box"><strong>Cavalo:</strong> ${os.placa}</div>
-                    <div class="box"><strong>Motorista:</strong> ${os.motorista}</div>
+                    <div class="box"><strong>Motorista:</strong> ${os.motorista || '-'}</div>
                 </div>
-                ${painelBorracharia}
-                <p><b>Diagnóstico:</b> ${os.problema || '-'}</p>
+                
+                <p><b>Diagnóstico / Detalhes:</b></p>
+                <div class="diagnostico-box">${os.problema || 'Nenhum diagnóstico informado.'}</div>
+                
                 <table>
                     <thead><tr><th>Serviço Executado</th><th>Mecânico</th><th>Eixo</th><th>Hrs</th></tr></thead>
                     <tbody>${linhasServicos}</tbody>
