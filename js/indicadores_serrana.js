@@ -198,14 +198,16 @@ async function renderizarGraficoEvolucaoDmSerrana() {
                 }
             });
         }
-        frotas = [...new Set(frotas)]; 
+        
+        // Remove duplicações e garante que são apenas strings limpas em maiúsculas (Solução do bug dos 100%)
+        frotas = [...new Set(frotas.map(f => String(f).trim().toUpperCase()))]; 
 
         if(frotas.length === 0) {
             chartDom.innerHTML = '<div class="empty-state">Sem dados de frota para calcular DM.</div>';
             return;
         }
 
-        // 2. Busca todas O.S.
+        // 2. Busca todas O.S. (Ignorando as 'Agendadas')
         const { data: osData } = await supabaseClient.from('ordens_servico').select('placa, data_abertura, data_conclusao, status').neq('status', 'Agendada');
         let ordensServico = osData || [];
 
@@ -213,7 +215,7 @@ async function renderizarGraficoEvolucaoDmSerrana() {
         const agora = new Date();
         const categoriasHoras = [];
         const dadosDM = [];
-        const msPorHora = 60 * 60 * 1000; // Milissegundos em 1 hora
+        const msPorHora = 60 * 60 * 1000; 
         const totalMsDisponivelPorHora = frotas.length * msPorHora;
         
         // Loop pelas 24 horas de HOJE (0 a 23)
@@ -223,9 +225,13 @@ async function renderizarGraficoEvolucaoDmSerrana() {
             
             let msManutencaoNestaHora = 0;
 
-            frotas.forEach(placa => {
+            frotas.forEach(placaFrota => {
                 let manutencaoCavalo = 0;
-                const todasOSCavalo = ordensServico.filter(o => o.placa === placa);
+                
+                // Filtro blindado: compara a placa da OS e a placa da Frota removendo espaços vazios
+                const todasOSCavalo = ordensServico.filter(o => 
+                    String(o.placa || '').trim().toUpperCase() === placaFrota
+                );
                 
                 todasOSCavalo.forEach(os => {
                     let osInicioStr = String(os.data_abertura || '');
@@ -234,7 +240,6 @@ async function renderizarGraficoEvolucaoDmSerrana() {
                     const osInicio = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
                     if (isNaN(osInicio.getTime())) return;
                     
-                    // Se não tiver data de conclusão (OS Aberta), consideramos que fica quebrada até o fim do dia de hoje
                     let osFim = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 23, 59, 59, 999);
                     if (os.data_conclusao && os.data_conclusao !== 'null') {
                         let osFimStr = String(os.data_conclusao);
@@ -242,7 +247,6 @@ async function renderizarGraficoEvolucaoDmSerrana() {
                         osFim = new Date(osFimStr.replace('Z', '').replace('+00:00', ''));
                     }
 
-                    // Verifica sobreposição de tempo exatamente dentro daquela HORA específica
                     const overlapInicio = osInicio > inicioHora ? osInicio : inicioHora;
                     const overlapFim = osFim < fimHora ? osFim : fimHora;
 
@@ -256,29 +260,23 @@ async function renderizarGraficoEvolucaoDmSerrana() {
             });
 
             let dispNestaHora = totalMsDisponivelPorHora - msManutencaoNestaHora;
-            if(dispNestaHora < 0) dispNestaHora = 0;
+            if(dispNestaHora < 0) dispNesteHora = 0;
             
             let percentDM = 100;
             if (totalMsDisponivelPorHora > 0) {
                 percentDM = (dispNestaHora / totalMsDisponivelPorHora) * 100;
             }
             
-            // Adiciona a hora formatada na categoria do eixo X (ex: 00:00, 01:00)
             categoriasHoras.push(`${String(h).padStart(2,'0')}:00`);
             
-            // Lógica para não desenhar gráfico no futuro!
             if (inicioHora > agora) {
-                dadosDM.push(null); // Retorna nulo para horas que ainda não aconteceram
+                dadosDM.push(null); 
             } else {
                 dadosDM.push(percentDM.toFixed(1));
             }
         }
 
-        // 4. Injeta os dados no ECharts
-        if (typeof echarts === 'undefined') {
-            chartDom.innerHTML = '<div class="empty-state" style="color:#ef4444;">Erro: Biblioteca de gráficos ECharts não encontrada.</div>';
-            return;
-        }
+        if (typeof echarts === 'undefined') return;
 
         chartDom.innerHTML = '';
         let myChart = echarts.getInstanceByDom(chartDom);
@@ -314,8 +312,15 @@ async function renderizarGraficoEvolucaoDmSerrana() {
                 smooth: true,
                 symbol: 'circle',
                 symbolSize: 6,
+                // ADICIONADO: Exibe a percentagem em cima de cada bolinha
                 label: {
-                    show: false, // Desligado para não poluir, são 24 pontos agora
+                    show: true,
+                    position: 'top',
+                    formatter: '{c}%',
+                    color: '#e2e8f0', 
+                    fontSize: 10, 
+                    fontWeight: 'bold',
+                    distance: 5
                 },
                 itemStyle: { color: '#38bdf8' },
                 lineStyle: { width: 3, color: '#38bdf8' },
@@ -335,9 +340,6 @@ async function renderizarGraficoEvolucaoDmSerrana() {
         
     } catch(e) {
         console.error("Erro Crítico DM Serrana:", e);
-        if (chartDom) {
-            chartDom.innerHTML = `<div class="empty-state" style="color:#ef4444; font-size:0.9rem;">Falha ao desenhar gráfico: ${e.message}</div>`;
-        }
     }
 }
 
