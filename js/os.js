@@ -5,6 +5,7 @@ let frotasManutencao = [];
 let tvInterval = null;
 let osSelecionadaParaConclusao = null; 
 let osSelecionadaParaServicoExtra = null; 
+window.dmDataAtualExport = []; // Variável global para exportação de DM
 
 async function carregarDadosOS() {
     try {
@@ -121,6 +122,7 @@ function renderizarRelatorioGerencialOS() {
         document.getElementById('kpiConcluidasOS').innerText = '0';
         document.getElementById('kpiTaxaOS').innerText = '0%';
         if(document.getElementById('kpiTempoMedioOS')) document.getElementById('kpiTempoMedioOS').innerText = '0h 0m';
+        renderizarRelatorioDM();
         return;
     }
 
@@ -222,6 +224,138 @@ function renderizarRelatorioGerencialOS() {
             </div>`;
     });
     document.getElementById('graficoPrioridadeOS').innerHTML = htmlPrio;
+
+    // Dispara a renderização do novo painel de DM ao carregar o dashboard gerencial
+    renderizarRelatorioDM();
+}
+
+// === NOVO PAINEL: DISPONIBILIDADE MECÂNICA POR CAVALO (DM) ===
+function renderizarRelatorioDM() {
+    const tbody = document.getElementById('tabelaRelatorioDM');
+    if (!tbody) return;
+
+    const dias = parseInt(document.getElementById('filtroPeriodoDM').value);
+    const agora = new Date();
+    // Ponto de corte inicial baseado nos dias selecionados
+    const inicioPeriodo = new Date(agora.getTime() - (dias * 24 * 60 * 60 * 1000));
+    const totalHorasPeriodo = dias * 24;
+    const totalMsPeriodo = totalHorasPeriodo * 60 * 60 * 1000;
+
+    let dmData = [];
+
+    frotasManutencao.forEach(frota => {
+        let manutencaoMs = 0;
+        let statusAtual = `<span style="color: var(--ccol-green-bright); font-weight: bold;">✅ Disponível</span>`;
+        
+        // Verifica O.S. ativas para definir o status exato neste momento
+        const osAberta = ordensServico.find(o => o.placa === frota.cavalo && o.status !== 'Concluída');
+        if (osAberta) {
+             if (osAberta.tipo === 'Sinistro' || osAberta.status === 'Sinistrado') statusAtual = `<span style="color: #ef4444; font-weight: bold;">🚨 Sinistrado</span>`;
+             else if (osAberta.status === 'Agendada') statusAtual = `<span style="color: #8b5cf6; font-weight: bold;">📅 Agendado</span>`;
+             else statusAtual = `<span style="color: #f59e0b; font-weight: bold;">🔧 Em Oficina</span>`;
+        }
+
+        // Pega TODAS as O.S deste cavalo (incluindo sinistros, pois sinistro também deixa o cavalo indisponível)
+        const todasOSCavalo = ordensServico.filter(o => o.placa === frota.cavalo);
+
+        todasOSCavalo.forEach(os => {
+            let osInicioStr = os.data_abertura;
+            if (!osInicioStr) return; // Se não tem data de abertura, ignora.
+
+            // Corrige fuso se necessário
+            if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
+            const osInicio = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
+            let osFim = agora; // Se não foi concluída, o fim é "agora"
+            
+            if (os.data_conclusao) {
+                let osFimStr = os.data_conclusao;
+                if (!osFimStr.includes('T')) osFimStr += 'T00:00:00';
+                osFim = new Date(osFimStr.replace('Z', '').replace('+00:00', ''));
+            }
+
+            // Calculando Interseção entre a O.S. e o Período Selecionado (D-1, D-2...)
+            const overlapInicio = osInicio > inicioPeriodo ? osInicio : inicioPeriodo;
+            const overlapFim = osFim < agora ? osFim : agora;
+
+            // Só conta se houver intersecção no período, e se o status não for "Agendada" (pois agendada não está parado ainda)
+            if (overlapInicio < overlapFim && os.status !== 'Agendada') { 
+                manutencaoMs += (overlapFim - overlapInicio);
+            }
+        });
+
+        // Prevenção de limite máximo (não pode estar mais tempo parado do que o período total)
+        if (manutencaoMs > totalMsPeriodo) manutencaoMs = totalMsPeriodo;
+
+        const disponivelMs = totalMsPeriodo - manutencaoMs;
+        const dmPercent = ((disponivelMs / totalMsPeriodo) * 100).toFixed(2);
+        
+        const horasManutencao = Math.floor(manutencaoMs / (1000 * 60 * 60));
+        const minManutencao = Math.floor((manutencaoMs % (1000 * 60 * 60)) / (1000 * 60));
+        
+        const horasDisp = Math.floor(disponivelMs / (1000 * 60 * 60));
+        const minDisp = Math.floor((disponivelMs % (1000 * 60 * 60)) / (1000 * 60));
+
+        dmData.push({
+            cavalo: frota.cavalo,
+            totalHoras: `${totalHorasPeriodo}h`,
+            manutencaoStr: `${horasManutencao}h ${minManutencao}m`,
+            disponivelStr: `${horasDisp}h ${minDisp}m`,
+            dm: parseFloat(dmPercent),
+            statusAtual
+        });
+    });
+
+    // Ordena do PIOR DM (menor %) para o MELHOR DM, para focar a atenção nos cavalos problemáticos
+    dmData.sort((a, b) => a.dm - b.dm);
+
+    tbody.innerHTML = dmData.map(item => {
+        let colorDM = 'var(--ccol-green-bright)'; // > 90% (Excelente)
+        if (item.dm < 90) colorDM = '#f59e0b'; // < 90% (Atenção)
+        if (item.dm < 80) colorDM = '#ef4444'; // < 80% (Crítico)
+
+        return `
+            <tr style="background: rgba(0,0,0,0.1);">
+                <td style="color: var(--ccol-blue-bright); font-weight: bold; font-size: 1.1rem;">${item.cavalo}</td>
+                <td style="color: var(--text-secondary);">${item.totalHoras}</td>
+                <td style="color: #ef4444; font-weight: bold;">${item.manutencaoStr}</td>
+                <td style="color: var(--ccol-green-bright);">${item.disponivelStr}</td>
+                <td style="color: ${colorDM}; font-weight: 900; font-size: 1.2rem;">${item.dm}%</td>
+                <td>${item.statusAtual}</td>
+            </tr>
+        `;
+    }).join('');
+    
+    window.dmDataAtualExport = dmData;
+}
+
+function exportarRelatorioDMExcel() {
+    if (!window.dmDataAtualExport || window.dmDataAtualExport.length === 0) {
+        alert('Não há dados de DM para exportar.');
+        return;
+    }
+
+    const dias = document.getElementById('filtroPeriodoDM').value;
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
+    csvContent += `Placa;Total Periodo (D-${dias});Tempo Manutencao;Tempo Disponivel;DM (%)\n`;
+
+    window.dmDataAtualExport.forEach(item => {
+        const linha = [
+            item.cavalo,
+            item.totalHoras,
+            item.manutencaoStr,
+            item.disponivelStr,
+            item.dm.toString().replace('.', ',')
+        ].join(';');
+        csvContent += linha + "\n";
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Relatorio_DM_D${dias}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 
 // ==================== PARTE 2: GESTÃO DE FROTA ====================
@@ -498,7 +632,6 @@ function renderizarTabelaHistoricoOS() {
     }).join('');
 }
 
-// === FUNÇÃO NOVA: EXPORTAÇÃO PARA EXCEL ===
 function exportarHistoricoOSExcel() {
     if (!ordensServico || ordensServico.length === 0) {
         alert('Não há dados de O.S. para exportar.');
