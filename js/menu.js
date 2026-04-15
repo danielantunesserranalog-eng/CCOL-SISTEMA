@@ -36,9 +36,9 @@ window.renderizarMenu = function() {
 
     if (meusMenus.includes('os')) navHtml += `<button class="nav-item" onclick="navegarPara('os', this)">🛠️ Ordem de Serviço</button>`;
     
-    // STATUS FROTA
+    // RELATÓRIO GERENCIAL (Substituiu o Status Frota)
     if (meusMenus.includes('os') || isAdmin) {
-        navHtml += `<button class="nav-item" onclick="navegarPara('status_frota', this)" style="color: var(--ccol-green-bright); font-weight: bold;">📊 Status Frota</button>`;
+        navHtml += `<button class="nav-item" onclick="navegarPara('relatorio_gerencial', this)" style="color: var(--ccol-green-bright); font-weight: bold;">📊 Relatório Gerencial</button>`;
     }
 
     if (meusMenus.includes('troca')) navHtml += `<button class="nav-item" onclick="navegarPara('troca', this)">⏱️ Painel de Troca</button>`;
@@ -125,7 +125,13 @@ window.navegarPara = async function(pagina, elementoClicado) {
         if (pagina === 'alocacao' && typeof window.renderizarAlocacao === 'function') window.renderizarAlocacao();
         if (pagina === 'motoristas' && typeof window.renderizarMotoristas === 'function') window.renderizarMotoristas();
         if (pagina === 'caminhoes' && typeof window.renderizarConjuntos === 'function') window.renderizarConjuntos();
-        if (pagina === 'status_frota' && typeof window.renderizarStatusFrota === 'function') window.renderizarStatusFrota();
+        
+        // INICIALIZAÇÃO DO NOVO RELATÓRIO GERENCIAL
+        if (pagina === 'relatorio_gerencial') {
+            if (typeof window.carregarDadosOS === 'function') await window.carregarDadosOS();
+            if (typeof window.renderizarRelatorioGerencialOS === 'function') window.renderizarRelatorioGerencialOS();
+        }
+
         if (pagina === 'os' && typeof window.alternarTelaOS === 'function') window.alternarTelaOS('lista');
         if (pagina === 'troca' && typeof window.renderizarTrocaTurno === 'function') window.renderizarTrocaTurno();
         if (pagina === 'ssma' && typeof window.renderizarSSMA === 'function') window.renderizarSSMA();

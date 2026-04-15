@@ -34,7 +34,6 @@ async function alternarTelaOS(tela) {
     const telaHistorico = document.getElementById('telaHistoricoOS');
     const telaNova = document.getElementById('telaNovaOS');
     const telaFrota = document.getElementById('telaFrotaOS');
-    const telaRelatorio = document.getElementById('telaRelatorioOS');
     const telaDisponibilidade = document.getElementById('telaDisponibilidadeOS');
     
     if(telaLista) telaLista.style.display = 'none';
@@ -42,7 +41,6 @@ async function alternarTelaOS(tela) {
     if(telaHistorico) telaHistorico.style.display = 'none';
     if(telaNova) telaNova.style.display = 'none';
     if(telaFrota) telaFrota.style.display = 'none';
-    if(telaRelatorio) telaRelatorio.style.display = 'none';
     if(telaDisponibilidade) telaDisponibilidade.style.display = 'none';
     
     if (typeof sairModoTV === 'function') sairModoTV();
@@ -69,9 +67,6 @@ async function alternarTelaOS(tela) {
     } else if (tela === 'frota') {
         telaFrota.style.display = 'block';
         if (typeof renderizarTabelaFrotaManutencao === 'function') renderizarTabelaFrotaManutencao();
-    } else if (tela === 'relatorio') {
-        telaRelatorio.style.display = 'block';
-        if (typeof renderizarRelatorioGerencialOS === 'function') renderizarRelatorioGerencialOS();
     } else if (tela === 'disponibilidade') {
         if(telaDisponibilidade) telaDisponibilidade.style.display = 'block';
         if (typeof renderizarDisponibilidadeMecanica === 'function') renderizarDisponibilidadeMecanica();

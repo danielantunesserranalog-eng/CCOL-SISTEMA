@@ -8,7 +8,6 @@
         <button class="btn-primary-green" onclick="alternarTelaOS('nova'); carregarSelectCavalosOS(); carregarMotoristasSelectOS();">➕ Abrir Nova O.S.</button>
         <button class="btn-secondary-dark" onclick="alternarTelaOS('frota')">🚛 Cadastro Frota (O.S.)</button>
         <button class="btn-secondary-dark" onclick="alternarTelaOS('disponibilidade')" style="background-color: #047857; border-color: #047857; color: white;">📈 Disponibilidade (Geral)</button>
-        <button class="btn-danger-outline" onclick="alternarTelaOS('relatorio')" title="Apenas Administradores">📊 Relatório Gerencial 🔒</button>
     </div>
 </div>
 
@@ -286,83 +285,6 @@
             </thead>
             <tbody id="tabelaDisponibilidade"></tbody>
         </table>
-    </div>
-</div>
-
-<div id="telaRelatorioOS" style="display: none;">
-    <div class="quick-stats-header" style="justify-content: space-between; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px;">
-        <div class="q-stat" style="flex: 1; text-align: center; min-width: 120px;">Total O.S. <br><span id="kpiTotalOS" style="font-size: 1.8rem; color: #fff;">0</span></div>
-        <div class="q-stat" style="flex: 1; text-align: center; min-width: 120px; border-left: 3px solid #ef4444;">Abertas <br><span id="kpiAbertasOS" style="font-size: 1.8rem; color: #f87171;">0</span></div>
-        <div class="q-stat" style="flex: 1; text-align: center; min-width: 120px; border-left: 3px solid var(--ccol-green-bright);">Concluídas <br><span id="kpiConcluidasOS" style="font-size: 1.8rem; color: var(--ccol-green-bright);">0</span></div>
-        <div class="q-stat" style="flex: 1; text-align: center; min-width: 120px; border-left: 3px solid var(--ccol-blue-bright);">Conclusão <br><span id="kpiTaxaOS" style="font-size: 1.8rem; color: var(--ccol-blue-bright);">0%</span></div>
-        <div class="q-stat" style="flex: 1; text-align: center; min-width: 120px; border-left: 3px solid #a855f7;">Tempo Médio <br><span id="kpiTempoMedioOS" style="font-size: 1.8rem; color: #a855f7;">0h 0m</span></div>
-    </div>
-    
-    <div class="content-panel" style="grid-column: 1 / -1; margin-bottom: 20px; border: 1px solid var(--ccol-blue-bright);">
-        <div class="panel-header" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px;">
-            <h3 style="color: var(--ccol-blue-bright); margin: 0;">📈 Evolução Diária da Disponibilidade Mecânica (DM) Geral - Oficina</h3>
-        </div>
-        <div style="width: 100%; height: 350px; margin-top: 15px;" id="graficoEvolucaoDM"></div>
-    </div>
-    
-    <div class="content-panel" style="grid-column: 1 / -1; margin-bottom: 20px; border: 1px solid #10b981;">
-        <div class="panel-header" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; display: flex; justify-content: space-between;">
-            <h3 style="color: #10b981; margin: 0;">🚚 DM Operacional (Carros Rodando / Frota Total) - Importado</h3>
-        </div>
-        <div style="width: 100%; height: 350px; margin-top: 15px;" id="graficoDmOperacional"></div>
-    </div>
-
-    <div class="content-panel" style="grid-column: 1 / -1; margin-bottom: 20px; border: 1px solid var(--ccol-green-bright);">
-        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px;">
-            <h3 style="color: var(--ccol-green-bright); margin: 0;">📊 Disponibilidade Mecânica (DM) por Cavalo</h3>
-            <div class="form-group-dark" style="margin: 0; display: flex; align-items: center; gap: 10px;">
-                <label style="color: var(--text-secondary); margin: 0;">Período Retroativo:</label>
-                <select id="filtroPeriodoDM" class="dark-select" onchange="renderizarRelatorioDM()" style="min-width: 150px;">
-                    <option value="1">D-1 (Últimas 24h)</option>
-                    <option value="2">D-2 (Últimas 48h)</option>
-                    <option value="7">D-7 (Últimos 7 dias)</option>
-                    <option value="30" selected>D-30 (Últimos 30 dias)</option>
-                     <option value="mes_atual">Somente Mês Atual</option> 
-                </select>
-                <button class="btn-primary-green" onclick="exportarRelatorioDMExcel()" style="padding: 6px 12px; font-size: 0.85rem;">📥 Exportar DM (Excel)</button>
-            </div>
-        </div>
-        <div class="table-modern-wrapper">
-            <table class="data-table-modern">
-                <thead>
-                    <tr>
-                        <th>Placa (Cavalo)</th>
-                        <th>Tempo Total do Período</th>
-                        <th>Tempo em Manutenção</th>
-                        <th>Tempo Disponível</th>
-                        <th>Índice de DM (%)</th>
-                        <th>Status Atual</th>
-                    </tr>
-                </thead>
-                <tbody id="tabelaRelatorioDM"></tbody>
-            </table>
-        </div>
-    </div>
-
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
-        <div class="content-panel">
-            <div class="panel-header">
-                <h3 style="color: var(--ccol-rust-bright);">🚨 Top 5 Caminhões que Mais Quebram (Geral)</h3>
-            </div>
-            <div style="padding: 15px;" id="rankingCavalosOS"></div>
-        </div>
-        <div class="content-panel">
-            <div class="panel-header">
-                <h3 style="color: var(--ccol-blue-bright);">🛠️ Ocorrências por Tipo de Serviço</h3>
-            </div>
-            <div style="padding: 15px;" id="graficoTipoOS"></div>
-        </div>
-        <div class="content-panel">
-            <div class="panel-header">
-                <h3 style="color: #fde047;">⚠️ Alertas de Prioridade</h3>
-            </div>
-            <div style="padding: 15px;" id="graficoPrioridadeOS"></div>
-        </div>
     </div>
 </div>
 
