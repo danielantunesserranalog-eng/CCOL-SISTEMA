@@ -466,7 +466,7 @@ async function imprimirOS(osId) {
                     <td><strong>Cavalo:</strong> ${os.placa || '-'}</td>
                     <td><strong>Abertura:</strong> ${dataAberturaFormatada}</td>
                     <td><strong>Status:</strong> ${os.status}</td>
-                    <td><strong>Aberto Por:</strong> <span style="font-size: 13px; font-weight: bold;">${infoAbertoPor}</span></td>
+                    <td><strong>Emitido por :</strong> <span style="font-size: 13px; font-weight: bold;">${infoAbertoPor}</span></td>
                 </tr>
                 <tr>
                     <td><strong>Motorista:</strong> ${os.motorista || '-'}</td>
