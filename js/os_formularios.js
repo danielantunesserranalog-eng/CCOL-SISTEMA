@@ -123,14 +123,14 @@ async function salvarNovaOS() {
     // CAPTURANDO QUEM ESTÁ ABRINDO A O.S ATRAVÉS DO SISTEMA DE AUTENTICAÇÃO LOCAL
     try {
         if (typeof currentUser !== 'undefined' && currentUser && currentUser.username) {
-            pacoteDadosOS.criado_por = currentUser.username;
+            pacoteDadosOS.aberto_por = currentUser.username;
         } else {
             // Tenta resgatar da sessão salva no navegador caso o currentUser esteja vazio
             const sessaoSalva = localStorage.getItem('ccol_user_session');
             if (sessaoSalva) {
                 const userObj = JSON.parse(sessaoSalva);
                 if (userObj && userObj.username) {
-                    pacoteDadosOS.criado_por = userObj.username;
+                    pacoteDadosOS.aberto_por = userObj.username;
                 }
             }
         }
@@ -355,7 +355,7 @@ async function imprimirOS(osId) {
     if (!os) return;
     
     const frota = frotasManutencao.find(f => f.cavalo === os.placa) || {};
-    const infoAbertoPor = os.criado_por || os.usuario || os.aberto_por || 'Não Informado';
+    const infoAbertoPor = os.aberto_por || os.usuario || os.aberto_por || 'Não Informado';
     
     const numeroOSFormatado = String(os.id).padStart(4, '0');
 
