@@ -11,15 +11,17 @@
 </div>
 
 <div class="content-panel" style="grid-column: 1 / -1; margin-bottom: 20px; border: 1px solid var(--ccol-blue-bright);">
-    <div class="panel-header" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px;">
+    <div class="panel-header" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
         <h3 style="color: var(--ccol-blue-bright); margin: 0;">📈 Evolução Diária da Disponibilidade Mecânica (DM) Geral - Oficina</h3>
+        <button class="btn-secondary-dark" onclick="exportarGraficoPNG('graficoEvolucaoDM', 'Evolucao_DM_Oficina')" style="padding: 5px 12px; font-size: 0.8rem;">📸 Exportar PNG</button>
     </div>
     <div style="width: 100%; height: 350px; margin-top: 15px;" id="graficoEvolucaoDM"></div>
 </div>
 
 <div class="content-panel" style="grid-column: 1 / -1; margin-bottom: 20px; border: 1px solid #10b981;">
-    <div class="panel-header" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; display: flex; justify-content: space-between;">
+    <div class="panel-header" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
         <h3 style="color: #10b981; margin: 0;">🚚 DM Operacional (Carros Rodando / Frota Total) - Importado</h3>
+        <button class="btn-secondary-dark" onclick="exportarGraficoPNG('graficoDmOperacional', 'DM_Operacional')" style="padding: 5px 12px; font-size: 0.8rem;">📸 Exportar PNG</button>
     </div>
     <div style="width: 100%; height: 350px; margin-top: 15px;" id="graficoDmOperacional"></div>
 </div>
