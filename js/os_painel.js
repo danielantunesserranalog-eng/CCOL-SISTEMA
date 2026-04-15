@@ -29,8 +29,9 @@ function renderizarRelatorioGerencialOS() {
 
     concluidas.forEach(o => {
         if (o.data_abertura && o.data_conclusao) {
-            const inicio = new Date(o.data_abertura);
-            const fim = new Date(o.data_conclusao);
+            // CORREÇÃO DE FUSO MATEMÁTICA
+            const inicio = new Date(o.data_abertura.replace('Z', '').replace('+00:00', ''));
+            const fim = new Date(o.data_conclusao.replace('Z', '').replace('+00:00', ''));
             
             if (!isNaN(inicio) && !isNaN(fim) && fim > inicio) {
                 tempoTotalMs += (fim - inicio);
@@ -537,16 +538,21 @@ function renderizarCardsTV() {
         else if (os.prioridade === 'Alta') corPrioridade = '#f97316';
         else if (os.prioridade === 'Baixa') corPrioridade = '#10b981';
 
+        // CORREÇÃO DE FUSO PARA O PAINEL DE TV: O relógio e o Tempo de Pátio
         let diffHrs = 0;
         let diffMin = 0;
+        let entradaHoraStr = '--:--';
         
         if (os.data_abertura) {
-            const inicio = new Date(os.data_abertura);
+            // Removendo os marcadores de fuso horário UTC (Z e +00)
+            const inicio = new Date(os.data_abertura.replace('Z', '').replace('+00:00', ''));
             const diffMs = agora - inicio;
             if(diffMs > 0) {
                 diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
                 diffMin = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
             }
+            // Gerando o texto da hora local corretamente
+            entradaHoraStr = inicio.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
         }
         
         let colorCronometro = '#fff';
@@ -564,7 +570,8 @@ function renderizarCardsTV() {
         let campoPrevisao = os.previsao_entrega || os.previsao;
         
         if (campoPrevisao) {
-            const dataPrevisao = new Date(campoPrevisao);
+            // CORREÇÃO DE FUSO PARA A PREVISÃO NA TV
+            const dataPrevisao = new Date(campoPrevisao.replace('Z', '').replace('+00:00', ''));
             if (agora > dataPrevisao) {
                 avisoPrevisao = `<div style="background: #7f1d1d; color: #fca5a5; padding: 5px; text-align: center; font-weight: bold; border-radius: 4px; margin-top: 10px; font-size: 0.9rem;">⚠️ PREVISÃO VENCIDA</div>`;
             } else {
@@ -599,7 +606,7 @@ function renderizarCardsTV() {
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
                     <div style="color: #94a3b8; font-size: 1rem;">
-                        Entrada: <br><strong style="color: #fff;">${os.data_abertura ? new Date(os.data_abertura).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) : '--:--'}</strong>
+                        Entrada: <br><strong style="color: #fff;">${entradaHoraStr}</strong>
                     </div>
                     <div style="text-align: right;">
                         <div style="font-size: 0.9rem; color: #94a3b8;">TEMPO NO PÁTIO</div>

@@ -21,12 +21,15 @@ function renderizarTabelaOS() {
         if (os.status === 'Agendada') corStatus = '#8b5cf6';
         
         const modoIcon = os.status === 'Agendada' ? '📅' : '🚨';
-        const inicioStr = os.data_abertura ? new Date(os.data_abertura).toLocaleString('pt-BR') : '-';
-        const previsaoStr = os.previsao_entrega ? new Date(os.previsao_entrega).toLocaleString('pt-BR') : 'Não definida';
+        
+        // CORREÇÃO DE FUSO: Usando a função segura para não perder 3 horas
+        const inicioStr = formatarDataHoraBrasil(os.data_abertura);
+        const previsaoStr = os.previsao_entrega ? formatarDataHoraBrasil(os.previsao_entrega) : 'Não definida';
 
         let isVencida = false;
         if (os.previsao_entrega && os.status !== 'Agendada') {
-            const previsao = new Date(os.previsao_entrega);
+            // CORREÇÃO DE FUSO: Retirando marcador UTC antes da matemática
+            const previsao = new Date(os.previsao_entrega.replace('Z', '').replace('+00:00', ''));
             if (new Date() > previsao) isVencida = true;
         }
 
@@ -69,8 +72,9 @@ function renderizarTabelaSinistro() {
 
     tbody.innerHTML = filtradas.map(os => {
         let corStatus = '#ef4444'; 
-        const inicioStr = os.data_abertura ? new Date(os.data_abertura).toLocaleString('pt-BR') : '-';
-        const previsaoStr = os.previsao_entrega ? new Date(os.previsao_entrega).toLocaleString('pt-BR') : 'Indeterminada';
+        // CORREÇÃO DE FUSO: Usando função segura
+        const inicioStr = formatarDataHoraBrasil(os.data_abertura);
+        const previsaoStr = os.previsao_entrega ? formatarDataHoraBrasil(os.previsao_entrega) : 'Indeterminada';
 
         return `
             <tr style="background: rgba(239, 68, 68, 0.05); border-left: 4px solid #ef4444;">
@@ -120,8 +124,9 @@ function renderizarTabelaHistoricoOS() {
         if (os.status === 'Em Manutenção') corStatus = '#3b82f6';
         if (os.status === 'Sinistrado' || os.tipo === 'Sinistro') corStatus = '#ef4444';
 
-        const dataAbertura = os.data_abertura ? new Date(os.data_abertura).toLocaleString('pt-BR') : '-';
-        const dataConclusao = os.data_conclusao ? new Date(os.data_conclusao).toLocaleString('pt-BR') : '-';
+        // CORREÇÃO DE FUSO: Usando função segura
+        const dataAbertura = formatarDataHoraBrasil(os.data_abertura);
+        const dataConclusao = os.data_conclusao ? formatarDataHoraBrasil(os.data_conclusao) : '-';
 
         return `
             <tr>
