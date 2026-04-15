@@ -120,13 +120,19 @@ async function salvarNovaOS() {
         status: statusInicial
     };
 
-    // CAPTURANDO QUEM ESTÁ ABRINDO A O.S
+    // CAPTURANDO QUEM ESTÁ ABRINDO A O.S ATRAVÉS DO SISTEMA DE AUTENTICAÇÃO LOCAL
     try {
-        const { data: userData } = await supabaseClient.auth.getUser();
-        if (userData && userData.user) {
-            pacoteDadosOS.criado_por = userData.user.user_metadata?.nome || userData.user.email;
-        } else if (typeof currentUserEmail !== 'undefined' && currentUserEmail) {
-            pacoteDadosOS.criado_por = currentUserEmail;
+        if (typeof currentUser !== 'undefined' && currentUser && currentUser.username) {
+            pacoteDadosOS.criado_por = currentUser.username;
+        } else {
+            // Tenta resgatar da sessão salva no navegador caso o currentUser esteja vazio
+            const sessaoSalva = localStorage.getItem('ccol_user_session');
+            if (sessaoSalva) {
+                const userObj = JSON.parse(sessaoSalva);
+                if (userObj && userObj.username) {
+                    pacoteDadosOS.criado_por = userObj.username;
+                }
+            }
         }
     } catch (e) {
         console.warn("Não foi possível capturar o usuário logado automaticamente.", e);
