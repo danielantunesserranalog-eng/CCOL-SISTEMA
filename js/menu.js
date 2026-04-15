@@ -22,7 +22,7 @@ window.renderizarMenu = function() {
     if (meusMenus.includes('alocacao')) navHtml += `<button class="nav-item" onclick="navegarPara('alocacao', this)">🔄 Alocação Geral</button>`;
     
     // RECADOS E ANOTAÇÕES (Livre para todos)
-    navHtml += `<button class="nav-item" onclick="navegarPara('recados', this)">📝 Recados e Anotações</button>`;
+    if (meusMenus.includes('recados') || isAdmin) navHtml += `<button class="nav-item" onclick="navegarPara('recados', this)">📝 Recados e Anotações</button>`;
 
     // Dropdown Cadastros
     if (meusMenus.includes('motoristas') || meusMenus.includes('caminhoes')) {
@@ -36,8 +36,8 @@ window.renderizarMenu = function() {
 
     if (meusMenus.includes('os')) navHtml += `<button class="nav-item" onclick="navegarPara('os', this)">🛠️ Ordem de Serviço</button>`;
     
-    // RELATÓRIO GERENCIAL (Substituiu o Status Frota)
-    if (meusMenus.includes('os') || isAdmin) {
+    // RELATÓRIO GERENCIAL (Agora com permissão própria!)
+    if (meusMenus.includes('relatorio_gerencial') || isAdmin) {
         navHtml += `<button class="nav-item" onclick="navegarPara('relatorio_gerencial', this)" style="color: var(--ccol-green-bright); font-weight: bold;">📊 Relatório Gerencial</button>`;
     }
 
@@ -111,7 +111,6 @@ window.navegarPara = async function(pagina, elementoClicado) {
         if (!pageCache[pagina]) {
             mainContent.innerHTML = '<div style="padding: 20px; text-align: center; color: #fff;">A carregar módulo...</div>';
             
-            // AQUI ESTÁ A CORREÇÃO DE CACHE: O "?v=" com o tempo atual obriga o navegador a baixar a versão mais recente do HTML sempre que você clicar no menu.
             const response = await fetch(`pages/${pagina}.html?v=` + new Date().getTime());
             
             if (!response.ok) throw new Error('Página não encontrada');
