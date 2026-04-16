@@ -1,31 +1,51 @@
-window.renderizarGraficoEvolucaoDM = function(filtroValue) {
+window.renderizarGraficoEvolucaoDM = function(dataFiltro) {
     if (!frotasManutencao || frotasManutencao.length === 0) return;
     
     const agora = new Date();
-    const categoriasDias = [];
-    const dadosDM = [];
+    let dataBase = new Date(); // Começa assumindo o dia de hoje
+    let ehHoje = true;
 
-    const msPorDia = 24 * 60 * 60 * 1000;
-    const totalMsDisponivelPorDia = frotasManutencao.length * msPorDia;
-    
-    let diasARenderizar = 30; // padrão
-
-    // VALIDA QUAL FOI A OPÇÃO ESCOLHIDA NO SELECT
-    if (filtroValue === 'mes_atual') {
-        const primeiroDiaMes = new Date(agora.getFullYear(), agora.getMonth(), 1, 0, 0, 0);
-        const diffMs = agora.getTime() - primeiroDiaMes.getTime();
-        diasARenderizar = Math.ceil(diffMs / msPorDia); 
+    // Se o usuário selecionou uma data no filtro do calendário
+    if (dataFiltro && dataFiltro !== 'mes_atual' && dataFiltro.length > 5) {
+        // Tenta criar a data considerando o timezone local para evitar offset
+        const partesData = dataFiltro.split('-');
+        if(partesData.length === 3) {
+            dataBase = new Date(partesData[0], partesData[1] - 1, partesData[2]);
+            // Verifica se a data selecionada é diferente do dia atual
+            ehHoje = (dataBase.getDate() === agora.getDate() && 
+                      dataBase.getMonth() === agora.getMonth() && 
+                      dataBase.getFullYear() === agora.getFullYear());
+        }
     } else {
-        diasARenderizar = parseInt(filtroValue);
+        // Preenche o input date com o dia de hoje caso esteja vazio ao carregar a página
+        const inputData = document.getElementById('filtroDataEvolucaoDM');
+        if (inputData && !inputData.value) {
+            const mesStr = String(agora.getMonth() + 1).padStart(2, '0');
+            const diaStr = String(agora.getDate()).padStart(2, '0');
+            inputData.value = `${agora.getFullYear()}-${mesStr}-${diaStr}`;
+        }
     }
 
-    // Iterar do dia mais antigo até hoje
-    for (let i = diasARenderizar - 1; i >= 0; i--) {
-        const dataDia = new Date(agora.getTime() - (i * msPorDia));
-        const inicioDia = new Date(dataDia.getFullYear(), dataDia.getMonth(), dataDia.getDate(), 0, 0, 0);
-        const fimDia = new Date(dataDia.getFullYear(), dataDia.getMonth(), dataDia.getDate(), 23, 59, 59, 999);
+    const categoriasHoras = [];
+    const dadosDM = [];
+
+    // Definindo o total de milissegundos em 1 hora
+    const msPorHora = 60 * 60 * 1000;
+    const totalMsDisponivelPorHora = frotasManutencao.length * msPorHora;
+
+    // Define até que hora o gráfico deve renderizar
+    // Se for o dia de hoje, vai apenas até a hora atual. Se for passado, vai até as 23h.
+    let horaLimite = 23;
+    if (ehHoje) {
+        horaLimite = agora.getHours();
+    }
+
+    // Iterar das 00:00 até a hora limite calculada
+    for (let i = 0; i <= horaLimite; i++) {
+        const inicioHora = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate(), i, 0, 0, 0);
+        const fimHora = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate(), i, 59, 59, 999);
         
-        let msManutencaoNesteDia = 0;
+        let msManutencaoNestaHora = 0;
 
         frotasManutencao.forEach(frota => {
             let manutencaoCavalo = 0;
@@ -37,31 +57,36 @@ window.renderizarGraficoEvolucaoDM = function(filtroValue) {
                 if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
                 const osInicio = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
                 
-                let osFim = agora;
+                let osFim = agora; // Se não tem conclusão, a manutenção vai até "agora"
                 if (os.data_conclusao) {
                     let osFimStr = os.data_conclusao;
                     if (!osFimStr.includes('T')) osFimStr += 'T00:00:00';
                     osFim = new Date(osFimStr.replace('Z', '').replace('+00:00', ''));
                 }
 
-                const overlapInicio = osInicio > inicioDia ? osInicio : inicioDia;
-                const overlapFim = osFim < fimDia ? osFim : fimDia;
+                // Verifica se o tempo da OS se sobrepõe com a hora que estamos avaliando no loop
+                const overlapInicio = osInicio > inicioHora ? osInicio : inicioHora;
+                const overlapFim = osFim < fimHora ? osFim : fimHora;
 
+                // Conta o tempo apenas se houver sobreposição e a OS não for apenas agendada
                 if (overlapInicio < overlapFim && os.status !== 'Agendada') {
                     manutencaoCavalo += (overlapFim - overlapInicio);
                 }
             });
             
-            if (manutencaoCavalo > msPorDia) manutencaoCavalo = msPorDia;
-            msManutencaoNesteDia += manutencaoCavalo;
+            // O tempo de manutenção em uma hora não pode ultrapassar o limite de 1 hora (evita bugs de registro de OS)
+            if (manutencaoCavalo > msPorHora) manutencaoCavalo = msPorHora;
+            msManutencaoNestaHora += manutencaoCavalo;
         });
 
-        let dispNesteDia = totalMsDisponivelPorDia - msManutencaoNesteDia;
-        if(dispNesteDia < 0) dispNesteDia = 0;
+        // Calcula a disponibilidade real descontando a manutenção
+        let dispNestaHora = totalMsDisponivelPorHora - msManutencaoNestaHora;
+        if(dispNestaHora < 0) dispNestaHora = 0;
         
-        let percentDM = (dispNesteDia / totalMsDisponivelPorDia) * 100;
+        let percentDM = (dispNestaHora / totalMsDisponivelPorHora) * 100;
         
-        categoriasDias.push(`${String(dataDia.getDate()).padStart(2,'0')}/${String(dataDia.getMonth()+1).padStart(2,'0')}`);
+        // Adiciona a string da hora no eixo X (ex: "08:00") e o percentual no eixo Y
+        categoriasHoras.push(`${String(i).padStart(2,'0')}:00`);
         dadosDM.push(percentDM.toFixed(2));
     }
 
@@ -82,7 +107,7 @@ window.renderizarGraficoEvolucaoDM = function(filtroValue) {
         xAxis: {
             type: 'category',
             boundaryGap: false,
-            data: categoriasDias,
+            data: categoriasHoras,
             axisLabel: { color: '#94a3b8' }
         },
         yAxis: {
@@ -93,21 +118,18 @@ window.renderizarGraficoEvolucaoDM = function(filtroValue) {
             splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }
         },
         series: [{
-            name: 'DM Diário',
+            name: 'DM Horário',
             type: 'line',
             data: dadosDM,
             smooth: true,
-            
-            // ---> ADICIONADO: Exibe a porcentagem em cima de cada ponto
             label: {
                 show: true,
                 position: 'top',
-                formatter: '{c}%', // Mostra o valor seguido de %
-                color: '#e2e8f0', // Cor clarinha para aparecer bem no fundo escuro
+                formatter: '{c}%',
+                color: '#e2e8f0',
                 fontSize: 11,
                 fontWeight: 'bold'
             },
-            
             itemStyle: { color: '#3b82f6' },
             lineStyle: { width: 4 },
             areaStyle: {

@@ -11,10 +11,11 @@
 </div>
 
 <div class="content-panel" style="grid-column: 1 / -1; margin-bottom: 20px; border: 1px solid var(--ccol-blue-bright);">
-    <div class="panel-header" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
-        <h3 style="color: var(--ccol-blue-bright); margin: 0;">📈 Evolução Diária da Disponibilidade Mecânica (DM) Geral - Oficina</h3>
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <button class="btn-secondary-dark" onclick="exportarGraficoPNG('graficoEvolucaoDM', 'Evolucao_DM_Oficina')" style="padding: 5px 12px; font-size: 0.8rem;">📸 Exportar PNG</button>
+    <div class="panel-header" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <h3 style="color: var(--ccol-blue-bright); margin: 0;">📈 Evolução Horária da Disponibilidade Mecânica (DM) Geral - Oficina</h3>
+        <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+            <input type="date" id="filtroDataEvolucaoDM" class="dark-select" onchange="renderizarGraficoEvolucaoDM(this.value)" style="padding: 5px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background-color: rgba(0,0,0,0.3); color: white; cursor: pointer; height: 32px; font-size: 0.9rem;">
+            <button class="btn-secondary-dark" onclick="exportarGraficoPNG('graficoEvolucaoDM', 'Evolucao_DM_Oficina')" style="padding: 5px 12px; font-size: 0.8rem; height: 32px;">📸 Exportar PNG</button>
             <img src="assets/logo.png" alt="Serrana Log" style="height: 32px; object-fit: contain; opacity: 0.9;">
         </div>
     </div>
