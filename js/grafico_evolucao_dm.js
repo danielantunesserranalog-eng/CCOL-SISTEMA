@@ -132,17 +132,34 @@ window.renderizarGraficoEvolucaoDM = function(dataFiltro) {
         contagemHoras++;
     }
 
-    // Atualiza os Cards de Média no HTML
+    // =======================================================
+    // ATUALIZAR OS CARDS DE MÉDIA NO HTML
+    // =======================================================
     if (contagemHoras > 0) {
+        const mediaDM = (somaDM / contagemHoras).toFixed(1) + '%';
+        const mediaAtivos = Math.round(somaAtivos / contagemHoras);
+        const mediaManut = Math.round(somaManut / contagemHoras);
+        const mediaSOS = Math.round(somaSOS / contagemHoras);
+
+        // Atualiza os painéis lá de cima
         const elAvgDM = document.getElementById('avgDM');
         const elAvgAtivos = document.getElementById('avgAtivos');
         const elAvgManut = document.getElementById('avgManut');
         const elAvgSOS = document.getElementById('avgSOS');
         
-        if(elAvgDM) elAvgDM.innerText = (somaDM / contagemHoras).toFixed(1) + '%';
-        if(elAvgAtivos) elAvgAtivos.innerText = Math.round(somaAtivos / contagemHoras);
-        if(elAvgManut) elAvgManut.innerText = Math.round(somaManut / contagemHoras);
-        if(elAvgSOS) elAvgSOS.innerText = Math.round(somaSOS / contagemHoras);
+        if(elAvgDM) elAvgDM.innerText = mediaDM;
+        if(elAvgAtivos) elAvgAtivos.innerText = mediaAtivos;
+        if(elAvgManut) elAvgManut.innerText = mediaManut;
+        if(elAvgSOS) elAvgSOS.innerText = mediaSOS;
+
+        // Atualiza os novos indicadores internos do Gráfico
+        const elAvgAtivosInterno = document.getElementById('avgAtivosInterno');
+        const elAvgManutInterno = document.getElementById('avgManutInterno');
+        const elAvgSOSInterno = document.getElementById('avgSOSInterno');
+
+        if(elAvgAtivosInterno) elAvgAtivosInterno.innerText = mediaAtivos;
+        if(elAvgManutInterno) elAvgManutInterno.innerText = mediaManut;
+        if(elAvgSOSInterno) elAvgSOSInterno.innerText = mediaSOS;
     }
 
     if (typeof echarts === 'undefined') {
