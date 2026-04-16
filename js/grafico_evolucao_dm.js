@@ -91,7 +91,7 @@ window.renderizarGraficoEvolucaoDM = function(dataFiltro) {
                     const descOS = (os.descricao || '').toUpperCase();
                     const prioridadeOS = (os.prioridade || '').toUpperCase();
 
-                    // LÓGICA CORRIGIDA: Captura S.O.S (com pontos), SOS (sem pontos) e SOCORRO
+                    // Captura S.O.S (com pontos), SOS (sem pontos) e SOCORRO
                     if (
                         tipoOS.includes('S.O.S') || 
                         tipoOS.includes('SOS') || 
@@ -111,7 +111,6 @@ window.renderizarGraficoEvolucaoDM = function(dataFiltro) {
             if (manutencaoCavalo > msPorHora) manutencaoCavalo = msPorHora;
             msManutencaoNestaHora += manutencaoCavalo;
 
-            // Se o caminhão teve um chamado de S.O.S nesta hora, a prioridade é marcar como SOS.
             if (teveSOS) {
                 qtdEmSOS++;
             } else if (teveManutencaoComum) {
@@ -162,7 +161,7 @@ window.renderizarGraficoEvolucaoDM = function(dataFiltro) {
         if(elAvgManut) elAvgManut.innerText = mediaManut;
         if(elAvgSOS) elAvgSOS.innerText = mediaSOS;
 
-        // Atualiza os novos indicadores internos que criamos hoje junto do gráfico
+        // Atualiza os novos indicadores internos
         const elAvgAtivosInterno = document.getElementById('avgAtivosInterno');
         const elAvgManutInterno = document.getElementById('avgManutInterno');
         const elAvgSOSInterno = document.getElementById('avgSOSInterno');
@@ -193,13 +192,15 @@ window.renderizarGraficoEvolucaoDM = function(dataFiltro) {
                 type: 'category',
                 boundaryGap: false,
                 data: labelsX,
-                axisLabel: { color: '#94a3b8' }
+                // COR BRANCA NOS HORÁRIOS
+                axisLabel: { color: '#ffffff', fontWeight: 'bold' }
             },
             yAxis: {
                 type: 'value',
                 min: 0,
                 max: 100,
-                axisLabel: { formatter: '{value}%', color: '#94a3b8' },
+                // COR BRANCA NAS PORCENTAGENS
+                axisLabel: { formatter: '{value}%', color: '#ffffff', fontWeight: 'bold' },
                 splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }
             },
             series: [{
@@ -246,7 +247,8 @@ window.renderizarGraficoEvolucaoDM = function(dataFiltro) {
             },
             legend: { 
                 data: ['Disponível', 'Manutenção', 'SOS'], 
-                textStyle: { color: '#94a3b8' }, 
+                // COR BRANCA NA LEGENDA
+                textStyle: { color: '#ffffff', fontWeight: 'bold' }, 
                 top: 0 
             },
             grid: { 
@@ -255,13 +257,16 @@ window.renderizarGraficoEvolucaoDM = function(dataFiltro) {
             xAxis: { 
                 type: 'category', 
                 data: labelsX, 
-                axisLabel: { color: '#64748b' } 
+                // COR BRANCA NOS HORÁRIOS
+                axisLabel: { color: '#ffffff', fontWeight: 'bold' } 
             },
             yAxis: { 
                 type: 'value', 
                 name: 'Quantidade de Veículos',
-                nameTextStyle: { color: '#64748b', padding: [0, 0, 0, 50] },
-                axisLabel: { color: '#64748b' }, 
+                // COR BRANCA NO NOME DO EIXO Y
+                nameTextStyle: { color: '#ffffff', padding: [0, 0, 0, 50], fontWeight: 'bold', fontSize: 13 },
+                // COR BRANCA NOS NÚMEROS DO EIXO Y
+                axisLabel: { color: '#ffffff', fontWeight: 'bold' }, 
                 splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } } 
             },
             series: [
@@ -270,21 +275,21 @@ window.renderizarGraficoEvolucaoDM = function(dataFiltro) {
                     type: 'bar', 
                     itemStyle: { color: '#10b981' }, 
                     data: dadosBarraAtivos,
-                    label: { show: true, position: 'top', color: '#10b981', formatter: (p) => p.value > 0 ? p.value : '' }
+                    label: { show: true, position: 'top', color: '#10b981', fontWeight: 'bold', formatter: (p) => p.value > 0 ? p.value : '' }
                 },
                 { 
                     name: 'Manutenção', 
                     type: 'bar', 
                     itemStyle: { color: '#f59e0b' }, 
                     data: dadosBarraManut,
-                    label: { show: true, position: 'top', color: '#f59e0b', formatter: (p) => p.value > 0 ? p.value : '' }
+                    label: { show: true, position: 'top', color: '#f59e0b', fontWeight: 'bold', formatter: (p) => p.value > 0 ? p.value : '' }
                 },
                 { 
                     name: 'SOS', 
                     type: 'bar', 
                     itemStyle: { color: '#ef4444' }, 
                     data: dadosBarraSOS,
-                    label: { show: true, position: 'top', color: '#ef4444', formatter: (p) => p.value > 0 ? p.value : '' }
+                    label: { show: true, position: 'top', color: '#ef4444', fontWeight: 'bold', formatter: (p) => p.value > 0 ? p.value : '' }
                 }
             ]
         };
