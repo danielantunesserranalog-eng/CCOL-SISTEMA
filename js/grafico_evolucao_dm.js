@@ -26,13 +26,13 @@ window.renderizarGraficoEvolucaoDM = function(dataFiltro) {
         }
     }
 
-    const categoriasHoras = [];
-    const dadosDM = [];
+    const labelsX = [];
+    const dadosLinhaDM = [];
     
-    // Arrays para o Novo Gráfico de Status da Frota
-    const dadosAtivos = [];
-    const dadosManutencao = [];
-    const dadosSOS = [];
+    // Arrays para o Novo Gráfico de Barras
+    const dadosBarraAtivos = [];
+    const dadosBarraManut = [];
+    const dadosBarraSOS = [];
 
     // Definindo o total de milissegundos em 1 hora
     const msPorHora = 60 * 60 * 1000;
@@ -40,11 +40,17 @@ window.renderizarGraficoEvolucaoDM = function(dataFiltro) {
     const totalMsDisponivelPorHora = totalFrota * msPorHora;
 
     // Define até que hora o gráfico deve renderizar
-    // Se for o dia de hoje, vai apenas até a hora atual. Se for passado, vai até as 23h.
     let horaLimite = 23;
     if (ehHoje) {
         horaLimite = agora.getHours();
     }
+
+    // Variáveis para calcular a média do dia
+    let somaDM = 0;
+    let somaAtivos = 0;
+    let somaManut = 0;
+    let somaSOS = 0;
+    let contagemHoras = 0;
 
     // Iterar das 00:00 até a hora limite calculada
     for (let i = 0; i <= horaLimite; i++) {
@@ -68,27 +74,23 @@ window.renderizarGraficoEvolucaoDM = function(dataFiltro) {
                 if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
                 const osInicio = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
                 
-                let osFim = agora; // Se não tem conclusão, a manutenção vai até "agora"
+                let osFim = agora;
                 if (os.data_conclusao) {
                     let osFimStr = os.data_conclusao;
                     if (!osFimStr.includes('T')) osFimStr += 'T00:00:00';
                     osFim = new Date(osFimStr.replace('Z', '').replace('+00:00', ''));
                 }
 
-                // Verifica se o tempo da OS se sobrepõe com a hora que estamos avaliando no loop
                 const overlapInicio = osInicio > inicioHora ? osInicio : inicioHora;
                 const overlapFim = osFim < fimHora ? osFim : fimHora;
 
-                // Conta o tempo apenas se houver sobreposição e a OS não for apenas agendada
                 if (overlapInicio < overlapFim && os.status !== 'Agendada') {
                     manutencaoCavalo += (overlapFim - overlapInicio);
                     
-                    // Identifica se a O.S. sobreposta é do tipo SOS ou Rotina/Preventiva
                     const tipoOS = (os.tipo || os.tipo_manutencao || '').toUpperCase();
                     const descOS = (os.descricao || '').toUpperCase();
                     const prioridadeOS = (os.prioridade || '').toUpperCase();
 
-                    // Regra de identificação: se a palavra SOS está envolvida ou Prioridade é Emergência
                     if (tipoOS.includes('SOS') || descOS.includes('SOS') || prioridadeOS.includes('EMERGÊNCIA')) {
                         teveSOS = true;
                     } else {
@@ -97,11 +99,9 @@ window.renderizarGraficoEvolucaoDM = function(dataFiltro) {
                 }
             });
             
-            // O tempo de manutenção em uma hora não pode ultrapassar o limite de 1 hora (evita bugs de registro de OS)
             if (manutencaoCavalo > msPorHora) manutencaoCavalo = msPorHora;
             msManutencaoNestaHora += manutencaoCavalo;
 
-            // Incrementa as contagens de veículos baseadas no status
             if (teveSOS) {
                 qtdEmSOS++;
             } else if (teveManutencaoComum) {
@@ -109,40 +109,63 @@ window.renderizarGraficoEvolucaoDM = function(dataFiltro) {
             }
         });
 
-        // Calcula a disponibilidade real descontando a manutenção em Milissegundos
         let dispNestaHora = totalMsDisponivelPorHora - msManutencaoNestaHora;
         if(dispNestaHora < 0) dispNestaHora = 0;
         
         let percentDM = (dispNestaHora / totalMsDisponivelPorHora) * 100;
         
-        // Adiciona a string da hora no eixo X (ex: "08:00") e o percentual no eixo Y
-        categoriasHoras.push(`${String(i).padStart(2,'0')}:00`);
-        dadosDM.push(percentDM.toFixed(2));
+        labelsX.push(`${String(i).padStart(2,'0')}:00`);
+        dadosLinhaDM.push(percentDM.toFixed(2));
 
-        // Consolida contagem de veículos físicos para o gráfico de Barras
         let qtdAtivos = totalFrota - qtdEmManutencao - qtdEmSOS;
         if (qtdAtivos < 0) qtdAtivos = 0;
 
-        dadosAtivos.push(qtdAtivos);
-        dadosManutencao.push(qtdEmManutencao);
-        dadosSOS.push(qtdEmSOS);
+        dadosBarraAtivos.push(qtdAtivos);
+        dadosBarraManut.push(qtdEmManutencao);
+        dadosBarraSOS.push(qtdEmSOS);
+
+        // Acumula para médias
+        somaDM += percentDM;
+        somaAtivos += qtdAtivos;
+        somaManut += qtdEmManutencao;
+        somaSOS += qtdEmSOS;
+        contagemHoras++;
     }
 
-    // =================================================================
-    // 1. RENDERIZA O GRÁFICO EXISTENTE: Evolução da DM em Linha (%)
-    // =================================================================
-    const chartDom = document.getElementById('graficoEvolucaoDM');
-    if (chartDom && typeof echarts !== 'undefined') {
-        let myChart = echarts.getInstanceByDom(chartDom);
-        if (!myChart) myChart = echarts.init(chartDom);
+    // Atualiza os Cards de Média no HTML
+    if (contagemHoras > 0) {
+        const elAvgDM = document.getElementById('avgDM');
+        const elAvgAtivos = document.getElementById('avgAtivos');
+        const elAvgManut = document.getElementById('avgManut');
+        const elAvgSOS = document.getElementById('avgSOS');
+        
+        if(elAvgDM) elAvgDM.innerText = (somaDM / contagemHoras).toFixed(1) + '%';
+        if(elAvgAtivos) elAvgAtivos.innerText = Math.round(somaAtivos / contagemHoras);
+        if(elAvgManut) elAvgManut.innerText = Math.round(somaManut / contagemHoras);
+        if(elAvgSOS) elAvgSOS.innerText = Math.round(somaSOS / contagemHoras);
+    }
 
-        const option = {
+    if (typeof echarts === 'undefined') {
+        console.warn('ECharts não carregado.');
+        return;
+    }
+
+    // =======================================================
+    // RENDERIZAR GRÁFICO 1: LINHA (EVOLUÇÃO DM)
+    // =======================================================
+    const chartDomLinha = document.getElementById('graficoEvolucaoDM');
+    if (chartDomLinha) {
+        let myChartLinha = echarts.getInstanceByDom(chartDomLinha);
+        if (!myChartLinha) myChartLinha = echarts.init(chartDomLinha);
+
+        const optionLinha = {
+            backgroundColor: 'transparent',
             tooltip: { trigger: 'axis', formatter: '{b} <br/> DM Geral: {c}%' },
             grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
             xAxis: {
                 type: 'category',
                 boundaryGap: false,
-                data: categoriasHoras,
+                data: labelsX,
                 axisLabel: { color: '#94a3b8' }
             },
             yAxis: {
@@ -155,7 +178,7 @@ window.renderizarGraficoEvolucaoDM = function(dataFiltro) {
             series: [{
                 name: 'DM Horário',
                 type: 'line',
-                data: dadosDM,
+                data: dadosLinhaDM,
                 smooth: true,
                 label: {
                     show: true,
@@ -176,62 +199,70 @@ window.renderizarGraficoEvolucaoDM = function(dataFiltro) {
             }]
         };
 
-        myChart.setOption(option);
+        myChartLinha.setOption(optionLinha);
+        window.addEventListener('resize', () => myChartLinha.resize());
     }
 
-    // =================================================================
-    // 2. RENDERIZA O NOVO GRÁFICO: Status da Frota em Barras Verticais
-    // =================================================================
-    const chartStatusDom = document.getElementById('graficoStatusFrotaHorario');
-    if (chartStatusDom && typeof echarts !== 'undefined') {
-        let myStatusChart = echarts.getInstanceByDom(chartStatusDom);
-        if (!myStatusChart) myStatusChart = echarts.init(chartStatusDom);
+    // =======================================================
+    // RENDERIZAR GRÁFICO 2: BARRAS (STATUS DA FROTA)
+    // =======================================================
+    const chartDomBarras = document.getElementById('graficoStatusFrotaHorario');
+    if (chartDomBarras) {
+        let myChartBarras = echarts.getInstanceByDom(chartDomBarras);
+        if (!myChartBarras) myChartBarras = echarts.init(chartDomBarras);
 
-        const optionStatus = {
-            tooltip: {
-                trigger: 'axis',
-                axisPointer: { type: 'shadow' }
+        const optionBarras = {
+            backgroundColor: 'transparent',
+            tooltip: { 
+                trigger: 'axis', 
+                axisPointer: { type: 'shadow' } 
             },
-            legend: {
-                data: ['Disponível', 'Manutenção', 'SOS'],
-                textStyle: { color: '#e2e8f0' }
+            legend: { 
+                data: ['Disponível', 'Manutenção', 'SOS'], 
+                textStyle: { color: '#94a3b8' }, 
+                top: 0 
             },
-            grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-            xAxis: {
-                type: 'category',
-                data: categoriasHoras,
-                axisLabel: { color: '#94a3b8' }
+            grid: { 
+                top: '15%', left: '3%', right: '3%', bottom: '5%', containLabel: true 
             },
-            yAxis: {
-                type: 'value',
-                axisLabel: { color: '#94a3b8' },
-                splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }
+            xAxis: { 
+                type: 'category', 
+                data: labelsX, 
+                axisLabel: { color: '#64748b' } 
+            },
+            yAxis: { 
+                type: 'value', 
+                name: 'Quantidade de Veículos',
+                nameTextStyle: { color: '#64748b', padding: [0, 0, 0, 50] },
+                axisLabel: { color: '#64748b' }, 
+                splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } } 
             },
             series: [
-                {
-                    name: 'Disponível',
-                    type: 'bar',
-                    data: dadosAtivos,
-                    itemStyle: { color: '#10b981' }, // Verde
+                { 
+                    name: 'Disponível', 
+                    type: 'bar', 
+                    itemStyle: { color: '#10b981' }, 
+                    data: dadosBarraAtivos,
                     label: { show: true, position: 'top', color: '#10b981', formatter: (p) => p.value > 0 ? p.value : '' }
                 },
-                {
-                    name: 'Manutenção',
-                    type: 'bar',
-                    data: dadosManutencao,
-                    itemStyle: { color: '#f59e0b' }, // Amarelo
+                { 
+                    name: 'Manutenção', 
+                    type: 'bar', 
+                    itemStyle: { color: '#f59e0b' }, 
+                    data: dadosBarraManut,
                     label: { show: true, position: 'top', color: '#f59e0b', formatter: (p) => p.value > 0 ? p.value : '' }
                 },
-                {
-                    name: 'SOS',
-                    type: 'bar',
-                    data: dadosSOS,
-                    itemStyle: { color: '#ef4444' }, // Vermelho
+                { 
+                    name: 'SOS', 
+                    type: 'bar', 
+                    itemStyle: { color: '#ef4444' }, 
+                    data: dadosBarraSOS,
                     label: { show: true, position: 'top', color: '#ef4444', formatter: (p) => p.value > 0 ? p.value : '' }
                 }
             ]
         };
 
-        myStatusChart.setOption(optionStatus);
+        myChartBarras.setOption(optionBarras);
+        window.addEventListener('resize', () => myChartBarras.resize());
     }
 };
