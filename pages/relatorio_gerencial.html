@@ -22,6 +22,16 @@
     <div style="width: 100%; height: 350px; margin-top: 15px;" id="graficoEvolucaoDM"></div>
 </div>
 
+<div class="content-panel" style="grid-column: 1 / -1; margin-bottom: 20px; border: 1px solid #f59e0b;">
+    <div class="panel-header" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <h3 style="color: #f59e0b; margin: 0;">📊 Status da Frota por Horário (Disponíveis, Manutenção e SOS)</h3>
+        <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+            <button class="btn-secondary-dark" onclick="exportarGraficoPNG('graficoStatusFrotaHorario', 'Status_Frota_Horario')" style="padding: 5px 12px; font-size: 0.8rem; height: 32px;">📸 Exportar PNG</button>
+        </div>
+    </div>
+    <div style="width: 100%; height: 350px; margin-top: 15px;" id="graficoStatusFrotaHorario"></div>
+</div>
+
 <div class="content-panel" style="grid-column: 1 / -1; margin-bottom: 20px; border: 1px solid #10b981;">
     <div class="panel-header" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
         <h3 style="color: #10b981; margin: 0;">🚚 DM Operacional (Carros Rodando / Frota Total) - Importado</h3>
