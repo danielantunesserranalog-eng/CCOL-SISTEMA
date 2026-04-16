@@ -57,19 +57,76 @@
     <div style="width: 100%; height: 350px; padding: 20px;" id="graficoEvolucaoDM"></div>
 </div>
 
-<div class="content-panel" style="grid-column: 1 / -1; margin-bottom: 25px; border: 1px solid rgba(245, 158, 11, 0.3); background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(10px); border-radius: 16px; overflow: hidden;">
-    <div class="panel-header" style="padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); flex-wrap: wrap; gap: 10px;">
-        <h3 style="color: #f59e0b; margin: 0; display: flex; align-items: center; gap: 10px;">
-            <span style="width: 8px; height: 8px; background: #f59e0b; border-radius: 50%;"></span>
-            📊 Status Detalhado da Frota por Horário
-        </h3>
+<div class="content-panel" style="grid-column: 1 / -1; margin-bottom: 25px; border: 1px solid rgba(245, 158, 11, 0.5); background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); border-radius: 16px; overflow: hidden; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);">
+    <div class="panel-header" style="padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(90deg, rgba(245, 158, 11, 0.1) 0%, rgba(15, 23, 42, 0) 100%); border-bottom: 1px solid rgba(255,255,255,0.05); flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <img src="assets/logo.png" alt="Serrana Log" style="height: 40px; object-fit: contain; filter: drop-shadow(0 0 5px rgba(255,255,255,0.2));">
+            <h3 style="color: #f59e0b; margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.3rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
+                📊 Disponibilidade Horária de Equipamentos
+            </h3>
+        </div>
         <div style="display: flex; gap: 10px; align-items: center;">
-            <button class="btn-secondary-dark" onclick="exportarGraficoPNG('graficoStatusFrotaHorario', 'Status_Frota')" style="border-radius: 6px; background: #334155; padding: 5px 12px; font-size: 0.8rem; height: 32px;">📸 Exportar</button>
+            <button class="btn-secondary-dark" onclick="exportarGraficoPNG('graficoStatusFrotaHorario', 'Disponibilidade_Horaria')" style="border-radius: 6px; background: #334155; padding: 6px 14px; font-size: 0.85rem; height: 34px; font-weight: 600; transition: all 0.3s ease;">📸 Exportar</button>
         </div>
     </div>
-    <div style="width: 100%; height: 350px; padding: 20px;" id="graficoStatusFrotaHorario"></div>
-</div>
 
+    <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 15px; padding: 15px 20px; background: rgba(0,0,0,0.25); border-bottom: 1px solid rgba(255,255,255,0.05);">
+        
+        <div style="display: flex; align-items: center; gap: 12px; background: rgba(16, 185, 129, 0.05); padding: 10px 20px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.2); flex: 1; min-width: 200px; justify-content: center;">
+            <div style="background: rgba(16, 185, 129, 0.2); padding: 12px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-truck-moving" style="color: #10b981; font-size: 1.4rem;"></i>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <span style="color: #94a3b8; font-size: 0.8rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Média Disponíveis</span>
+                <div style="display: flex; align-items: baseline; gap: 4px;">
+                    <span id="avgAtivosInterno" style="color: #10b981; font-size: 1.8rem; font-weight: 900; line-height: 1;">0</span>
+                    <span style="color: #64748b; font-size: 0.8rem; font-weight: 600;">veículos</span>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 12px; background: rgba(245, 158, 11, 0.05); padding: 10px 20px; border-radius: 12px; border: 1px solid rgba(245, 158, 11, 0.2); flex: 1; min-width: 200px; justify-content: center;">
+            <div style="background: rgba(245, 158, 11, 0.2); padding: 12px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-tools" style="color: #f59e0b; font-size: 1.4rem;"></i>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <span style="color: #94a3b8; font-size: 0.8rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Média Manutenção</span>
+                <div style="display: flex; align-items: baseline; gap: 4px;">
+                    <span id="avgManutInterno" style="color: #f59e0b; font-size: 1.8rem; font-weight: 900; line-height: 1;">0</span>
+                    <span style="color: #64748b; font-size: 0.8rem; font-weight: 600;">veículos</span>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 12px; background: rgba(239, 68, 68, 0.05); padding: 10px 20px; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.2); flex: 1; min-width: 200px; justify-content: center;">
+            <div style="background: rgba(239, 68, 68, 0.2); padding: 12px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-exclamation-triangle" style="color: #ef4444; font-size: 1.4rem;"></i>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <span style="color: #94a3b8; font-size: 0.8rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Média S.O.S</span>
+                <div style="display: flex; align-items: baseline; gap: 4px;">
+                    <span id="avgSOSInterno" style="color: #ef4444; font-size: 1.8rem; font-weight: 900; line-height: 1;">0</span>
+                    <span style="color: #64748b; font-size: 0.8rem; font-weight: 600;">chamados</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div style="width: 100%; height: 350px; padding: 20px;" id="graficoStatusFrotaHorario"></div>
+    
+    <script>
+        setInterval(() => {
+            const elAtivos = document.getElementById('avgAtivos');
+            const elManut = document.getElementById('avgManut');
+            const elSOS = document.getElementById('avgSOS');
+            
+            if(elAtivos) document.getElementById('avgAtivosInterno').innerText = elAtivos.innerText;
+            if(elManut) document.getElementById('avgManutInterno').innerText = elManut.innerText;
+            if(elSOS) document.getElementById('avgSOSInterno').innerText = elSOS.innerText;
+        }, 1000);
+    </script>
+</div>
 <div class="content-panel" style="grid-column: 1 / -1; margin-bottom: 20px; border: 1px solid #10b981;">
     <div class="panel-header" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
         <h3 style="color: #10b981; margin: 0;">🚚 DM Operacional (Carros Rodando / Frota Total) - Importado</h3>
