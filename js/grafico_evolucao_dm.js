@@ -91,7 +91,16 @@ window.renderizarGraficoEvolucaoDM = function(dataFiltro) {
                     const descOS = (os.descricao || '').toUpperCase();
                     const prioridadeOS = (os.prioridade || '').toUpperCase();
 
-                    if (tipoOS.includes('SOS') || descOS.includes('SOS') || prioridadeOS.includes('EMERGÊNCIA')) {
+                    // LÓGICA CORRIGIDA: Captura S.O.S (com pontos), SOS (sem pontos) e SOCORRO
+                    if (
+                        tipoOS.includes('S.O.S') || 
+                        tipoOS.includes('SOS') || 
+                        tipoOS.includes('SOCORRO') ||
+                        descOS.includes('S.O.S') || 
+                        descOS.includes('SOS') || 
+                        descOS.includes('SOCORRO') ||
+                        prioridadeOS.includes('EMERGÊNCIA')
+                    ) {
                         teveSOS = true;
                     } else {
                         teveManutencaoComum = true;
@@ -102,6 +111,7 @@ window.renderizarGraficoEvolucaoDM = function(dataFiltro) {
             if (manutencaoCavalo > msPorHora) manutencaoCavalo = msPorHora;
             msManutencaoNestaHora += manutencaoCavalo;
 
+            // Se o caminhão teve um chamado de S.O.S nesta hora, a prioridade é marcar como SOS.
             if (teveSOS) {
                 qtdEmSOS++;
             } else if (teveManutencaoComum) {
@@ -141,7 +151,7 @@ window.renderizarGraficoEvolucaoDM = function(dataFiltro) {
         const mediaManut = Math.round(somaManut / contagemHoras);
         const mediaSOS = Math.round(somaSOS / contagemHoras);
 
-        // Atualiza os painéis lá de cima
+        // Atualiza os painéis principais do topo
         const elAvgDM = document.getElementById('avgDM');
         const elAvgAtivos = document.getElementById('avgAtivos');
         const elAvgManut = document.getElementById('avgManut');
@@ -152,7 +162,7 @@ window.renderizarGraficoEvolucaoDM = function(dataFiltro) {
         if(elAvgManut) elAvgManut.innerText = mediaManut;
         if(elAvgSOS) elAvgSOS.innerText = mediaSOS;
 
-        // Atualiza os novos indicadores internos do Gráfico
+        // Atualiza os novos indicadores internos que criamos hoje junto do gráfico
         const elAvgAtivosInterno = document.getElementById('avgAtivosInterno');
         const elAvgManutInterno = document.getElementById('avgManutInterno');
         const elAvgSOSInterno = document.getElementById('avgSOSInterno');
