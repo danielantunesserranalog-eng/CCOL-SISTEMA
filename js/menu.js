@@ -40,8 +40,6 @@ window.renderizarMenu = function() {
     if (meusMenus.includes('relatorio_gerencial') || isAdmin) {
         navHtml += `<button class="nav-item" onclick="navegarPara('relatorio_gerencial', this)" style="color: var(--ccol-green-bright); font-weight: bold;">📊 Relatório Gerencial</button>`;
     }
-
-    if (meusMenus.includes('troca')) navHtml += `<button class="nav-item" onclick="navegarPara('troca', this)">⏱️ Painel de Troca</button>`;
     
     // SSMA
     if (meusMenus.includes('ssma') || isAdmin) {
@@ -132,7 +130,6 @@ window.navegarPara = async function(pagina, elementoClicado) {
         }
 
         if (pagina === 'os' && typeof window.alternarTelaOS === 'function') window.alternarTelaOS('lista');
-        if (pagina === 'troca' && typeof window.renderizarTrocaTurno === 'function') window.renderizarTrocaTurno();
         if (pagina === 'ssma' && typeof window.renderizarSSMA === 'function') window.renderizarSSMA();
         if (pagina === 'recados' && typeof window.carregarRecados === 'function') window.carregarRecados();
 
