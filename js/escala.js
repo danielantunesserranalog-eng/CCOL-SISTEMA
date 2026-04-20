@@ -232,14 +232,14 @@ window.renderizarEscala = function() {
                     }
                     
                     let opcoes = `<option value="F" ${isFolga ? 'selected' : ''} style="background: #1e293b; color: #fff;">F</option>`;
-                    if (!isFolga || isManual) {
-                        opcoes += `<option value="T" ${escala.caminhao === 'T' || escala.caminhao === 'TRAB' ? 'selected' : ''} style="background: #1e293b; color: #fff;">T</option>`;
-                        if (!conj.isSemFrota) {
-                            conj.caminhoes?.forEach(cam => {
-                                const placa = typeof cam === 'string' ? cam : cam.placa;
-                                opcoes += `<option value="${placa}" ${escala.caminhao === placa ? 'selected' : ''} style="background: #1e293b; color: #fff;">${placa}</option>`;
-                            });
-                        }
+                    
+                    // Modificado: Agora as opções de trabalho (T) e caminhões aparecem sempre, mesmo na folga
+                    opcoes += `<option value="T" ${escala.caminhao === 'T' || escala.caminhao === 'TRAB' ? 'selected' : ''} style="background: #1e293b; color: #fff;">T</option>`;
+                    if (!conj.isSemFrota) {
+                        conj.caminhoes?.forEach(cam => {
+                            const placa = typeof cam === 'string' ? cam : cam.placa;
+                            opcoes += `<option value="${placa}" ${escala.caminhao === placa ? 'selected' : ''} style="background: #1e293b; color: #fff;">${placa}</option>`;
+                        });
                     }
                     
                     if (isManual) {
