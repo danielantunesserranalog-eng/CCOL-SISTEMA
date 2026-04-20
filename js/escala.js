@@ -233,7 +233,6 @@ window.renderizarEscala = function() {
                     
                     let opcoes = `<option value="F" ${isFolga ? 'selected' : ''} style="background: #1e293b; color: #fff;">F</option>`;
                     
-                    // Modificado: Agora as opções de trabalho (T) e caminhões aparecem sempre, mesmo na folga
                     opcoes += `<option value="T" ${escala.caminhao === 'T' || escala.caminhao === 'TRAB' ? 'selected' : ''} style="background: #1e293b; color: #fff;">T</option>`;
                     if (!conj.isSemFrota) {
                         conj.caminhoes?.forEach(cam => {
@@ -480,7 +479,7 @@ async function updateAlocacao(e) {
     let novoTurno = tr.querySelector('.select-aloc-turno').value;
     let conjVal = tr.querySelector('.select-aloc-conjunto').value;
     
-    novaEquipe = (novaEquipe && novaEquipe !== '-') ? novaEquipe : null;
+    novaEquipe = (novaEquipe && novaEquipe !== '-') ? novaEquipe : '-';
     novoTurno = (novoTurno && novoTurno !== '-') ? novoTurno : null;
 
     let novoConjuntoId = null;
