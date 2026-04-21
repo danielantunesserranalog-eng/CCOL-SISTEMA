@@ -154,11 +154,17 @@ function renderizarTabelaFrotaManutencao() {
     tbody.innerHTML = frotasManutencao.map(f => `
         <tr>
             <td style="font-weight: bold; color: var(--ccol-blue-bright);">${f.cavalo}</td>
+            <td style="text-transform: capitalize;">${f.cor || '-'}</td>
             <td>${f.go || '-'}</td>
             <td>${f.carreta1 || '-'}</td>
             <td>${f.carreta2 || '-'}</td>
             <td>${f.carreta3 || '-'}</td>
-            <td><button onclick="excluirFrotaManutencao(${f.id})" style="background:transparent; border:none; color:#ef4444; cursor:pointer;">🗑️</button></td>
+            <td>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button onclick="editarFrotaManutencao(${f.id})" style="background:transparent; border:none; color:var(--ccol-blue-bright); cursor:pointer; font-size: 1.2rem;" title="Editar">✏️</button>
+                    <button onclick="excluirFrotaManutencao(${f.id})" style="background:transparent; border:none; color:#ef4444; cursor:pointer; font-size: 1.2rem;" title="Excluir">🗑️</button>
+                </div>
+            </td>
         </tr>
     `).join('');
 }

@@ -185,8 +185,25 @@ async function salvarNovaOS() {
     }
 }
 
+function editarFrotaManutencao(id) {
+    const frota = frotasManutencao.find(f => f.id === id);
+    if (!frota) return;
+
+    document.getElementById('osFrotaId').value = frota.id;
+    document.getElementById('osFrotaCavalo').value = frota.cavalo || '';
+    document.getElementById('osFrotaCor').value = frota.cor || '';
+    document.getElementById('osFrotaGo').value = frota.go || '';
+    document.getElementById('osFrotaCarreta1').value = frota.carreta1 || '';
+    document.getElementById('osFrotaCarreta2').value = frota.carreta2 || '';
+    document.getElementById('osFrotaCarreta3').value = frota.carreta3 || '';
+    
+    document.getElementById('osFrotaCavalo').focus();
+}
+
 async function salvarFrotaManutencao() {
+    const id = document.getElementById('osFrotaId').value;
     const cavalo = document.getElementById('osFrotaCavalo').value.trim().toUpperCase();
+    const cor = document.getElementById('osFrotaCor').value.trim();
     const go = document.getElementById('osFrotaGo').value.trim().toUpperCase();
     const carreta1 = document.getElementById('osFrotaCarreta1').value.trim().toUpperCase();
     const carreta2 = document.getElementById('osFrotaCarreta2').value.trim().toUpperCase();
@@ -197,31 +214,78 @@ async function salvarFrotaManutencao() {
         return;
     }
 
-    const existente = frotasManutencao.find(f => f.cavalo === cavalo);
-
-    if (existente) {
+    if (id) {
         const { error } = await supabaseClient
             .from('frotas_manutencao')
-            .update({ go, carreta1, carreta2, carreta3 })
-            .eq('id', existente.id);
-        if (error) { alert("Erro ao atualizar."); return; }
+            .update({ cavalo, cor, go, carreta1, carreta2, carreta3 })
+            .eq('id', id);
+        
+        if (error) { alert("Erro ao atualizar o conjunto."); return; }
+        alert("Vínculo atualizado com sucesso!");
     } else {
+        const existente = frotasManutencao.find(f => f.cavalo === cavalo);
+        if (existente) {
+            alert("Já existe um conjunto cadastrado para esta placa de cavalo. Use a opção de editar (ícone do lápis).");
+            return;
+        }
+
         const { error } = await supabaseClient
             .from('frotas_manutencao')
-            .insert([{ cavalo, go, carreta1, carreta2, carreta3 }]);
-        if (error) { alert("Erro ao inserir."); return; }
+            .insert([{ cavalo, cor, go, carreta1, carreta2, carreta3 }]);
+            
+        if (error) { alert("Erro ao inserir o novo conjunto."); return; }
+        alert("Vínculo salvo com sucesso!");
     }
+
+    // Limpar os campos após salvar
+    document.getElementById('osFrotaId').value = '';
+    document.getElementById('osFrotaCavalo').value = '';
+    document.getElementById('osFrotaCor').value = '';
+    document.getElementById('osFrotaGo').value = '';
+    document.getElementById('osFrotaCarreta1').value = '';
+    document.getElementById('osFrotaCarreta2').value = '';
+    document.getElementById('osFrotaCarreta3').value = '';
 
     await carregarDadosOS();
     renderizarTabelaFrotaManutencao();
 }
 
 async function excluirFrotaManutencao(id) {
-    if (confirm("Excluir vínculo?")) {
+    if (confirm("Excluir este conjunto da frota?")) {
         await supabaseClient.from('frotas_manutencao').delete().eq('id', id);
         await carregarDadosOS();
         renderizarTabelaFrotaManutencao();
     }
+}
+
+function exportarFrotaManutencaoExcel() {
+    if (frotasManutencao.length === 0) {
+        alert("Não há dados de frota para exportar.");
+        return;
+    }
+
+    let csvContent = "\uFEFF"; // BOM para o Excel ler acentos
+    csvContent += "Cavalo;Cor;GO;Carreta 1;Carreta 2;Carreta 3\n";
+
+    frotasManutencao.forEach(f => {
+        let linha = [
+            f.cavalo || '',
+            f.cor || '',
+            f.go || '',
+            f.carreta1 || '',
+            f.carreta2 || '',
+            f.carreta3 || ''
+        ].join(";");
+        csvContent += linha + "\n";
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "Cadastro_Frotas_OS.csv";
+    link.click();
+    URL.revokeObjectURL(url);
 }
 
 async function excluirOS(id) {

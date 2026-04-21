@@ -203,16 +203,22 @@
 </div>
 
 <div id="telaFrotaOS" class="content-panel form-panel-dark" style="display: none;">
-    <div class="panel-header">
-        <h3>🚛 Cadastro de Conjuntos (Manutenção)</h3>
+    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+        <h3 style="margin: 0;">🚛 Cadastro de Conjuntos (Manutenção)</h3>
+        <button class="btn-primary-green" onclick="exportarFrotaManutencaoExcel()" style="padding: 8px 15px;">📥 Exportar Frotas (Excel)</button>
     </div>
     <div style="padding: 15px 20px; font-size: 0.8rem; color: var(--text-secondary); background: rgba(0,0,0,0.1); border-bottom: 1px solid var(--border-dim);">
         Este cadastro cria um vínculo entre a placa do cavalo e as placas das carretas/GO. Ao abrir uma O.S., basta selecionar o Cavalo que o sistema preencherá as carretas e o GO no documento de impressão automaticamente.
     </div>
     <div class="form-grid">
+        <input type="hidden" id="osFrotaId" value="">
         <div class="form-group-dark">
             <label>Placa do Cavalo</label>
             <input type="text" id="osFrotaCavalo" placeholder="Ex: CAV-1234" style="text-transform: uppercase;">
+        </div>
+        <div class="form-group-dark">
+            <label>Cor do Cavalo</label>
+            <input type="text" id="osFrotaCor" placeholder="Ex: Branco, Prata..." style="text-transform: capitalize;">
         </div>
         <div class="form-group-dark">
             <label>Número do GO</label>
@@ -231,7 +237,7 @@
             <input type="text" id="osFrotaCarreta3" placeholder="Ex: CAR-0003" style="text-transform: uppercase;">
         </div>
         <div class="form-actions" style="grid-column: 1 / -1; margin-top: 15px;">
-            <button class="btn-primary-blue btn-full" onclick="salvarFrotaManutencao()">✅ Salvar Vínculo no Sistema</button>
+            <button class="btn-primary-blue btn-full" onclick="salvarFrotaManutencao()">✅ Salvar / Atualizar Vínculo no Sistema</button>
         </div>
     </div>
     <div class="table-modern-wrapper" style="margin-top: 20px;">
@@ -239,6 +245,7 @@
             <thead>
                 <tr>
                     <th>Cavalo</th>
+                    <th>Cor</th>
                     <th>GO</th>
                     <th>Carreta 1</th>
                     <th>Carreta 2</th>
