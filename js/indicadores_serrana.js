@@ -36,7 +36,6 @@ window.atualizarRelogioSerrana = function() {
 async function atualizarPonteirosSerrana() {
     let totalPlacasCadastradas = 0;
     let totalManutencao = 0;
-    let totalOcorrencias = 0;
 
     try {
         const { data: conjuntosData, error } = await supabaseClient.from('conjuntos').select('caminhoes');
@@ -66,12 +65,7 @@ async function atualizarPonteirosSerrana() {
         }
     } catch (e) { console.error("Erro O.S. Serrana:", e); }
 
-    try {
-        const { count } = await supabaseClient.from('dashboard_ocorrencias').select('*', { count: 'exact', head: true }).eq('status', 'Pendente');
-        totalOcorrencias = count || 0;
-    } catch (e) { console.error("Erro Sinistros Serrana:", e); }
-
-    let frotaDisponivel = totalPlacasCadastradas - totalManutencao - totalOcorrencias;
+    let frotaDisponivel = totalPlacasCadastradas - totalManutencao;
     if(frotaDisponivel < 0) frotaDisponivel = 0;
 
     const elGaugeFill = document.getElementById('gauge-fill-frota');
@@ -94,12 +88,10 @@ async function atualizarPonteirosSerrana() {
     const elFrotaDisp = document.getElementById('texto-frota-disponivel');
     const elFrotaTotal = document.getElementById('texto-frota-total');
     const elManut = document.getElementById('texto-manut-total');
-    const elOcorrencias = document.getElementById('kpi-ocorrencias');
 
     if(elFrotaDisp) elFrotaDisp.textContent = frotaDisponivel;
     if(elFrotaTotal) elFrotaTotal.textContent = totalPlacasCadastradas;
     if(elManut) elManut.textContent = totalManutencao;
-    if(elOcorrencias) elOcorrencias.textContent = totalOcorrencias;
 }
 
 // =========================================================================
@@ -294,9 +286,6 @@ async function renderizarGraficoEvolucaoDmSerrana() {
         const { data: osData } = await supabaseClient.from('ordens_servico').select('placa, data_abertura, data_conclusao, status').neq('status', 'Agendada');
         let ordensServico = osData || [];
 
-        const { count: countSinistros } = await supabaseClient.from('dashboard_ocorrencias').select('*', { count: 'exact', head: true }).eq('status', 'Pendente');
-        const qtdSinistrosPendentes = countSinistros || 0;
-
         const agora = new Date();
         const categoriasHoras = [];
         const dadosDM = [];
@@ -347,8 +336,6 @@ async function renderizarGraficoEvolucaoDmSerrana() {
                 if (tempoParadoDoCavalo > msPorHora) tempoParadoDoCavalo = msPorHora;
                 msManutencaoNestaHora += tempoParadoDoCavalo;
             });
-
-            msManutencaoNestaHora += (qtdSinistrosPendentes * msPorHora);
 
             let dispNestaHora = totalMsDisponivelPorHora - msManutencaoNestaHora;
             if(dispNestaHora < 0) dispNestaHora = 0;

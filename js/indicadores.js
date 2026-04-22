@@ -70,7 +70,6 @@ window.atualizarFrentesDeTrabalho = function() {
 async function atualizarPonteiros() {
     let totalPlacasCadastradas = 0;
     let totalManutencao = 0;
-    let totalOcorrencias = 0;
 
     try {
         const { data: conjuntosData, error } = await supabaseClient.from('conjuntos').select('caminhoes');
@@ -100,13 +99,7 @@ async function atualizarPonteiros() {
         }
     } catch (e) { console.error("Erro O.S.:", e); }
 
-    try {
-        const queryOcorrencias = await supabaseClient.from('dashboard_status').select('id'); 
-        const { count } = await supabaseClient.from('dashboard_ocorrencias').select('*', { count: 'exact', head: true }).eq('status', 'Pendente');
-        totalOcorrencias = count || 0;
-    } catch (e) { console.error("Erro Sinistros:", e); }
-
-    let frotaDisponivel = totalPlacasCadastradas - totalManutencao - totalOcorrencias;
+    let frotaDisponivel = totalPlacasCadastradas - totalManutencao;
     if(frotaDisponivel < 0) frotaDisponivel = 0;
 
     const elGaugeFill = document.getElementById('gauge-fill-frota');
@@ -130,12 +123,10 @@ async function atualizarPonteiros() {
     const elFrotaDisp = document.getElementById('texto-frota-disponivel');
     const elFrotaTotal = document.getElementById('texto-frota-total');
     const elManut = document.getElementById('texto-manut-total');
-    const elOcorrencias = document.getElementById('kpi-ocorrencias');
 
     if(elFrotaDisp) elFrotaDisp.textContent = frotaDisponivel;
     if(elFrotaTotal) elFrotaTotal.textContent = totalPlacasCadastradas;
     if(elManut) elManut.textContent = totalManutencao;
-    if(elOcorrencias) elOcorrencias.textContent = totalOcorrencias;
 }
 
 async function carregarControladorAtual() {

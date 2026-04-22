@@ -29,10 +29,10 @@
     .pro-title-box p { margin: 4px 0 0 0; font-size: 1.05rem; color: #94a3b8; font-weight: 600; letter-spacing: 2px; }
     .pro-logo { height: 68px; object-fit: contain; } /* Logo maior */
 
-    /* TOPO: 4 KPIs */
+    /* TOPO: 3 KPIs */
     .dash-pro-kpis {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(3, 1fr);
         gap: 22px;
     }
 
@@ -276,16 +276,6 @@
                 </div>
             </div>
         </div>
-
-        <div class="pro-kpi-card glass-panel">
-            <h3 class="kpi-title">Sinistros</h3>
-            <div class="kpi-content-wrapper">
-                <i class="fas fa-exclamation-triangle icon-bg text-orange"></i>
-                <div class="kpi-data-front">
-                    <span class="kpi-number" id="kpi-ocorrencias">0</span>
-                </div>
-            </div>
-        </div>
     </section>
 
     <div class="dash-bottom-split">
@@ -302,7 +292,7 @@
             
             <div class="pro-list-panel glass-panel">
                 <div class="list-header" style="padding: 15px 20px;">
-                    <h3 style="color: #ffffff; font-size: 1.2rem; margin: 0;"><i class="fas fa-tools text-red"></i> Frotas Paradas</h3>
+                    <h3 style="color: #ffffff; font-size: 1.2rem; margin: 0;"><i class="fas fa-tools text-red"></i> Disponibilidade horária de equipamentos</h3>
                 </div>
                 <div class="list-body-vertical lista-scroll" id="frotas-paradas-list" style="display: block;">
                     <div class="empty-state">Carregando dados...</div>
@@ -367,12 +357,11 @@
             </div>
             <hr class="dash-divisor">
             <div class="config-section">
-                <label style="color:#fff; font-weight:bold; display:block;">3. Registrar Sinistro</label>
+                <label style="color:#fff; font-weight:bold; display:block;">3. Registrar Ocorrência</label>
                 <div class="input-group-inline">
                     <select id="novaOcorrenciaTipo" class="dark-select" style="width: 30%;">
                         <option value="Atraso">Atraso</option>
                         <option value="Mecânica">Mecânica</option>
-                        <option value="Sinistro">Sinistro</option>
                     </select>
                     <input type="text" id="novaOcorrenciaDesc" class="dark-input" placeholder="Descrição..." style="width: 70%;">
                     <button class="btn-danger-block" onclick="addOcorrenciaDash()">Add</button>

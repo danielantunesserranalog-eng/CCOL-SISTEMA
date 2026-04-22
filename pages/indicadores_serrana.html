@@ -46,10 +46,10 @@
         box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
 
-    /* TOPO: 4 KPIs */
+    /* TOPO: 3 KPIs */
     .dash-pro-kpis {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(3, 1fr);
         gap: 22px;
     }
 
@@ -218,16 +218,6 @@
                 </div>
             </div>
         </div>
-
-        <div class="pro-kpi-card glass-panel">
-            <h3 class="kpi-title">Sinistros</h3>
-            <div class="kpi-content-wrapper">
-                <i class="fas fa-exclamation-triangle icon-bg text-orange"></i>
-                <div class="kpi-data-front">
-                    <span class="kpi-number" id="kpi-ocorrencias">0</span>
-                </div>
-            </div>
-        </div>
     </section>
 
     <div class="dash-bottom-split">
@@ -245,7 +235,7 @@
         <div class="dash-right-info">
             <div class="pro-list-panel glass-panel" style="justify-content: flex-start;">
                 <div class="list-header" style="padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="color: #ef4444; font-size: 1.2rem; margin: 0;"><i class="fas fa-tools" style="margin-right: 8px;"></i> Frotas Paradas (OS Abertas)</h3>
+                    <h3 style="color: #ef4444; font-size: 1.2rem; margin: 0;"><i class="fas fa-tools" style="margin-right: 8px;"></i> Disponibilidade horária de equipamentos</h3>
                 </div>
                 <div id="lista-frotas-paradas" class="lista-scroll" style="flex-grow: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
                     <div class="empty-state">Buscando frotas paradas...</div>
@@ -291,12 +281,11 @@
             </div>
             <hr class="dash-divisor">
             <div class="config-section">
-                <label style="color:#fff; font-weight:bold; display:block;">3. Registrar Sinistro</label>
+                <label style="color:#fff; font-weight:bold; display:block;">3. Registrar Ocorrência</label>
                 <div class="input-group-inline">
                     <select id="novaOcorrenciaTipo" class="dark-select" style="width: 30%;">
                         <option value="Atraso">Atraso</option>
                         <option value="Mecânica">Mecânica</option>
-                        <option value="Sinistro">Sinistro</option>
                     </select>
                     <input type="text" id="novaOcorrenciaDesc" class="dark-input" placeholder="Descrição..." style="width: 70%;">
                     <button class="btn-danger-block" onclick="addOcorrenciaDashSerrana()">Add</button>
