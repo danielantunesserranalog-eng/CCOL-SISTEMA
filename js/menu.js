@@ -29,9 +29,9 @@ window.renderizarMenu = function() {
     // RECADOS E ANOTAÇÕES (Livre para todos)
     if (meusMenus.includes('recados') || isAdmin) navHtml += `<button class="nav-item" onclick="navegarPara('recados', this)"><i class="fas fa-sticky-note"></i> Recados e Anotações</button>`;
 
-    // Dropdown Cadastros
+    // Dropdown Cadastros (Agora fecha ao tirar o mouse)
     if (meusMenus.includes('motoristas') || meusMenus.includes('caminhoes')) {
-        navHtml += `<div class="nav-dropdown">
+        navHtml += `<div class="nav-dropdown" onmouseleave="fecharDropdown(this)">
             <button class="nav-item dropdown-toggle" onclick="toggleDropdown(event)"><i class="fas fa-folder-plus"></i> Cadastros <i class="fas fa-chevron-down" style="font-size: 0.7rem; margin-left: 5px;"></i></button>
             <div class="dropdown-menu">`;
         if (meusMenus.includes('motoristas')) navHtml += `<button class="dropdown-item" onclick="navegarPara('motoristas', this)"><i class="fas fa-id-card"></i> Motoristas</button>`;
@@ -84,9 +84,17 @@ window.renderizarMenu = function() {
     }, 100);
 }
 
+// Abre/Fecha o dropdown no clique (mobile ou desktop)
 window.toggleDropdown = function(event) {
-    const menu = event.target.nextElementSibling;
+    const btn = event.currentTarget; // Usa currentTarget para não falhar se clicar no ícone
+    const menu = btn.nextElementSibling;
     if (menu) menu.classList.toggle('show');
+}
+
+// Fecha o dropdown quando o mouse sai da área
+window.fecharDropdown = function(dropdownElement) {
+    const menu = dropdownElement.querySelector('.dropdown-menu');
+    if (menu) menu.classList.remove('show');
 }
 
 window.navegarPara = async function(pagina, elementoClicado) {
