@@ -24,6 +24,10 @@
         font-weight: bold; 
         border: 1px solid rgba(168, 85, 247, 0.4); 
         display: inline-block;
+        text-decoration: none;
+    }
+    .badge-go:hover {
+        background: rgba(168, 85, 247, 0.3);
     }
     .badge-turno {
         background: rgba(52, 152, 219, 0.1);
@@ -64,28 +68,23 @@
     
     /* CORREÇÃO DAS OPÇÕES DO SELECT (MENU SUSPENSO) */
     .input-moderno option {
-        background-color: #1e293b !important; /* Fundo escuro sólido */
-        color: #ffffff !important; /* Letra branca */
+        background-color: #1e293b !important;
+        color: #ffffff !important;
         padding: 10px;
     }
-    .input-moderno optgroup {
-        background-color: #0f172a !important; /* Fundo mais escuro para o título do grupo */
-        color: #7dd3fc !important; /* Azul claro para o título */
-        font-weight: bold;
-        font-style: normal;
-    }
-
     .leaflet-container { background: #1e293b; font-family: 'Inter', sans-serif; }
 </style>
 
 <div class="content-panel" style="animation: fadeIn 0.3s ease; min-height: 80vh; background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);">
-    <div style="display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 1px solid var(--border-dim); padding-bottom: 15px;">
-        <button class="btn-primary-blue" id="btnAbaRegistros" onclick="alternarAbaTroca('registros')">📋 Troca de Turno (Escala)</button>
-        <button class="btn-secondary-dark" id="btnAbaLocais" onclick="alternarAbaTroca('locais')">📍 Cadastro de Locais & Mapa</button>
+    <div style="display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 1px solid var(--border-dim); padding-bottom: 15px; flex-wrap: wrap;">
+        <button class="btn-primary-blue" id="btnAbaRegistros" onclick="alternarAbaTroca('registros')"><i class="fas fa-exchange-alt"></i> Troca de Turno (Escala)</button>
+        <button class="btn-secondary-dark" id="btnAbaLocais" onclick="alternarAbaTroca('locais')"><i class="fas fa-map-marker-alt"></i> Cadastro de Locais & Mapa</button>
+        <button class="btn-secondary-dark" id="btnAbaHistorico" onclick="alternarAbaTroca('historico')"><i class="fas fa-history"></i> Histórico</button>
     </div>
 
+    <!-- ABA 1: REGISTROS DE TROCA DE TURNO -->
     <div id="aba-registros">
-        <h3 style="color: #f1c40f; margin-bottom: 20px; font-weight: 800; font-size: 1.5rem;">🔄 Painel Dinâmico de Troca</h3>
+        <h3 style="color: #f1c40f; margin-bottom: 20px; font-weight: 800; font-size: 1.5rem;"><i class="fas fa-calendar-check"></i> Painel Dinâmico de Troca</h3>
         
         <div class="form-group-dark" style="max-width: 250px; margin-bottom: 20px;">
             <label style="color: #94a3b8; font-weight: 600;">Data da Troca</label>
@@ -107,18 +106,21 @@
                     </tr>
                 </thead>
                 <tbody id="tbodyTrocaTurno">
-                    </tbody>
+                </tbody>
             </table>
         </div>
     </div>
 
+    <!-- ABA 2: CADASTRO DE LOCAIS DE TROCA -->
     <div id="aba-locais" style="display: none;">
-        <h3 style="color: #f1c40f; margin-bottom: 20px;">📍 Cadastrar Localização de Troca</h3>
+        <h3 style="color: #f1c40f; margin-bottom: 20px;"><i class="fas fa-map-marked-alt"></i> Cadastrar Localização de Troca</h3>
+        
         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
             <div style="flex: 1; min-width: 350px;">
                 <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
-                    <p style="font-size: 0.9rem; color: #7dd3fc; margin-bottom: 10px; font-weight: bold;">🛰️ 1. Clique no mapa para marcar o local:</p>
+                    <p style="font-size: 0.9rem; color: #7dd3fc; margin-bottom: 10px; font-weight: bold;"><i class="fas fa-mouse-pointer"></i> 1. Clique no mapa para marcar o local:</p>
                     <div id="mapTroca" style="height: 350px; width: 100%; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--border-dim); cursor: crosshair;"></div>
+                    
                     <div style="display: flex; gap: 10px; align-items: flex-end;">
                         <div style="flex: 1; margin: 0;">
                             <label>Nome do Local</label>
@@ -126,10 +128,11 @@
                         </div>
                         <input type="hidden" id="latLocal">
                         <input type="hidden" id="lngLocal">
-                        <button class="btn-primary-green" onclick="salvarNovoLocalTroca()" style="height: 42px;">💾 Salvar</button>
+                        <button class="btn-primary-green" onclick="salvarNovoLocalTroca()" style="height: 42px;"><i class="fas fa-save"></i> Salvar</button>
                     </div>
                 </div>
             </div>
+            
             <div style="flex: 1; min-width: 350px;">
                 <div class="table-responsive" style="background: rgba(0,0,0,0.2); border-radius: 12px; height: 100%;">
                     <table class="dark-table modern-turno-table" style="width: 100%;">
@@ -146,4 +149,49 @@
             </div>
         </div>
     </div>
+
+    <!-- ABA 3: HISTÓRICO DE TROCAS -->
+    <div id="aba-historico" style="display: none;">
+        <h3 style="color: #f1c40f; margin-bottom: 20px; font-weight: 800; font-size: 1.5rem;"><i class="fas fa-history"></i> Histórico de Trocas</h3>
+        
+        <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+            <div style="flex: 1; min-width: 200px;">
+                <label style="color: #94a3b8; font-weight: 600; font-size: 0.85rem;">Data Específica</label>
+                <input type="date" id="filtroDataHistoricoTroca" class="input-moderno" onchange="carregarHistoricoTrocas()">
+            </div>
+            
+            <div style="flex: 1; min-width: 200px;">
+                <label style="color: #94a3b8; font-weight: 600; font-size: 0.85rem;">Placa (Cavalo)</label>
+                <select id="filtroPlacaHistoricoTroca" class="input-moderno" onchange="carregarHistoricoTrocas()">
+                    <option value="">Todas as Placas</option>
+                </select>
+            </div>
+            
+            <div style="flex: 1; min-width: 200px;">
+                <label style="color: #94a3b8; font-weight: 600; font-size: 0.85rem;">Motorista</label>
+                <select id="filtroMotoristaHistoricoTroca" class="input-moderno" onchange="carregarHistoricoTrocas()">
+                    <option value="">Todos os Motoristas</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="table-responsive" style="background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); overflow: hidden;">
+            <table class="dark-table modern-turno-table" style="margin: 0; width: 100%;">
+                <thead>
+                    <tr>
+                        <th style="text-align: center;">Data Referência</th>
+                        <th>Placa (Cavalo)</th>
+                        <th style="text-align: center;">Turno Previsto</th>
+                        <th>Motorista Programado</th>
+                        <th>Local da Troca</th>
+                        <th style="text-align: center;">Horário Real</th>
+                    </tr>
+                </thead>
+                <tbody id="tbodyHistoricoTroca">
+                    <tr><td colspan="6" style="text-align: center; padding: 20px; color: #94a3b8;">Use os filtros acima para buscar o histórico de cruzamentos passados.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
 </div>
