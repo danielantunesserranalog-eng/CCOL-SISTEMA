@@ -3,6 +3,10 @@ const supabaseUrl = 'https://ihgiyxzxdldqmrkziijl.supabase.co';
 const supabaseKey = 'sb_publishable_JpMZhW5ZrFKBr7m9KXBkoQ_cpxy1k3x';
 const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
+// ================= CORREÇÃO DO ERRO SUPABASE =================
+window.supabaseClient = supabaseClient; 
+// ==============================================================
+
 const db = {
     // --- LOGIN E USUÁRIOS ---
     async getUsuarioByUsername(username) {
@@ -61,10 +65,8 @@ const db = {
         await supabaseClient.from('motoristas').insert([motorista]);
     },
     async updateMotorista(id, updates) {
-        // Limpa chaves não preenchidas para não quebrar o Supabase
         Object.keys(updates).forEach(k => updates[k] === undefined && delete updates[k]);
 
-        // O comando .select() no final OBRIGA o Supabase a devolver a linha que foi alterada
         const { data, error } = await supabaseClient.from('motoristas')
             .update(updates)
             .eq('id', id)
@@ -76,7 +78,6 @@ const db = {
             throw error;
         }
 
-        // Se o Supabase não devolveu nada, significa que ocorreu um Falso Sucesso (ele ignorou a edição)
         if (!data || data.length === 0) {
             console.error("⚠️ Falha Invisível: Nenhuma linha afetada para o ID", id);
             alert("⚠️ ALERTA DE SINCRONIZAÇÃO: O Supabase falhou ao tentar guardar o motorista. Verifique o tipo de dado.");
@@ -102,7 +103,6 @@ const db = {
         }
     },
     async deleteEscalaDia(id) {
-        // Apaga a exceção para o sistema voltar a calcular no automático
         const { error } = await supabaseClient.from('escalas').delete().eq('id', id);
         if (error) throw error;
     },

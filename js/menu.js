@@ -19,6 +19,12 @@ window.renderizarMenu = function() {
     let navHtml = '<nav class="main-nav">';
 
     if (meusMenus.includes('escala')) navHtml += `<button class="nav-item" onclick="navegarPara('escala', this)">📅 Escala Semanal</button>`;
+    
+    // NOVO MENU: TROCA DE TURNO
+    if (meusMenus.includes('troca_turno') || isAdmin) {
+        navHtml += `<button class="nav-item" onclick="navegarPara('troca_turno', this)" style="color: #f1c40f; font-weight: bold;">🔄 Troca de Turno</button>`;
+    }
+
     if (meusMenus.includes('alocacao')) navHtml += `<button class="nav-item" onclick="navegarPara('alocacao', this)">🔄 Alocação Geral</button>`;
     
     // RECADOS E ANOTAÇÕES (Livre para todos)
@@ -119,6 +125,7 @@ window.navegarPara = async function(pagina, elementoClicado) {
 
         // Inicialização de módulos específicos
         if (pagina === 'escala' && typeof window.renderizarEscala === 'function') window.renderizarEscala();
+        if (pagina === 'troca_turno' && typeof window.renderizarTrocaTurno === 'function') window.renderizarTrocaTurno();
         if (pagina === 'alocacao' && typeof window.renderizarAlocacao === 'function') window.renderizarAlocacao();
         if (pagina === 'motoristas' && typeof window.renderizarMotoristas === 'function') window.renderizarMotoristas();
         if (pagina === 'caminhoes' && typeof window.renderizarConjuntos === 'function') window.renderizarConjuntos();
