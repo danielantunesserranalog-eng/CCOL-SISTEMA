@@ -1,10 +1,10 @@
 <div class="action-bar" style="margin-bottom: 20px; background: rgba(0,0,0,0.2); padding: 15px 20px; border-radius: 8px; border: 1px solid var(--border-dim);">
     <h3 style="color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 10px;">
-        ⚙️ Painel de Controle
+        <i class="fas fa-cogs"></i> Painel de Controle
     </h3>
     <div class="button-group" style="margin-left: auto;">
-        <button id="btnTabUsuarios" class="btn-primary-blue" onclick="alternarAbaConfig('usuarios')">👥 Usuários e Acessos</button>
-        <button id="btnTabLogs" class="btn-secondary-dark" onclick="alternarAbaConfig('logs')">📜 Logs do Sistema</button>
+        <button id="btnTabUsuarios" class="btn-primary-blue" onclick="alternarAbaConfig('usuarios')"><i class="fas fa-users"></i> Usuários e Acessos</button>
+        <button id="btnTabLogs" class="btn-secondary-dark" onclick="alternarAbaConfig('logs')"><i class="fas fa-history"></i> Logs do Sistema</button>
     </div>
 </div>
 
@@ -12,10 +12,9 @@
     <div style="display: grid; grid-template-columns: 1.2fr 2fr; gap: 20px;">
         
         <div style="display: flex; flex-direction: column; gap: 20px;">
-            
             <div class="content-panel form-panel-dark" style="margin: 0; background: rgba(0,0,0,0.2);">
                 <div class="panel-header" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px;">
-                    <h4 style="color: var(--ccol-green-bright); margin: 0;">➕ Criar Novo Acesso</h4>
+                    <h4 style="color: var(--ccol-green-bright); margin: 0;"><i class="fas fa-user-plus"></i> Criar Novo Acesso</h4>
                 </div>
                 <div class="form-group-dark" style="margin-top: 15px;">
                     <label>Login (Nome.Sobrenome)</label>
@@ -33,13 +32,14 @@
                 <div style="margin-top: 10px; font-size: 0.75rem; color: var(--text-secondary); text-align: center;">
                     Senha inicial padrão: <strong style="color: #fff;">12345</strong>
                 </div>
-                <button class="btn-primary-green btn-full" onclick="adicionarUsuario()" style="margin-top: 15px;">✅ Cadastrar Usuário</button>
+                <button class="btn-primary-green btn-full" onclick="adicionarUsuario()" style="margin-top: 15px;"><i class="fas fa-save"></i> Cadastrar Usuário</button>
             </div>
 
             <div class="content-panel form-panel-dark" style="margin: 0; background: rgba(0,0,0,0.2);">
                 <div class="panel-header" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px;">
-                    <h4 style="color: #fde047; margin: 0;">🔐 Controle de Menus (Acessos)</h4>
+                    <h4 style="color: #fde047; margin: 0;"><i class="fas fa-key"></i> Controle de Menus (Acessos)</h4>
                 </div>
+                
                 <div class="form-group-dark" style="margin-top: 15px;">
                     <label>1. Selecione o Perfil</label>
                     <select id="selectPerfilPermissao" class="dark-select" onchange="carregarCheckboxesPermissoes()">
@@ -52,28 +52,27 @@
                 
                 <label style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 15px; display: block;">2. Marque as telas liberadas:</label>
                 <div style="margin-top: 8px; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; border: 1px dashed var(--border-dim); display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="escala"> 📅 Escala</label>
-                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="alocacao"> 🔄 Alocação</label>
-                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="motoristas"> 👨‍✈️ Motoristas</label>
-                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="caminhoes"> 🚛 Caminhões</label>
-                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="os"> 🛠️ O.S.</label>
-                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="relatorio_gerencial"> 📊 Relatório Gerencial</label>
-                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="recados"> 📝 Recados e Anotações</label>
-                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="troca"> ⏱️ Troca</label>
-                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="jornada"> ⏳ Jornada</label>
-                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="treinamento"> 🎓 Treinamento</label>
-                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="ssma"> ⚠️ SSMA</label>
-                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="indicadores"> 📈 Indicadores</label>
-                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="indicadores_serrana"> 📊 Indicadores Serrana</label>
+                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="troca"> <i class="fas fa-exchange-alt"></i> Troca de Turno</label>
+                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="escala"> <i class="fas fa-calendar-alt"></i> Escala</label>
+                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="alocacao"> <i class="fas fa-users-cog"></i> Alocação</label>
+                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="motoristas"> <i class="fas fa-id-card"></i> Motoristas</label>
+                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="caminhoes"> <i class="fas fa-truck"></i> Caminhões</label>
+                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="os"> <i class="fas fa-tools"></i> O.S.</label>
+                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="relatorio_gerencial"> <i class="fas fa-chart-pie"></i> Relatório Gerencial</label>
+                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="recados"> <i class="fas fa-sticky-note"></i> Recados e Anotações</label>
+                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="jornada"> <i class="fas fa-clock"></i> Jornada</label>
+                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="treinamento"> <i class="fas fa-graduation-cap"></i> Treinamento</label>
+                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="ssma"> <i class="fas fa-hard-hat"></i> SSMA</label>
+                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="indicadores"> <i class="fas fa-chart-line"></i> Indicadores</label>
+                    <label style="color: #fff; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="checkbox" class="chk-permissao" value="indicadores_serrana"> <i class="fas fa-chart-bar"></i> Indicadores Serrana</label>
                 </div>
-                <button class="btn-primary-blue btn-full" onclick="salvarPermissoesPerfil()" style="margin-top: 15px;">💾 Salvar Permissões</button>
+                <button class="btn-primary-blue btn-full" onclick="salvarPermissoesPerfil()" style="margin-top: 15px;"><i class="fas fa-check"></i> Salvar Permissões</button>
             </div>
-            
         </div>
 
         <div class="content-panel" style="margin: 0; display: flex; flex-direction: column;">
             <div class="panel-header">
-                <h4 style="color: var(--ccol-blue-bright); margin: 0;">👥 Usuários Cadastrados no Sistema</h4>
+                <h4 style="color: var(--ccol-blue-bright); margin: 0;"><i class="fas fa-list"></i> Usuários Cadastrados no Sistema</h4>
             </div>
             <div class="table-modern-wrapper" style="flex: 1; border-radius: 0 0 8px 8px; border: none; padding: 0;">
                 <table class="data-table-modern" style="margin: 0;">
@@ -89,14 +88,13 @@
                 </table>
             </div>
         </div>
-
     </div>
 </div>
 
 <div id="config-tab-logs" class="config-aba" style="display: none;">
     <div class="content-panel" style="margin: 0;">
         <div class="panel-header">
-            <h3 style="color: var(--ccol-rust-bright); margin: 0;">📜 Histórico de Segurança e Exclusões</h3>
+            <h3 style="color: var(--ccol-rust-bright); margin: 0;"><i class="fas fa-exclamation-triangle"></i> Histórico de Segurança e Exclusões</h3>
         </div>
         <div class="table-modern-wrapper" style="max-height: 500px; overflow-y: auto;">
             <table class="data-table-modern">

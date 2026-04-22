@@ -1,6 +1,5 @@
 // ==================== COMPONENTE: MENU DE NAVEGAÇÃO ====================
-
-const pageCache = {}; 
+const pageCache = {};
 
 window.renderizarMenu = function() {
     const container = document.getElementById('menu-container');
@@ -18,57 +17,57 @@ window.renderizarMenu = function() {
 
     let navHtml = '<nav class="main-nav">';
 
-    if (meusMenus.includes('escala')) navHtml += `<button class="nav-item" onclick="navegarPara('escala', this)">📅 Escala Semanal</button>`;
+    if (meusMenus.includes('escala')) navHtml += `<button class="nav-item" onclick="navegarPara('escala', this)"><i class="fas fa-calendar-alt"></i> Escala Semanal</button>`;
     
     // NOVO MENU: TROCA DE TURNO
-    if (meusMenus.includes('troca_turno') || isAdmin) {
-        navHtml += `<button class="nav-item" onclick="navegarPara('troca_turno', this)" style="color: #f1c40f; font-weight: bold;">🔄 Troca de Turno</button>`;
+    if (meusMenus.includes('troca') || isAdmin) {
+        navHtml += `<button class="nav-item" onclick="navegarPara('troca_turno', this)" style="color: #f1c40f; font-weight: bold;"><i class="fas fa-exchange-alt"></i> Troca de Turno</button>`;
     }
 
-    if (meusMenus.includes('alocacao')) navHtml += `<button class="nav-item" onclick="navegarPara('alocacao', this)">🔄 Alocação Geral</button>`;
+    if (meusMenus.includes('alocacao')) navHtml += `<button class="nav-item" onclick="navegarPara('alocacao', this)"><i class="fas fa-users-cog"></i> Alocação Geral</button>`;
     
     // RECADOS E ANOTAÇÕES (Livre para todos)
-    if (meusMenus.includes('recados') || isAdmin) navHtml += `<button class="nav-item" onclick="navegarPara('recados', this)">📝 Recados e Anotações</button>`;
+    if (meusMenus.includes('recados') || isAdmin) navHtml += `<button class="nav-item" onclick="navegarPara('recados', this)"><i class="fas fa-sticky-note"></i> Recados e Anotações</button>`;
 
     // Dropdown Cadastros
     if (meusMenus.includes('motoristas') || meusMenus.includes('caminhoes')) {
         navHtml += `<div class="nav-dropdown">
-            <button class="nav-item dropdown-toggle" onclick="toggleDropdown(event)">📋 Cadastros ▾</button>
+            <button class="nav-item dropdown-toggle" onclick="toggleDropdown(event)"><i class="fas fa-folder-plus"></i> Cadastros <i class="fas fa-chevron-down" style="font-size: 0.7rem; margin-left: 5px;"></i></button>
             <div class="dropdown-menu">`;
-        if (meusMenus.includes('motoristas')) navHtml += `<button class="dropdown-item" onclick="navegarPara('motoristas', this)">👨‍✈️ Motoristas</button>`;
-        if (meusMenus.includes('caminhoes')) navHtml += `<button class="dropdown-item" onclick="navegarPara('caminhoes', this)">🚛 Conjuntos & Caminhões</button>`;
+        if (meusMenus.includes('motoristas')) navHtml += `<button class="dropdown-item" onclick="navegarPara('motoristas', this)"><i class="fas fa-id-card"></i> Motoristas</button>`;
+        if (meusMenus.includes('caminhoes')) navHtml += `<button class="dropdown-item" onclick="navegarPara('caminhoes', this)"><i class="fas fa-truck"></i> Conjuntos & Caminhões</button>`;
         navHtml += `</div></div>`;
     }
 
-    if (meusMenus.includes('os')) navHtml += `<button class="nav-item" onclick="navegarPara('os', this)">🛠️ Ordem de Serviço</button>`;
+    if (meusMenus.includes('os')) navHtml += `<button class="nav-item" onclick="navegarPara('os', this)"><i class="fas fa-tools"></i> Ordem de Serviço</button>`;
     
-    // RELATÓRIO GERENCIAL (Agora com permissão própria!)
+    // RELATÓRIO GERENCIAL
     if (meusMenus.includes('relatorio_gerencial') || isAdmin) {
-        navHtml += `<button class="nav-item" onclick="navegarPara('relatorio_gerencial', this)" style="color: var(--ccol-green-bright); font-weight: bold;">📊 Relatório Gerencial</button>`;
+        navHtml += `<button class="nav-item" onclick="navegarPara('relatorio_gerencial', this)" style="color: var(--ccol-green-bright); font-weight: bold;"><i class="fas fa-chart-pie"></i> Relatório Gerencial</button>`;
     }
     
     // SSMA
     if (meusMenus.includes('ssma') || isAdmin) {
-        navHtml += `<button class="nav-item" onclick="navegarPara('ssma', this)" style="color: #f59e0b; font-weight: bold;">⚠️ SSMA</button>`;
+        navHtml += `<button class="nav-item" onclick="navegarPara('ssma', this)" style="color: #f59e0b; font-weight: bold;"><i class="fas fa-hard-hat"></i> SSMA</button>`;
     }
 
-    // NOVO MENU: TREINAMENTO (VIAGEM ASSISTIDA)
+    // TREINAMENTO (VIAGEM ASSISTIDA)
     if (meusMenus.includes('treinamento') || isAdmin) {
-        navHtml += `<button class="nav-item" onclick="navegarPara('treinamento', this)" style="color: #a855f7; font-weight: bold;">🎓 Treinamento</button>`;
+        navHtml += `<button class="nav-item" onclick="navegarPara('treinamento', this)" style="color: #a855f7; font-weight: bold;"><i class="fas fa-graduation-cap"></i> Treinamento</button>`;
     }
 
-    // INDICADORES (DASHBOARD) - NOME ALTERADO PARA SUZANO
+    // INDICADORES SUZANO
     if (meusMenus.includes('indicadores') || isAdmin) {
-        navHtml += `<button class="nav-item" onclick="navegarPara('indicadores', this)" style="color: #3498db; font-weight: bold;">📈 Indicadores Suzano</button>`;
+        navHtml += `<button class="nav-item" onclick="navegarPara('indicadores', this)" style="color: #3498db; font-weight: bold;"><i class="fas fa-chart-line"></i> Indicadores Suzano</button>`;
     }
 
-    // NOVO MENU: INDICADORES SERRANA
+    // INDICADORES SERRANA
     if (meusMenus.includes('indicadores_serrana') || isAdmin) {
-        navHtml += `<button class="nav-item" onclick="navegarPara('indicadores_serrana', this)" style="color: #2ecc71; font-weight: bold;">📊 Indicadores Serrana</button>`;
+        navHtml += `<button class="nav-item" onclick="navegarPara('indicadores_serrana', this)" style="color: #2ecc71; font-weight: bold;"><i class="fas fa-chart-bar"></i> Indicadores Serrana</button>`;
     }
 
     // Configurações: Apenas o Admin vê
-    if (isAdmin) navHtml += `<button id="navConfigBtn" class="nav-item" onclick="navegarPara('config', this)">⚙️ Configurações</button>`;
+    if (isAdmin) navHtml += `<button id="navConfigBtn" class="nav-item" onclick="navegarPara('config', this)"><i class="fas fa-cog"></i> Configurações</button>`;
 
     navHtml += '</nav>';
     container.innerHTML = navHtml;
@@ -83,7 +82,7 @@ window.renderizarMenu = function() {
             if (dropItem) dropItem.click();
         }
     }, 100);
-};
+}
 
 window.toggleDropdown = function(event) {
     const menu = event.target.nextElementSibling;
@@ -92,8 +91,9 @@ window.toggleDropdown = function(event) {
 
 window.navegarPara = async function(pagina, elementoClicado) {
     const userRole = (currentUser && currentUser.role) ? currentUser.role : 'Admin';
+
     if (pagina === 'config' && userRole !== 'Admin') {
-        alert('⛔ Acesso Negado.');
+        alert('Acesso Negado.');
         return; 
     }
 
@@ -113,7 +113,7 @@ window.navegarPara = async function(pagina, elementoClicado) {
 
     try {
         if (!pageCache[pagina]) {
-            mainContent.innerHTML = '<div style="padding: 20px; text-align: center; color: #fff;">A carregar módulo...</div>';
+            mainContent.innerHTML = '<div style="padding: 20px; text-align: center; color: #fff;"><i class="fas fa-spinner fa-spin"></i> Carregando módulo...</div>';
             
             const response = await fetch(`pages/${pagina}.html?v=` + new Date().getTime());
             
@@ -130,7 +130,6 @@ window.navegarPara = async function(pagina, elementoClicado) {
         if (pagina === 'motoristas' && typeof window.renderizarMotoristas === 'function') window.renderizarMotoristas();
         if (pagina === 'caminhoes' && typeof window.renderizarConjuntos === 'function') window.renderizarConjuntos();
         
-        // INICIALIZAÇÃO DO NOVO RELATÓRIO GERENCIAL
         if (pagina === 'relatorio_gerencial') {
             if (typeof window.carregarDadosOS === 'function') await window.carregarDadosOS();
             if (typeof window.renderizarRelatorioGerencialOS === 'function') window.renderizarRelatorioGerencialOS();
@@ -139,8 +138,7 @@ window.navegarPara = async function(pagina, elementoClicado) {
         if (pagina === 'os' && typeof window.alternarTelaOS === 'function') window.alternarTelaOS('lista');
         if (pagina === 'ssma' && typeof window.renderizarSSMA === 'function') window.renderizarSSMA();
         if (pagina === 'recados' && typeof window.carregarRecados === 'function') window.carregarRecados();
-
-        // INICIALIZAÇÃO TREINAMENTO
+        
         if (pagina === 'treinamento' && typeof window.renderizarPaginaTreinamento === 'function') {
             window.renderizarPaginaTreinamento();
         }
@@ -154,7 +152,6 @@ window.navegarPara = async function(pagina, elementoClicado) {
             }
         }
 
-        // INICIALIZAÇÃO INDICADORES SERRANA
         if (pagina === 'indicadores_serrana') {
             if (typeof window.carregarDadosDashboardSerrana === 'function') window.carregarDadosDashboardSerrana();
             if (typeof window.atualizarRelogioSerrana === 'function') {
@@ -174,7 +171,7 @@ window.navegarPara = async function(pagina, elementoClicado) {
         console.error('Erro ao carregar página:', error);
         mainContent.innerHTML = `
             <div style="padding: 20px; text-align: center; color: #ef4444;">
-                <h3>❌ Erro de Navegação</h3>
+                <h3><i class="fas fa-exclamation-circle"></i> Erro de Navegação</h3>
                 <p>O módulo <b>${pagina}.html</b> não foi encontrado na pasta "pages".</p>
             </div>`;
     }
