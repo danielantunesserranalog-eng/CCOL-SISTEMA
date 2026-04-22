@@ -1,7 +1,9 @@
-// ==================== MÓDULO: TROCA DE TURNO (CRUZAMENTO SEGURO E HISTÓRICO) ====================
+// ==================== MÓDULO: TROCA DE TURNO (CRUZAMENTO SEGURO, HISTÓRICO E INDICADORES) ====================
 window.locaisTrocaCache = [];
 window.mapaTroca = null;
 window.markerTroca = null;
+window.mapaIndicadores = null;
+window.layerGrupoBolas = null;
 
 window.renderizarTrocaTurno = async function() {
     document.getElementById('dataFiltroTroca').value = new Date().toISOString().split('T')[0];
@@ -23,41 +25,43 @@ window.iniciarMapaTroca = function() {
     });
 }
 
-window.alternarAbaTroca = function(aba) {
-    const abaRegistros = document.getElementById('aba-registros');
-    const abaLocais = document.getElementById('aba-locais');
-    const abaHistorico = document.getElementById('aba-historico');
-    const btnRegistros = document.getElementById('btnAbaRegistros');
-    const btnLocais = document.getElementById('btnAbaLocais');
-    const btnHistorico = document.getElementById('btnAbaHistorico');
+// INICIALIZA O NOVO MAPA DOS INDICADORES
+window.iniciarMapaIndicadores = function() {
+    if (window.mapaIndicadores) { window.mapaIndicadores.invalidateSize(); return; }
+    window.mapaIndicadores = L.map('mapIndicadoresTroca').setView([-17.8876, -39.7342], 7); // Zoom mais distante para ver cidades
+    L.tileLayer('https://mt0.google.com/vt/lyrs=y&hl=pt-BR&x={x}&y={y}&z={z}', { maxZoom: 21 }).addTo(window.mapaIndicadores);
+    window.layerGrupoBolas = L.layerGroup().addTo(window.mapaIndicadores);
+}
 
+window.alternarAbaTroca = function(aba) {
+    const abas = ['registros', 'locais', 'historico', 'indicadores'];
+    const prefixAba = 'aba-';
+    const prefixBtn = 'btnAba';
+
+    // Desativa tudo
+    abas.forEach(nomeAba => {
+        document.getElementById(prefixAba + nomeAba).style.display = 'none';
+        const btn = document.getElementById(prefixBtn + nomeAba.charAt(0).toUpperCase() + nomeAba.slice(1));
+        if (btn) btn.className = 'btn-secondary-dark';
+    });
+
+    // Ativa a escolhida
+    document.getElementById(prefixAba + aba).style.display = 'block';
+    const btnAtivo = document.getElementById(prefixBtn + aba.charAt(0).toUpperCase() + aba.slice(1));
+    if (btnAtivo) btnAtivo.className = 'btn-primary-blue';
+
+    // Ações Específicas
     if (aba === 'registros') {
-        abaRegistros.style.display = 'block';
-        abaLocais.style.display = 'none';
-        abaHistorico.style.display = 'none';
-        btnRegistros.className = 'btn-primary-blue';
-        btnLocais.className = 'btn-secondary-dark';
-        btnHistorico.className = 'btn-secondary-dark';
         window.carregarTrocasDoDia();
     } else if (aba === 'locais') {
-        abaRegistros.style.display = 'none';
-        abaLocais.style.display = 'block';
-        abaHistorico.style.display = 'none';
-        btnRegistros.className = 'btn-secondary-dark';
-        btnLocais.className = 'btn-primary-blue';
-        btnHistorico.className = 'btn-secondary-dark';
         setTimeout(() => window.iniciarMapaTroca(), 100);
         window.carregarLocaisTroca();
     } else if (aba === 'historico') {
-        abaRegistros.style.display = 'none';
-        abaLocais.style.display = 'none';
-        abaHistorico.style.display = 'block';
-        btnRegistros.className = 'btn-secondary-dark';
-        btnLocais.className = 'btn-secondary-dark';
-        btnHistorico.className = 'btn-primary-blue';
-        
-        window.popularFiltrosHistoricoTroca(); // Preenche os dropdowns
+        window.popularFiltrosHistoricoTroca();
         window.carregarHistoricoTrocas();
+    } else if (aba === 'indicadores') {
+        setTimeout(() => window.iniciarMapaIndicadores(), 100);
+        window.carregarIndicadoresTroca();
     }
 }
 
@@ -233,47 +237,37 @@ window.salvarTroca = async function(domId, placa, turnoPrevisto) {
     } catch (e) { alert("Erro de conexão ao salvar."); }
 }
 
-// ---------------- NOVO: HISTÓRICO DE TROCAS C/ FILTROS DE DROPDOWN ----------------
+// ---------------- HISTÓRICO DE TROCAS ----------------
 
-// Esta função puxa os dados do sistema para montar a lista suspensa
 window.popularFiltrosHistoricoTroca = function() {
     const selectPlaca = document.getElementById('filtroPlacaHistoricoTroca');
     const selectMot = document.getElementById('filtroMotoristaHistoricoTroca');
     
     if (!selectPlaca || !selectMot) return;
 
-    // Popular Motoristas
     const mLista = (typeof motoristas !== 'undefined') ? motoristas : (window.motoristas || []);
     let htmlMot = '<option value="">Todos os Motoristas</option>';
     const mOrdenados = [...mLista].sort((a,b) => a.nome.localeCompare(b.nome));
-    
-    mOrdenados.forEach(m => {
-        htmlMot += `<option value="${m.nome}">${m.nome}</option>`;
-    });
+    mOrdenados.forEach(m => { htmlMot += `<option value="${m.nome}">${m.nome}</option>`; });
     
     const valMotAtual = selectMot.value;
     selectMot.innerHTML = htmlMot;
     selectMot.value = valMotAtual;
 
-    // Popular Placas de Caminhões
     const cLista = (typeof conjuntos !== 'undefined') ? conjuntos : (window.conjuntos || []);
     let placas = [];
     cLista.forEach(c => {
         if (c.caminhoes) {
             c.caminhoes.forEach(cam => {
                 const p = typeof cam === 'string' ? cam : cam.placa;
-                if (p && !placas.includes(p.toUpperCase())) {
-                    placas.push(p.toUpperCase());
-                }
+                if (p && !placas.includes(p.toUpperCase())) placas.push(p.toUpperCase());
             });
         }
     });
     
     placas.sort();
     let htmlPlaca = '<option value="">Todas as Placas</option>';
-    placas.forEach(p => {
-        htmlPlaca += `<option value="${p}">${p}</option>`;
-    });
+    placas.forEach(p => { htmlPlaca += `<option value="${p}">${p}</option>`; });
     
     const valPlacaAtual = selectPlaca.value;
     selectPlaca.innerHTML = htmlPlaca;
@@ -288,7 +282,6 @@ window.carregarHistoricoTrocas = async function() {
 
     if (!tbody) return;
 
-    // Apenas busca se houver algum filtro aplicado (para não travar caso a base cresça)
     if (!dataFiltro && !placaFiltro && !motoristaFiltro) {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 20px; color:#94a3b8;">Por favor, selecione uma placa, um motorista ou escolha a data para exibir os registros.</td></tr>`;
         return;
@@ -298,23 +291,18 @@ window.carregarHistoricoTrocas = async function() {
 
     try {
         let query = window.supabaseClient.from('registro_troca_turno').select('*').order('data_referencia', { ascending: false }).limit(200);
-
         if (dataFiltro) query = query.eq('data_referencia', dataFiltro);
-        
-        // Se usar select, o texto já vem 100% igual, então usamos .eq() em vez de .ilike()
         if (placaFiltro) query = query.eq('placa_cavalo', placaFiltro);
         if (motoristaFiltro) query = query.eq('motorista_programado', motoristaFiltro);
 
         const { data, error } = await query;
-
         if (error) throw error;
 
         if (!data || data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 20px; color:#f59e0b;"><i class="fas fa-exclamation-triangle"></i> Nenhum registro encontrado com esses filtros.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 20px; color:#f59e0b;"><i class="fas fa-exclamation-triangle"></i> Nenhum registro encontrado.</td></tr>`;
             return;
         }
 
-        // Garante que o cache dos locais está alimentado para cruzar o nome do local
         if (window.locaisTrocaCache.length === 0) {
             const resLocais = await window.supabaseClient.from('locais_troca').select('*');
             if (resLocais.data) window.locaisTrocaCache = resLocais.data;
@@ -323,8 +311,6 @@ window.carregarHistoricoTrocas = async function() {
         tbody.innerHTML = data.map(reg => {
             const local = window.locaisTrocaCache.find(l => String(l.id) === String(reg.local_troca_id));
             const localNome = local ? local.nome : 'Local Desconhecido';
-            
-            // Formatar data para exibição PT-BR
             const dataFormatada = reg.data_referencia ? reg.data_referencia.split('-').reverse().join('/') : '-';
 
             return `
@@ -340,7 +326,135 @@ window.carregarHistoricoTrocas = async function() {
         }).join('');
 
     } catch (e) {
-        console.error("Erro ao buscar histórico", e);
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 20px; color:#ef4444;"><i class="fas fa-times-circle"></i> Ocorreu um erro ao buscar os dados. Tente novamente.</td></tr>`;
+        console.error("Erro", e);
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 20px; color:#ef4444;"><i class="fas fa-times-circle"></i> Ocorreu um erro.</td></tr>`;
     }
-};
+}
+
+// ---------------- NOVO: INDICADORES E MAPA DE CALOR ----------------
+window.carregarIndicadoresTroca = async function() {
+    const tempoFiltro = document.getElementById('filtroTempoIndicadores').value;
+    
+    // Assegura que o cache de locais tá preenchido
+    if (window.locaisTrocaCache.length === 0) {
+        const resLocais = await window.supabaseClient.from('locais_troca').select('*');
+        if (resLocais.data) window.locaisTrocaCache = resLocais.data;
+    }
+
+    try {
+        let query = window.supabaseClient.from('registro_troca_turno').select('local_troca_id, data_referencia');
+
+        if (tempoFiltro !== 'all') {
+            const dataPassada = new Date();
+            dataPassada.setDate(dataPassada.getDate() - parseInt(tempoFiltro));
+            const dataFormatada = dataPassada.toISOString().split('T')[0];
+            query = query.gte('data_referencia', dataFormatada);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        let locaisMap = {};
+        window.locaisTrocaCache.forEach(l => {
+            locaisMap[l.id] = { ...l, count: 0 };
+        });
+
+        let totalGeral = 0;
+        let totalPA = 0;
+
+        if (data && data.length > 0) {
+            data.forEach(r => {
+                if (locaisMap[r.local_troca_id]) {
+                    locaisMap[r.local_troca_id].count++;
+                    totalGeral++;
+                    
+                    const nomeStr = locaisMap[r.local_troca_id].nome.toUpperCase();
+                    // Identifica se é um Ponto de Apoio
+                    if (nomeStr.includes('PA ') || nomeStr.includes('P.A') || nomeStr.includes('APOIO')) {
+                        totalPA++;
+                    }
+                }
+            });
+        }
+
+        // Atualizar KPIs superiores
+        document.getElementById('kpiTotalTrocas').innerText = totalGeral;
+        document.getElementById('kpiTotalPA').innerText = totalPA;
+
+        // Converter para Array e ordenar (Ranking)
+        const ranking = Object.values(locaisMap).filter(l => l.count > 0).sort((a, b) => b.count - a.count);
+
+        if (ranking.length > 0) {
+            document.getElementById('kpiTopLocal').innerHTML = `${ranking[0].nome}<br><span style="font-size:1rem; font-weight:normal; color:#fde68a;">(${ranking[0].count} trocas)</span>`;
+        } else {
+            document.getElementById('kpiTopLocal').innerText = '-';
+        }
+
+        // Preencher Tabela de Ranking
+        const tbodyRanking = document.getElementById('tbodyRankingLocais');
+        if (ranking.length === 0) {
+            tbodyRanking.innerHTML = `<tr><td colspan="2" style="text-align: center; padding: 20px; color: #94a3b8;">Nenhum dado encontrado no período.</td></tr>`;
+        } else {
+            let rankHtml = '';
+            ranking.forEach((loc, idx) => {
+                let color = '#fff';
+                if(idx === 0) color = '#fbbf24'; // Dourado
+                else if (idx === 1) color = '#e2e8f0'; // Prata
+                else if (idx === 2) color = '#b45309'; // Bronze
+                
+                rankHtml += `
+                    <tr>
+                        <td style="font-weight: bold; color: ${color}; font-size: 1.05rem;">${idx + 1}º ${loc.nome}</td>
+                        <td style="text-align: center; color: var(--ccol-blue-bright); font-weight: 800; font-size: 1.2rem;">${loc.count}</td>
+                    </tr>
+                `;
+            });
+            tbodyRanking.innerHTML = rankHtml;
+        }
+
+        // Plotar no Mapa
+        if (window.layerGrupoBolas) {
+            window.layerGrupoBolas.clearLayers();
+            
+            ranking.forEach(loc => {
+                const isPA = loc.nome.toUpperCase().includes('PA ') || loc.nome.toUpperCase().includes('P.A') || loc.nome.toUpperCase().includes('APOIO');
+                
+                // Cálculo do raio (Mínimo de 15px, Máximo de 60px)
+                const minRadius = 15;
+                const radius = Math.min(60, minRadius + (loc.count * 1.5));
+                
+                // Cor: Laranja para PA, Azul para resto
+                const color = isPA ? '#f59e0b' : '#3b82f6';
+                
+                const circle = L.circleMarker([loc.latitude, loc.longitude], {
+                    radius: radius,
+                    fillColor: color,
+                    color: color,
+                    weight: 2,
+                    opacity: 0.8,
+                    fillOpacity: 0.5
+                });
+
+                // Número cravado no meio da bolha
+                circle.bindTooltip(loc.count.toString(), {
+                    permanent: true,
+                    direction: 'center',
+                    className: 'bubble-tooltip'
+                });
+
+                circle.bindPopup(`<strong style="font-size:1.1rem;">${loc.nome}</strong><br>Total de Trocas: <b>${loc.count}</b>`);
+
+                window.layerGrupoBolas.addLayer(circle);
+            });
+
+            // Ajustar zoom para caber todas as bolhas, se houver
+            if (ranking.length > 0) {
+                const groupBounds = L.featureGroup(window.layerGrupoBolas.getLayers()).getBounds();
+                window.mapaIndicadores.fitBounds(groupBounds, { padding: [50, 50] });
+            }
+        }
+
+    } catch(e) {
+        console.error("Erro nos Indicadores:", e);
+    }
+}
