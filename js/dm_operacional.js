@@ -228,12 +228,200 @@ window.renderizarGraficoDMOperacional = async function(filtroPeriodo = '30') {
     }
 }
 
+// ==================== NOVAS FUNÇÕES: DM INDIVIDUAL POR FROTA ====================
+
+window.popularSelectPlacasDMInd = function() {
+    const select = document.getElementById('filtroPlacaDMInd');
+    if (!select) return;
+    
+    const currentVal = select.value;
+    let pOptions = '<option value="">Selecione um Veículo...</option>';
+    
+    // Tenta usar frotasManutencao global, ou ordensServico se for necessário
+    if (typeof frotasManutencao !== 'undefined' && frotasManutencao.length > 0) {
+        const placas = [...new Set(frotasManutencao.map(f => f.cavalo))].filter(Boolean).sort();
+        placas.forEach(p => {
+            pOptions += `<option value="${p}">${p}</option>`;
+        });
+    } else if (typeof ordensServico !== 'undefined' && ordensServico.length > 0) {
+        const placas = [...new Set(ordensServico.map(o => o.placa))].filter(Boolean).sort();
+        placas.forEach(p => {
+            pOptions += `<option value="${p}">${p}</option>`;
+        });
+    }
+    
+    select.innerHTML = pOptions;
+    if (currentVal) select.value = currentVal;
+};
+
+window.renderizarDMIndividual = function() {
+    const placa = document.getElementById('filtroPlacaDMInd').value;
+    const dataInicioStr = document.getElementById('filtroDataInicioDMInd').value;
+    const dataFimStr = document.getElementById('filtroDataFimDMInd').value;
+    const divGrafico = document.getElementById('graficoDmIndividual');
+
+    if (!placa || !dataInicioStr || !dataFimStr || !divGrafico) {
+        return;
+    }
+
+    const dataInicio = new Date(dataInicioStr + 'T00:00:00');
+    const dataFim = new Date(dataFimStr + 'T23:59:59');
+
+    if (dataInicio > dataFim) {
+        alert("A data de início deve ser menor ou igual à data de fim.");
+        return;
+    }
+
+    if (typeof ordensServico === 'undefined') {
+        divGrafico.innerHTML = `<div style="color:#ef4444; display:flex; justify-content:center; align-items:center; height:100%;">Ordens de Serviço não carregadas.</div>`;
+        return;
+    }
+
+    const diasArray = [];
+    const dmArray = [];
+    const hoje = new Date();
+    
+    let atual = new Date(dataInicio);
+    while (atual <= dataFim) {
+        // Não renderiza DM de dias futuros
+        if (atual > hoje && atual.getDate() !== hoje.getDate()) {
+            break;
+        }
+
+        const ano = atual.getFullYear();
+        const mes = atual.getMonth();
+        const dia = atual.getDate();
+        
+        const diaInicio = new Date(ano, mes, dia, 0, 0, 0, 0);
+        const diaFim = new Date(ano, mes, dia, 23, 59, 59, 999);
+        
+        let msTotalDia = 24 * 60 * 60 * 1000;
+        let msManutencao = 0;
+
+        const osDoVeiculo = ordensServico.filter(o => o.placa === placa && o.status !== 'Agendada');
+        
+        osDoVeiculo.forEach(os => {
+            let osInicioStr = os.data_abertura;
+            if (!osInicioStr) return;
+            if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
+            const osInicio = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
+            
+            let osFimObj = hoje; 
+            if (os.data_conclusao) {
+                let osFimStr = os.data_conclusao;
+                if (!osFimStr.includes('T')) osFimStr += 'T00:00:00';
+                osFimObj = new Date(osFimStr.replace('Z', '').replace('+00:00', ''));
+            }
+
+            const overlapInicio = osInicio > diaInicio ? osInicio : diaInicio;
+            const overlapFim = osFimObj < diaFim ? osFimObj : diaFim;
+
+            if (overlapInicio < overlapFim) {
+                msManutencao += (overlapFim - overlapInicio);
+            }
+        });
+
+        if (msManutencao > msTotalDia) msManutencao = msTotalDia;
+        
+        const dmDia = ((msTotalDia - msManutencao) / msTotalDia) * 100;
+        
+        const labelDia = `${String(dia).padStart(2, '0')}/${String(mes + 1).padStart(2, '0')}`;
+        diasArray.push(labelDia);
+        dmArray.push(dmDia.toFixed(1));
+        
+        atual.setDate(atual.getDate() + 1);
+    }
+
+    if (typeof echarts === 'undefined') return;
+
+    let chart = echarts.getInstanceByDom(divGrafico);
+    if (chart) chart.dispose();
+    chart = echarts.init(divGrafico);
+
+    const option = {
+        tooltip: { 
+            trigger: 'axis', 
+            backgroundColor: 'rgba(0,0,0,0.85)',
+            borderColor: '#a855f7',
+            textStyle: { color: '#fff' },
+            formatter: '{b} <br/> <span style="color:#a855f7;">●</span> DM do Veículo: <b>{c}%</b>' 
+        },
+        grid: { left: '3%', right: '4%', bottom: '5%', containLabel: true },
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: diasArray,
+            axisLabel: { color: '#94a3b8' },
+            axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } }
+        },
+        yAxis: {
+            type: 'value',
+            min: 0,
+            max: 100,
+            axisLabel: { formatter: '{value}%', color: '#94a3b8' },
+            splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)', type: 'dashed' } }
+        },
+        series: [{
+            name: 'DM Individual',
+            type: 'line',
+            data: dmArray,
+            smooth: true,
+            symbol: 'circle',
+            symbolSize: 8,
+            label: {
+                show: true,
+                position: 'top',
+                color: '#ffffff',
+                fontWeight: 'bold',
+                formatter: '{c}%'
+            },
+            itemStyle: { color: '#a855f7' },
+            lineStyle: { width: 3, color: '#a855f7' },
+            areaStyle: {
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                    { offset: 0, color: 'rgba(168, 85, 247, 0.4)' },
+                    { offset: 1, color: 'rgba(168, 85, 247, 0)' }
+                ])
+            }
+        }]
+    };
+
+    chart.setOption(option);
+    window.removeEventListener('resize', chart.resize); 
+    window.addEventListener('resize', () => chart.resize());
+};
+
+// ==================== INICIALIZAÇÃO DE INTERVALOS ====================
 setInterval(() => {
+    // DM Operacional Importada
     const divGrafico = document.getElementById('graficoDmOperacional');
     if (divGrafico && divGrafico.offsetWidth > 0 && !divGrafico.getAttribute('data-rendered')) {
         divGrafico.setAttribute('data-rendered', 'true');
         const selectFiltro = document.getElementById('filtroPeriodoDM');
         const filtroVal = selectFiltro ? selectFiltro.value : '30';
         window.renderizarGraficoDMOperacional(filtroVal);
+    }
+
+    // Inicialização da DM Individual (Preencher Select e Datas Padrão)
+    const selectPlaca = document.getElementById('filtroPlacaDMInd');
+    if (selectPlaca && !selectPlaca.getAttribute('data-populated')) {
+        selectPlaca.setAttribute('data-populated', 'true');
+        
+        if(typeof window.popularSelectPlacasDMInd === 'function') {
+            window.popularSelectPlacasDMInd();
+        }
+        
+        // Define intervalo padrão de exibição (Últimos 7 dias até hoje)
+        const inputInicio = document.getElementById('filtroDataInicioDMInd');
+        const inputFim = document.getElementById('filtroDataFimDMInd');
+        
+        if(inputInicio && inputFim && !inputInicio.value) {
+            const hoje = new Date();
+            const seteDiasAtras = new Date(hoje.getTime() - (7 * 24 * 60 * 60 * 1000));
+            
+            // Corrige problema de fuso horário definindo D-7
+            inputFim.value = hoje.toISOString().split('T')[0];
+            inputInicio.value = seteDiasAtras.toISOString().split('T')[0];
+        }
     }
 }, 1000);
