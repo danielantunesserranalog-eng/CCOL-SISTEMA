@@ -72,7 +72,15 @@ window.carregarLocaisTroca = async function() {
             window.locaisTrocaCache = data;
             const tbody = document.getElementById('tbodyLocaisTroca');
             if (tbody) {
-                tbody.innerHTML = data.map(l => `
+                // Verifica se é Admin para exibir o botão de excluir
+                const isAdmin = (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Admin');
+
+                tbody.innerHTML = data.map(l => {
+                    const btnExcluir = isAdmin 
+                        ? `<button class="btn-danger" onclick="excluirLocalTroca('${l.id}')"><i class="fas fa-trash"></i></button>`
+                        : `<span style="color: #64748b; font-size: 0.8rem;">Sem permissão</span>`;
+
+                    return `
                     <tr>
                         <td style="font-weight:bold;">${l.nome}</td>
                         <td style="text-align:center;">
@@ -80,9 +88,10 @@ window.carregarLocaisTroca = async function() {
                                 <i class="fas fa-map-marker-alt"></i> Maps
                             </a>
                         </td>
-                        <td style="text-align:center;"><button class="btn-danger" onclick="excluirLocalTroca('${l.id}')"><i class="fas fa-trash"></i></button></td>
+                        <td style="text-align:center;">${btnExcluir}</td>
                     </tr>
-                `).join('');
+                    `;
+                }).join('');
             }
         }
     } catch (e) { console.error("Sem locais", e); }
@@ -101,6 +110,12 @@ window.salvarNovoLocalTroca = async function() {
 }
 
 window.excluirLocalTroca = async function(id) {
+    // Trava de segurança no JavaScript
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.role !== 'Admin') {
+        alert('Acesso Negado: Apenas Administradores podem excluir locais de troca.');
+        return;
+    }
+
     if (!confirm("Excluir este local?")) return;
     await window.supabaseClient.from('locais_troca').delete().eq('id', id);
     await window.carregarLocaisTroca();
@@ -331,7 +346,7 @@ window.carregarHistoricoTrocas = async function() {
     }
 }
 
-// ---------------- NOVO: INDICADORES E MAPA DE CALOR ----------------
+// ---------------- INDICADORES E MAPA DE CALOR ----------------
 window.carregarIndicadoresTroca = async function() {
     const tempoFiltro = document.getElementById('filtroTempoIndicadores').value;
     
