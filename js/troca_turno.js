@@ -41,7 +41,6 @@ window.iniciarMapaIndicadores = function() {
     window.layerGrupoBolas = L.layerGroup().addTo(window.mapaIndicadores);
 }
 
-// NOVA FUNÇÃO: TELA CHEIA DO MAPA
 window.toggleFullscreenMap = function() {
     const wrapper = document.getElementById('mapaIndicadoresWrapper');
     if (!document.fullscreenElement) {
@@ -53,12 +52,11 @@ window.toggleFullscreenMap = function() {
     }
 }
 
-// Recalcula o tamanho do mapa caso a tela cheia seja ativada ou desativada
 document.addEventListener('fullscreenchange', () => {
     if (window.mapaIndicadores) {
         setTimeout(() => {
             window.mapaIndicadores.invalidateSize();
-        }, 250); // Atraso de segurança para renderização do navegador
+        }, 250);
     }
 });
 
@@ -149,12 +147,35 @@ window.excluirLocalTroca = async function(id) {
     await window.carregarLocaisTroca();
 }
 
-window.calcularProximaTroca = function(domId) {
+// ATUALIZADO: Recebe a ordem do turno para validar se deve ficar vermelho na hora de preencher
+window.calcularProximaTroca = function(domId, minutosPrevisto) {
     const inputHora = document.getElementById(`hora_${domId}`).value;
     const divProxima = document.getElementById(`prox_${domId}`);
-    if(!inputHora) { divProxima.innerText = '--:--'; return; }
+    const trElement = document.getElementById(`tr_${domId}`);
+
+    if(!inputHora) { 
+        divProxima.innerText = '--:--'; 
+        if(trElement) trElement.style.background = trElement.getAttribute('data-original-bg-color') || 'transparent';
+        return; 
+    }
+    
     let [h, m] = inputHora.split(':').map(Number);
     divProxima.innerText = `${((h + 12) % 24).toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+
+    // Lógica para colorir a linha se a diferença for maior ou igual a 1 hora (60 min)
+    if(trElement && minutosPrevisto !== undefined && minutosPrevisto !== null && minutosPrevisto !== 9999) {
+        let minutosReal = h * 60 + m;
+        let diff = Math.abs(minutosReal - parseInt(minutosPrevisto));
+        
+        // Tratamento para virada de dia (ex: Previsto 23:30, Real 00:30)
+        if (diff > 12 * 60) diff = 24 * 60 - diff; 
+
+        if (diff >= 60) {
+            trElement.style.background = 'rgba(239, 68, 68, 0.2)'; // Fundo vermelho clarinho (Tailwind red-500 com 20% opacidade)
+        } else {
+            trElement.style.background = trElement.getAttribute('data-original-bg-color') || 'transparent';
+        }
+    }
 }
 
 window.verificarMudancaMotorista = function(domId) {
@@ -212,7 +233,6 @@ window.carregarTrocasDoDia = async function() {
             return;
         }
 
-        // 1. Achatar todos os registros do dia para uma lista simples
         let linhasData = [];
         
         cLista.forEach(conj => {
@@ -238,21 +258,18 @@ window.carregarTrocasDoDia = async function() {
                 }
 
                 motoristasHoje.forEach((esc, idxTurno) => {
-                    // Extrai as horas (em minutos do dia) para usar na ordenação
                     function extrairMinutosDoTurno(turno) {
                         if (!turno || typeof turno !== 'string') return 9999;
                         const t = turno.toUpperCase();
                         if (t.includes('SEM ESCALA') || t.includes('INDEFINIDO') || t.includes('PARADO')) return 9999;
                         
-                        // Exemplo: '06:00'
                         const match = t.match(/(\d{1,2})[:Hh](\d{2})/);
                         if (match) return parseInt(match[1]) * 60 + parseInt(match[2]);
                         
-                        // Exemplo: '06h'
                         const matchHora = t.match(/(\d{1,2})/);
                         if (matchHora) return parseInt(matchHora[1]) * 60;
                         
-                        return 9999; // Se não encontrou, joga para o fim
+                        return 9999; 
                     }
 
                     linhasData.push({
@@ -267,7 +284,6 @@ window.carregarTrocasDoDia = async function() {
             });
         });
 
-        // 2. Ordenar a lista: Primeiro pelos minutos extraídos (mais cedo primeiro), depois desempatar pelo Conjunto
         linhasData.sort((a, b) => {
             if (a.ordemTurno !== b.ordemTurno) {
                 return a.ordemTurno - b.ordemTurno;
@@ -275,12 +291,9 @@ window.carregarTrocasDoDia = async function() {
             return Number(a.conjId) - Number(b.conjId);
         });
 
-        // 3. Montar o HTML varrendo a lista ordenada
         let html = '';
         linhasData.forEach((linha, indiceGlobal) => {
             const { conjId, go, placaNorm, esc, idxTurno } = linha;
-            
-            // Adicionado indiceGlobal no domId para garantir IDs únicos na renderização
             const domId = `${placaNorm.replace(/[^A-Z0-9]/g, '')}_${idxTurno}_${indiceGlobal}`; 
             
             const reg = registros.find(r => r.placa_cavalo.toUpperCase() === placaNorm && r.turno_previsto === esc.turno) || {};
@@ -309,12 +322,26 @@ window.carregarTrocasDoDia = async function() {
             });
             selectLocal += `</select>`;
 
-            // Zebrar as linhas para não ficar confuso
-            let bgStyle = (indiceGlobal % 2 === 0) ? 'background: rgba(0,0,0,0.2); border-bottom: 2px solid rgba(59, 130, 246, 0.3);' : 'border-bottom: 1px solid rgba(255,255,255,0.05);';
+            // Verifica o Zebra da tabela
+            let isZebrado = (indiceGlobal % 2 === 0);
+            let baseBgColor = isZebrado ? 'rgba(0,0,0,0.2)' : 'transparent';
+            let baseBorder = isZebrado ? '2px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(255,255,255,0.05)';
+            let currentBgColor = baseBgColor;
+
+            // Verificação de Atraso/Adiantamento ao carregar (se o banco já trouxe o horário real)
+            if (horarioReal && linha.ordemTurno !== 9999) {
+                let [hReal, mReal] = horarioReal.split(':').map(Number);
+                let diff = Math.abs((hReal * 60 + mReal) - linha.ordemTurno);
+                if (diff > 12 * 60) diff = 24 * 60 - diff;
+                if (diff >= 60) {
+                    currentBgColor = 'rgba(239, 68, 68, 0.2)'; // Vermelho clarinho
+                }
+            }
+
             let badgeClass = esc.turno !== 'Sem Escala' ? `<span class="badge-turno"><i class="far fa-clock"></i> ${esc.turno}</span>` : `<span style="color:#ef4444; font-size:0.8rem; font-weight:bold;">PARADO</span>`;
 
             html += `
-                <tr style="${bgStyle}">
+                <tr id="tr_${domId}" style="background: ${currentBgColor}; border-bottom: ${baseBorder}; transition: background 0.3s ease;" data-original-bg-color="${baseBgColor}">
                     <td style="font-weight: bold; color: var(--ccol-blue-bright);">
                         TRINCA ${String(conjId).padStart(2,'0')} 
                         <br><span class="badge-go" style="margin-top:4px;">GO ${go}</span>
@@ -323,7 +350,7 @@ window.carregarTrocasDoDia = async function() {
                     <td style="text-align: center;">${badgeClass}</td>
                     <td>${selectMot}</td>
                     <td>${selectLocal}</td>
-                    <td><input type="time" id="hora_${domId}" class="input-moderno" value="${horarioReal}" onchange="calcularProximaTroca('${domId}')"></td>
+                    <td><input type="time" id="hora_${domId}" class="input-moderno" value="${horarioReal}" onchange="calcularProximaTroca('${domId}', ${linha.ordemTurno})"></td>
                     <td style="text-align: center;"><span id="prox_${domId}" class="hora-estimada">${proximaTroca}</span></td>
                     <td>
                         <input type="text" id="obs_${domId}" class="input-moderno" placeholder="Requer alteração..." value="${obsReal}" readonly 
