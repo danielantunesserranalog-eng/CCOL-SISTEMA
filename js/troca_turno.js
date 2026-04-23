@@ -4,7 +4,8 @@ window.mapaTroca = null;
 window.markerTroca = null;
 window.mapaIndicadores = null;
 window.layerGrupoBolas = null;
-window.motSelectPendente = null; // Guarda o dropdown para reverter em caso de cancelamento
+window.motSelectPendente = null; 
+window.dadosHistoricoTrocasAtual = []; // Guarda os dados filtrados para poder exportar
 
 window.renderizarTrocaTurno = async function() {
     const agora = new Date();
@@ -134,11 +135,9 @@ window.verificarMudancaMotorista = function(domId) {
     const original = selectMot.getAttribute('data-original');
     const atual = selectMot.value;
     
-    // Se o usuário mudou o motorista original e não selecionou o "Parado"
     if (original && atual !== original && atual !== "") {
         window.motSelectPendente = selectMot;
         document.getElementById('obsDomId').value = domId;
-        // Pega o valor que já estiver na caixinha de observação da tabela
         document.getElementById('textoObservacaoTroca').value = document.getElementById(`obs_${domId}`).value;
         document.getElementById('modalObservacaoTroca').style.display = 'flex';
     }
@@ -146,7 +145,6 @@ window.verificarMudancaMotorista = function(domId) {
 
 window.cancelarObservacaoTroca = function() {
     if (window.motSelectPendente) {
-        // Reverte para o motorista que estava escalado
         window.motSelectPendente.value = window.motSelectPendente.getAttribute('data-original');
         window.motSelectPendente = null;
     }
@@ -160,7 +158,7 @@ window.confirmarObservacaoTroca = function() {
         return;
     }
     const domId = document.getElementById('obsDomId').value;
-    document.getElementById(`obs_${domId}`).value = texto; // Preenche a caixinha da tabela
+    document.getElementById(`obs_${domId}`).value = texto; 
     window.motSelectPendente = null;
     document.getElementById('modalObservacaoTroca').style.display = 'none';
 }
@@ -224,7 +222,6 @@ window.carregarTrocasDoDia = async function() {
                         proximaTroca = `${((h + 12) % 24).toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
                     }
 
-                    // Select com o evento onchange e o data-original para a trava
                     let selectMot = `<select id="mot_${domId}" class="input-moderno" data-original="${esc.nome || ''}" onchange="verificarMudancaMotorista('${domId}')">`;
                     if (esc.nome) selectMot += `<option value="${esc.nome}" selected>${esc.nome} (Escala)</option>`;
                     else selectMot += `<option value="">-- Parado --</option>`;
@@ -243,7 +240,6 @@ window.carregarTrocasDoDia = async function() {
                     let bgStyle = (idxTurno === 1) ? 'background: rgba(0,0,0,0.2); border-bottom: 2px solid rgba(59, 130, 246, 0.3);' : 'border-bottom: 1px solid rgba(255,255,255,0.05);';
                     let badgeClass = esc.turno !== 'Sem Escala' ? `<span class="badge-turno">${esc.turno}</span>` : `<span style="color:#ef4444; font-size:0.8rem; font-weight:bold;">PARADO</span>`;
 
-                    // CAMPO DE OBSERVAÇÃO AGORA COM READONLY E ESTILO BLOQUEADO
                     html += `
                         <tr style="${bgStyle}">
                             <td style="font-weight: bold; color: var(--ccol-blue-bright);">
@@ -294,7 +290,7 @@ window.salvarTroca = async function(domId, placa, turnoPrevisto) {
             motorista_programado: motorista, 
             local_troca_id: localId, 
             horario_real: hora,
-            observacao: obs // Enviando a observação pro banco
+            observacao: obs 
         };
         
         if (exist) await window.supabaseClient.from('registro_troca_turno').update(p).eq('id', exist.id);
@@ -305,7 +301,7 @@ window.salvarTroca = async function(domId, placa, turnoPrevisto) {
     } catch (e) { alert("Erro de conexão ao salvar."); }
 }
 
-// ---------------- HISTÓRICO DE TROCAS ----------------
+// ---------------- HISTÓRICO DE TROCAS & EXPORTAÇÃO EXCEL ----------------
 
 window.popularFiltrosHistoricoTroca = function() {
     const selectPlaca = document.getElementById('filtroPlacaHistoricoTroca');
@@ -351,6 +347,7 @@ window.carregarHistoricoTrocas = async function() {
     if (!tbody) return;
 
     if (!dataFiltro && !placaFiltro && !motoristaFiltro) {
+        window.dadosHistoricoTrocasAtual = []; // Zera a lista se não houver busca
         tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 20px; color:#94a3b8;">Por favor, selecione uma placa, um motorista ou escolha a data para exibir os registros.</td></tr>`;
         return;
     }
@@ -367,9 +364,13 @@ window.carregarHistoricoTrocas = async function() {
         if (error) throw error;
 
         if (!data || data.length === 0) {
+            window.dadosHistoricoTrocasAtual = []; // Zera a lista se vier vazia
             tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 20px; color:#f59e0b;"><i class="fas fa-exclamation-triangle"></i> Nenhum registro encontrado.</td></tr>`;
             return;
         }
+
+        // Armazena a pesquisa localmente para quando for exportar
+        window.dadosHistoricoTrocasAtual = data;
 
         if (window.locaisTrocaCache.length === 0) {
             const resLocais = await window.supabaseClient.from('locais_troca').select('*');
@@ -397,9 +398,54 @@ window.carregarHistoricoTrocas = async function() {
 
     } catch (e) {
         console.error("Erro", e);
+        window.dadosHistoricoTrocasAtual = []; // Em caso de erro
         tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 20px; color:#ef4444;"><i class="fas fa-times-circle"></i> Ocorreu um erro.</td></tr>`;
     }
 }
+
+window.exportarHistoricoTrocasExcel = function() {
+    if (!window.dadosHistoricoTrocasAtual || window.dadosHistoricoTrocasAtual.length === 0) {
+        alert("Nenhum dado para exportar no momento. Faça uma busca no histórico primeiro.");
+        return;
+    }
+
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+    csvContent += "Data Referencia;Placa (Cavalo);Turno Previsto;Motorista Confirmado;Local da Troca;Horario Real;Observacao (Motivo)\n";
+
+    window.dadosHistoricoTrocasAtual.forEach(reg => {
+        const local = window.locaisTrocaCache.find(l => String(l.id) === String(reg.local_troca_id));
+        const localNome = local ? local.nome : 'Local Desconhecido';
+        const dataFormatada = reg.data_referencia ? reg.data_referencia.split('-').reverse().join('/') : '-';
+        
+        // Remove quebras de linha e pontos-e-vírgulas da observação para não quebrar as colunas do Excel
+        const obsFormatada = reg.observacao ? reg.observacao.replace(/;/g, ',').replace(/\n/g, ' ') : '-';
+
+        const linha = [
+            dataFormatada,
+            reg.placa_cavalo,
+            reg.turno_previsto,
+            reg.motorista_programado || '-',
+            localNome,
+            reg.horario_real || '-',
+            obsFormatada
+        ].join(';');
+
+        csvContent += linha + "\n";
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    
+    // Nome do arquivo com a data de exportação
+    const agora = new Date();
+    const dataDoc = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`;
+    
+    link.setAttribute("download", `Historico_Trocas_${dataDoc}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
 
 // ---------------- INDICADORES E MAPA DE CALOR ----------------
 window.carregarIndicadoresTroca = async function() {
