@@ -1,11 +1,10 @@
 // ==================== ESTRUTURA DE DADOS GLOBAL ====================
 let conjuntos = [];
 let motoristas = [];
-let escalas = {}; 
+let escalas = {};
 
 const HORARIOS_PROIBIDOS = ['23:00', '00:00', '01:00'];
 const TURNOS = [];
-
 for (let i = 0; i < 24; i++) {
     const horaInicio = `${String(i).padStart(2, '0')}:00`;
     if (!HORARIOS_PROIBIDOS.includes(horaInicio)) {
@@ -35,7 +34,13 @@ function getDatasSemana(dataInicialStr = null) {
     for (let i = 0; i < 7; i++) {
         const data = new Date(dataBase);
         data.setDate(dataBase.getDate() + i);
-        const dataStr = data.toISOString().split('T')[0];
+        
+        // CORREÇÃO DO FUSO: Forçando a data local exata
+        const ano = data.getFullYear();
+        const mes = String(data.getMonth() + 1).padStart(2, '0');
+        const dia = String(data.getDate()).padStart(2, '0');
+        const dataStr = `${ano}-${mes}-${dia}`;
+
         datas.push({
             dateKey: dataStr,
             diaTexto: diasSemana[data.getDay()],
@@ -64,7 +69,7 @@ async function carregarDadosIniciais() {
         const localConjuntos = JSON.parse(localStorage.getItem('ccol_conjuntos') || '[]');
         const localEscalas = JSON.parse(localStorage.getItem('ccol_escalas') || '{}');
 
-        // Se o banco vier vazio (falha de permissão) mas tivermos dados locais, resgatamos do Local!
+        // Se o banco vier vazio mas tivermos dados locais, resgatamos do Local!
         if (dbMotoristas.length === 0 && localMotoristas.length > 0) {
             motoristas = localMotoristas;
             conjuntos = localConjuntos;
@@ -75,7 +80,9 @@ async function carregarDadosIniciais() {
             conjuntos = dbConjuntos;
             motoristas = dbMotoristas;
             escalas = {};
+
             motoristas.forEach(m => { escalas[m.id] = {}; });
+
             dbEscalas.forEach(e => {
                 if (!escalas[e.motorista_id]) escalas[e.motorista_id] = {};
                 escalas[e.motorista_id][e.data] = { turno: e.turno, caminhao: e.caminhao, status: e.status };
@@ -92,6 +99,7 @@ async function carregarDadosIniciais() {
                 }
             });
         });
+
         salvarBackupLocal();
     } catch (e) {
         console.error("Erro no DB. Carregando offline...", e);
@@ -108,8 +116,15 @@ function atualizarStats() {
     if (statConjuntos) statConjuntos.innerText = conjuntos.length;
     if (statCaminhoes) statCaminhoes.innerText = conjuntos.reduce((acc, c) => acc + (c.caminhoes?.length || 0), 0);
     if (statMotoristas) statMotoristas.innerText = motoristas.length;
+
     if (statEscalasHoje) {
-        const hoje = new Date().toISOString().split('T')[0];
+        // CORREÇÃO DO FUSO: Forçando a data local exata
+        const agora = new Date();
+        const ano = agora.getFullYear();
+        const mes = String(agora.getMonth() + 1).padStart(2, '0');
+        const dia = String(agora.getDate()).padStart(2, '0');
+        const hoje = `${ano}-${mes}-${dia}`;
+        
         statEscalasHoje.innerText = motoristas.filter(m => escalas[m.id]?.[hoje]?.caminhao !== 'F').length;
     }
 }

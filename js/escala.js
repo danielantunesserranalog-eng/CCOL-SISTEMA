@@ -1,5 +1,4 @@
 // ==================== MÓDULO: ESCALA & ALOCAÇÃO ====================
-
 const getEq = (m) => m && m.equipe ? m.equipe.trim().toUpperCase() : '-';
 const pesoEquipe = (eq) => ({'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5, 'F': 6}[eq] || 99);
 
@@ -17,7 +16,7 @@ window.popularSelectMotoristas = function() {
     if (valorAtual && motoristas.some(m => m.nome === valorAtual)) {
         select.value = valorAtual;
     }
-};
+}
 
 window.getStatusMotorista = function(m, dDate) {
     if (!m || !m.data_ancora) return 'F';
@@ -40,19 +39,16 @@ window.calcularEscalaMatematica = function(motorista, dateKey) {
     if (motorista.conjuntoId && eq === '-') {
         return { caminhao: 'F', turno: motorista.turno, status: 'fallback' };
     }
-
     const dDate = new Date(dateKey + 'T00:00:00');
     const statusMot = window.getStatusMotorista(motorista, dDate);
-
     if (statusMot === 'F') return { caminhao: 'F', turno: motorista.turno, status: 'fallback' };
-
     const conjunto = conjuntos.find(c => String(c.id) === String(motorista.conjuntoId));
     if (!conjunto || !conjunto.caminhoes) return { caminhao: 'T', turno: motorista.turno, status: 'fallback' };
 
     let placa1 = conjunto.caminhoes.length > 0 ? (typeof conjunto.caminhoes[0] === 'string' ? conjunto.caminhoes[0] : conjunto.caminhoes[0].placa) : 'F';
     let placa2 = conjunto.caminhoes.length > 1 ? (typeof conjunto.caminhoes[1] === 'string' ? conjunto.caminhoes[1] : conjunto.caminhoes[1].placa) : placa1;
-    let statusCaminhao = 'F';
 
+    let statusCaminhao = 'F';
     if (eq === 'A' || eq === 'D') statusCaminhao = placa1;
     else if (eq === 'B' || eq === 'E') statusCaminhao = placa2;
     else if (eq === 'C') { 
@@ -88,6 +84,7 @@ window.getEscalaDiaComputada = function(motorista, dateKey) {
 window.renderizarEscala = function() {
     const container = document.getElementById('escalaContainer');
     const filtroSelectEl = document.getElementById('filtroConjuntoEscala');
+    
     window.popularSelectMotoristas();
 
     if (filtroSelectEl) {
@@ -102,14 +99,17 @@ window.renderizarEscala = function() {
     }
 
     if (!container) return;
-
     if (motoristas.length === 0) {
-        container.innerHTML = '<p style="padding: 20px; text-align: center;">Nenhum motorista registado.</p>';
+        container.innerHTML = '<p style="padding: 20px; text-align: center;">Nenhum motorista registrado.</p>';
         return;
     }
 
     const inputData = document.getElementById('dataInicioEscala');
-    let dataBaseStr = inputData && inputData.value ? inputData.value : new Date().toISOString().split('T')[0];
+    
+    // CORREÇÃO DO FUSO: Forçando a data local exata
+    const agora = new Date();
+    const dataLocalAtual = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`;
+    let dataBaseStr = inputData && inputData.value ? inputData.value : dataLocalAtual;
     let dataBase = new Date(dataBaseStr + 'T00:00:00');
     
     let diasRender = [];
@@ -126,11 +126,12 @@ window.renderizarEscala = function() {
             diaTexto: diasSemana[d.getDay()]
         });
     }
+
     window.currentDatas = diasRender;
 
     const filtroSelec = filtroSelectEl ? filtroSelectEl.value : 'todos';
     let conjuntosRender = filtroSelec !== 'todos' ? conjuntos.filter(c => String(c.id) === String(filtroSelec)) : [...conjuntos];
-
+    
     if (filtroSelec === 'todos') {
         if (motoristas.some(m => !m.conjuntoId)) {
             conjuntosRender.push({ id: 'S/F', isSemFrota: true, caminhoes: [] });
@@ -144,7 +145,6 @@ window.renderizarEscala = function() {
     });
 
     let html = '';
-
     conjuntosRender.forEach(conj => {
         let motoristasDoConjunto = conj.isSemFrota 
             ? motoristas.filter(m => !m.conjuntoId) 
@@ -165,7 +165,7 @@ window.renderizarEscala = function() {
 
         html += `<div style="background: rgba(15, 23, 42, 0.4); border-radius: 8px; margin-bottom: 30px; border: 1px solid rgba(255,255,255,0.1); overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">`;
         html += `<div style="background: #0f172a; padding: 12px 20px; font-size: 1.1rem; font-weight: 800; color: #fff; border-bottom: 2px solid #3b82f6; text-align: left; letter-spacing: 1px;">
-                    🚛 ${numeroDisplay}
+                      ${numeroDisplay}
                  </div>`;
         html += `<div style="overflow-x: auto; width: 100%;">`;
         html += `<table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 0.85rem; min-width: 950px;">`;
@@ -187,7 +187,6 @@ window.renderizarEscala = function() {
                                 ${tituloGrupo}
                             </td>
                          </tr>`;
-
             grupo.forEach(m => {
                 const isBlocked = m.masterDrive === 'Não' || m.destra === 'Não';
                 let eq = getEq(m);
@@ -198,7 +197,6 @@ window.renderizarEscala = function() {
                     let cam2 = conj.caminhoes.length > 1 ? conj.caminhoes[1] : cam1;
                     let go1 = (typeof cam1 === 'string' || !cam1.go) ? '-' : cam1.go;
                     let go2 = (typeof cam2 === 'string' || !cam2.go) ? '-' : cam2.go;
-
                     if (eq === 'A' || eq === 'D') goStr = go1;
                     else if (eq === 'B' || eq === 'E') goStr = go2;
                     else if (eq === 'C' || eq === 'F') goStr = (go1 !== '-' && go2 !== '-' && go1 !== go2) ? `${go1} / ${go2}` : (go1 !== '-' ? go1 : go2);
@@ -216,7 +214,7 @@ window.renderizarEscala = function() {
                 rowsHtml += `<td style="padding: 8px; border: 1px solid rgba(255,255,255,0.05); font-weight: 800; color: #f8fafc;">${eq !== '-' ? eq : ''}</td>`;
                 rowsHtml += `<td style="padding: 8px; border: 1px solid rgba(255,255,255,0.05); font-weight: 600; color: #cbd5e1;">${posicaoStr}</td>`;
                 rowsHtml += `<td class="td-name" style="padding: 8px 15px; border: 1px solid rgba(255,255,255,0.05); text-align: left; ${isBlocked ? 'color: #f87171;' : 'color: #fff;'} font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${m.nome}</td>`;
-
+                
                 diasRender.forEach(d => {
                     const escala = window.getEscalaDiaComputada(m, d.dateKey);
                     const isFolga = escala.caminhao === 'F';
@@ -234,6 +232,7 @@ window.renderizarEscala = function() {
                     let opcoes = `<option value="F" ${isFolga ? 'selected' : ''} style="background: #1e293b; color: #fff;">F</option>`;
                     
                     opcoes += `<option value="T" ${escala.caminhao === 'T' || escala.caminhao === 'TRAB' ? 'selected' : ''} style="background: #1e293b; color: #fff;">T</option>`;
+                    
                     if (!conj.isSemFrota) {
                         conj.caminhoes?.forEach(cam => {
                             const placa = typeof cam === 'string' ? cam : cam.placa;
@@ -242,7 +241,7 @@ window.renderizarEscala = function() {
                     }
                     
                     if (isManual) {
-                        opcoes += `<option value="AUTO" style="background: #0f172a; color: #fbbf24; font-weight: bold;">🔄 Voltar para Auto</option>`;
+                        opcoes += `<option value="AUTO" style="background: #0f172a; color: #fbbf24; font-weight: bold;"> Voltar para Auto</option>`;
                     }
 
                     rowsHtml += `<td style="padding: 4px; border: 1px solid rgba(255,255,255,0.05); border-left: ${borderSide}; border-right: ${borderSide}; background-color: ${bgCell}; text-align: center; vertical-align: middle;">
@@ -256,15 +255,17 @@ window.renderizarEscala = function() {
             return rowsHtml;
         };
 
-        html += renderRows(grupoDia, '☀️ TURNO DO DIA (EQUIPAS A, B, C)');
-        html += renderRows(grupoNoite, '🌙 TURNO DA NOITE (EQUIPAS D, E, F)');
-        html += renderRows(outros, '⚠️ OUTROS / SEM TURNO FIXO');
+        html += renderRows(grupoDia, '  TURNO DO DIA (EQUIPAS A, B, C)');
+        html += renderRows(grupoNoite, '  TURNO DA NOITE (EQUIPAS D, E, F)');
+        html += renderRows(outros, '  OUTROS / SEM TURNO FIXO');
 
         html += `</tbody></table></div></div>`;
     });
 
     container.innerHTML = html;
+
     document.querySelectorAll('.select-escala-excel').forEach(select => select.addEventListener('change', handleEscalaChange));
+
     if(typeof atualizarStats === 'function') atualizarStats();
     
     if (document.getElementById('buscaMotoristaEscala') && document.getElementById('buscaMotoristaEscala').value.trim() !== '') {
@@ -281,19 +282,21 @@ window.limparDestaqueMotorista = function() {
             if (select) select.style.removeProperty('color');
         });
     });
-};
+}
 
 window.limparBuscaMotorista = function() {
     const selectBusca = document.getElementById('buscaMotoristaEscala');
     if(selectBusca) selectBusca.value = '';
     window.limparDestaqueMotorista();
-};
+}
 
 window.buscarMotoristaEscala = function() {
     const selectBusca = document.getElementById('buscaMotoristaEscala');
     if (!selectBusca) return;
     const termo = selectBusca.value.trim().toLowerCase();
+
     window.limparDestaqueMotorista();
+
     if (termo === '') return;
 
     let encontrou = false;
@@ -361,14 +364,14 @@ function renderizarAlocacao() {
     if (!tbody) return;
     
     if (motoristas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">Nenhum motorista registado</td></tr>'; 
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">Nenhum motorista registrado</td></tr>'; 
         return;
     }
 
     const motoristasOrdenados = [...motoristas].sort((a, b) => {
         const conjA = a.conjuntoId ? Number(a.conjuntoId) : 999999;
         const conjB = b.conjuntoId ? Number(b.conjuntoId) : 999999;
-        if (conjA !== conjB) return conjA - conjB; 
+        if (conjA !== conjB) return conjA - conjB;
         
         const eqA = getEq(a);
         const eqB = getEq(b);
@@ -386,9 +389,9 @@ function renderizarAlocacao() {
         let eq = getEq(m);
 
         if (currentConjunto !== lastConjunto) {
-            const tituloConjunto = m.conjuntoId ? `🚛 TRINCA ${String(m.conjuntoId).padStart(2, '0')}` : `🚨 RESERVAS / SEM TRINCA`;
-            const btnReset = m.conjuntoId ? `<button onclick="resetarCicloConjunto(${m.conjuntoId})" style="float: right; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #ef4444; padding: 4px 12px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-weight: bold; transition: 0.2s;">🔄 ZERAR CICLO</button>` : '';
-
+            const tituloConjunto = m.conjuntoId ? `TRINCA ${String(m.conjuntoId).padStart(2, '0')}` : `RESERVAS / SEM TRINCA`;
+            const btnReset = m.conjuntoId ? `<button onclick="resetarCicloConjunto(${m.conjuntoId})" style="float: right; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #ef4444; padding: 4px 12px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-weight: bold; transition: 0.2s;">ZERAR CICLO</button>` : '';
+            
             html += `
                 <tr style="background-color: #0f172a; border-top: 2px solid #3b82f6;">
                     <td colspan="5" style="text-align: left; padding: 12px 15px; font-weight: 800; color: #fff; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1px;">
@@ -407,8 +410,8 @@ function renderizarAlocacao() {
         else posicaoTag = '<span style="display:inline-block; width: 75px; font-size: 0.65rem; background: #475569; color: #fff; padding: 3px; border-radius: 4px; text-align: center; font-weight: bold; margin-right: 8px;">RESERVA</span>';
 
         let turnoDisplay = '';
-        if (['A', 'B', 'C'].includes(eq)) turnoDisplay = '<span style="color: #fbbf24; font-size: 0.75rem;">☀️ Turno Dia</span>';
-        else if (['D', 'E', 'F'].includes(eq)) turnoDisplay = '<span style="color: #93c5fd; font-size: 0.75rem;">🌙 Turno Noite</span>';
+        if (['A', 'B', 'C'].includes(eq)) turnoDisplay = '<span style="color: #fbbf24; font-size: 0.75rem;"> Turno Dia</span>';
+        else if (['D', 'E', 'F'].includes(eq)) turnoDisplay = '<span style="color: #93c5fd; font-size: 0.75rem;"> Turno Noite</span>';
 
         let equipeSelect = `
             <div style="display: flex; align-items: center; justify-content: flex-start;">
@@ -437,9 +440,9 @@ function renderizarAlocacao() {
         if (m.data_ancora) {
             const partesData = m.data_ancora.split('-'); 
             const dataFormatada = partesData.length === 3 ? `${partesData[2]}/${partesData[1]}` : 'Ajustado';
-            botaoManual = `<button class="btn-primary-green" style="width: 100%; padding: 7px; font-size: 0.75rem; font-weight: bold; border-radius: 4px;" onclick="abrirModalEscalaManual('${m.id}')" ${isBlocked ? 'disabled' : ''}>✅ Ciclo (${dataFormatada})</button>`;
+            botaoManual = `<button class="btn-primary-green" style="width: 100%; padding: 7px; font-size: 0.75rem; font-weight: bold; border-radius: 4px;" onclick="abrirModalEscalaManual('${m.id}')" ${isBlocked ? 'disabled' : ''}>Ciclo (${dataFormatada})</button>`;
         } else {
-            botaoManual = `<button class="btn-primary-blue" style="width: 100%; padding: 7px; font-size: 0.75rem; font-weight: bold; border-radius: 4px;" onclick="abrirModalEscalaManual('${m.id}')" ${isBlocked ? 'disabled' : ''}>⚙️ Ajustar Ciclo</button>`;
+            botaoManual = `<button class="btn-primary-blue" style="width: 100%; padding: 7px; font-size: 0.75rem; font-weight: bold; border-radius: 4px;" onclick="abrirModalEscalaManual('${m.id}')" ${isBlocked ? 'disabled' : ''}>Ajustar Ciclo</button>`;
         }
         
         let bgRow = 'transparent';
@@ -512,10 +515,11 @@ async function updateAlocacao(e) {
 }
 
 window.resetarCicloConjunto = async function(conjuntoId) {
-    if(currentUser.role !== 'Admin') { alert('⛔ Acesso Negado: Apenas Administradores podem zerar o ciclo.'); return; }
+    if(currentUser.role !== 'Admin') { alert('Acesso Negado: Apenas Administradores podem zerar o ciclo.'); return; }
     if (!confirm(`Deseja ZERAR as datas e as edições manuais da escala da Trinca ${conjuntoId}?`)) return;
 
     let promisesExclusao = [];
+
     motoristas.forEach(m => {
         if (String(m.conjuntoId) === String(conjuntoId)) {
             if (m.data_ancora) { m.data_ancora = null; db.updateMotorista(Number(m.id), { data_ancora: null }); }
@@ -526,16 +530,18 @@ window.resetarCicloConjunto = async function(conjuntoId) {
 
     await Promise.all(promisesExclusao);
     await db.addLog('Reset de Ciclo', `Datas âncora e escalas manuais removidas para a Trinca ${conjuntoId}.`);
+
     salvarBackupLocal();
     renderizarAlocacao();
     window.renderizarEscala();
     alert(`O ciclo e a escala da Trinca ${conjuntoId} foram completamente zerados!`);
-};
+}
 
 window.abrirModalEscalaManual = function(id) {
     const idStr = String(id);
     const m = motoristas.find(mot => String(mot.id) === idStr);
     if (!m) return;
+
     let eq = getEq(m);
     if (m.conjuntoId && eq === '-') { 
         alert("O motorista precisa ter uma equipa (A-F) antes de configurar a data do ciclo!"); 
@@ -551,7 +557,11 @@ window.abrirModalEscalaManual = function(id) {
         const strAncora = m.data_ancora.split('T')[0];
         dia1 = new Date(strAncora + 'T00:00:00');
     }
-    document.getElementById('manualDataInicio').value = dia1.toISOString().split('T')[0];
+    
+    // CORREÇÃO DO FUSO: Forçando a data local exata
+    const dLocal = `${dia1.getFullYear()}-${String(dia1.getMonth() + 1).padStart(2, '0')}-${String(dia1.getDate()).padStart(2, '0')}`;
+    document.getElementById('manualDataInicio').value = dLocal;
+    
     window.atualizarPreviewManual();
     document.getElementById('modalEscalaManual').classList.add('show');
 }
@@ -571,7 +581,7 @@ window.atualizarPreviewManual = function() {
         d.setDate(d.getDate() + i);
         let isTrab = i < 4; 
         let txt = isTrab ? 'TRAB' : 'FOLGA';
-        let icon = isTrab ? '🚚' : '🛋️';
+        let icon = isTrab ? ' ' : ' ';
         let colorBorder = isTrab ? '#3b82f6' : '#f97316';
         let colorBg = isTrab ? 'rgba(59, 130, 246, 0.15)' : 'rgba(249, 115, 22, 0.15)';
         
@@ -609,27 +619,31 @@ window.salvarEscalaManual = async function() {
 
 window.gerarEscala4x2 = async function(silencioso = false) {
     if (!silencioso) {
-        alert("✔️ A escala 4x2 automática já é calculada infinitamente pelo sistema a partir da data do ciclo!\nA base de dados não sofrerá mais sobrecargas com dados repetitivos.");
+        alert("A escala 4x2 automática já é calculada infinitamente pelo sistema a partir da data do ciclo!\nA base de dados não sofrerá mais sobrecargas com dados repetitivos.");
     }
     window.renderizarEscala(); 
 }
 
 window.zerarEscala = async function() {
-    if(currentUser.role !== 'Admin') { alert('⛔ Acesso Negado.'); return; }
+    if(currentUser.role !== 'Admin') { alert('Acesso Negado.'); return; }
     if (!confirm("Isto apagará TODAS as exceções manuais gravadas e a escala voltará para o ciclo automático perfeito. Continuar?")) return;
+
     try {
         await db.limparApenasEscalas();
         escalas = {}; 
         salvarBackupLocal();
         window.renderizarEscala();
-        alert("✔️ Exceções removidas. Escala 100% no automático!");
+        alert("Exceções removidas. Escala 100% no automático!");
     } catch (e) {
         console.error(e);
     }
 }
 
 window.abrirModalImpressao = function() {
-    document.getElementById('printData').value = new Date().toISOString().split('T')[0];
+    // CORREÇÃO DO FUSO: Forçando a data local exata
+    const hojeData = new Date();
+    document.getElementById('printData').value = `${hojeData.getFullYear()}-${String(hojeData.getMonth() + 1).padStart(2, '0')}-${String(hojeData.getDate()).padStart(2, '0')}`;
+    
     document.getElementById('modalImpressaoDiaria').classList.add('show');
 }
 
@@ -639,9 +653,11 @@ window.imprimirRelatorioEscalaSemanal = function() {
     if (!window.currentDatas || window.currentDatas.length === 0) {
         alert("Nenhuma semana renderizada. Selecione a data no painel primeiro."); return;
     }
+
     const filtroSelectEl = document.getElementById('filtroConjuntoEscala');
     const filtroSelec = filtroSelectEl ? filtroSelectEl.value : 'todos';
     let conjuntosRender = filtroSelec !== 'todos' ? conjuntos.filter(c => String(c.id) === String(filtroSelec)) : [...conjuntos];
+
     if (conjuntosRender.length === 0) { alert("Nenhum dado para imprimir."); return; }
 
     let html = `
@@ -709,12 +725,13 @@ window.imprimirRelatorioEscalaSemanal = function() {
 
         html += `<div class="trinca-box"><div class="trinca-num">TRINCA ${String(conj.id).padStart(2, '0')}</div>`;
         html += `<table><thead><tr><th style="width:9%;">HORÁRIO</th><th style="width:11%;">GO/PLACA</th><th style="width:5%;">EQ</th><th style="width:11%;">POSIÇÃO</th><th style="text-align:left;">COLABORADOR</th>${window.currentDatas.map(d => `<th style="width:8%;">${d.diaTexto}<br>${d.diaNum}</th>`).join('')}</tr></thead><tbody>`;
-        html += renderTable(gDia, '☀️ TURNO DO DIA (EQUIPAS A, B, C)', 'dia-bg');
-        html += renderTable(gNoite, '🌙 TURNO DA NOITE (EQUIPAS D, E, F)', 'noite-bg');
+        html += renderTable(gDia, 'TURNO DO DIA (EQUIPAS A, B, C)', 'dia-bg');
+        html += renderTable(gNoite, 'TURNO DA NOITE (EQUIPAS D, E, F)', 'noite-bg');
         html += `</tbody></table></div>`;
     });
 
     html += `<script>window.print();</script></body></html>`;
+    
     const w = window.open('', '', 'width=1200,height=800');
     w.document.write(html);
     w.document.close();
@@ -761,13 +778,13 @@ window.exportarEscalaMensalExcel = function() {
     link.setAttribute("href", URL.createObjectURL(blob));
     link.setAttribute("download", `Escala_Mensal_${(mes + 1).toString().padStart(2, '0')}_${ano}.csv`);
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
-};
+}
 
 // ==================== IMPRESSÃO DIÁRIA MODIFICADA (INCLUI CAMINHÕES VAZIOS) ====================
 window.gerarRelatorioImpressao = function() {
     const dataStr = document.getElementById('printData').value;
-    const turnoFiltro = document.getElementById('printTurno').value; 
-
+    const turnoFiltro = document.getElementById('printTurno').value;
+    
     if (!dataStr) {
         alert('Selecione uma data para impressão.');
         return;
@@ -878,6 +895,7 @@ window.gerarRelatorioImpressao = function() {
     // 5. Renderizar a Tabela
     const renderTabela = (lista, titulo) => {
         if (lista.length === 0) return '<p style="text-align:center;">Nenhum registro para exibir.</p>';
+
         let tHtml = `<div class="section-title">${titulo} (${lista.length} registros)</div>`;
         tHtml += `<table><thead><tr><th style="width: 12%">HORÁRIO</th><th style="width: 10%">TRINCA</th><th style="width: 40%">MOTORISTA</th><th style="width: 10%">EQUIPA</th><th style="width: 28%">STATUS / CAMINHÃO</th></tr></thead><tbody>`;
         
@@ -889,7 +907,7 @@ window.gerarRelatorioImpressao = function() {
             tHtml += `<tr class="${isVazio ? 'vazio-row' : ''}">
                 <td style="font-weight:bold;">${l.turno === '99:99' ? '-' : l.turno}</td>
                 <td>${l.trinca}</td>
-                <td style="text-align:left; font-weight:bold;">${isVazio ? '⚠ SEM MOTORISTA' : l.nome}</td>
+                <td style="text-align:left; font-weight:bold;">${isVazio ? 'SEM MOTORISTA' : l.nome}</td>
                 <td>${l.eq}</td>
                 <td class="${isVazio ? 'vazio-cell' : 'trab'}">${statusStr}</td>
             </tr>`;
@@ -898,7 +916,7 @@ window.gerarRelatorioImpressao = function() {
         return tHtml;
     };
 
-    html += renderTabela(trabs, '🚛 RELATÓRIO GERAL (ESCALADOS E CAMINHÕES DISPONÍVEIS)');
+    html += renderTabela(trabs, 'RELATÓRIO GERAL (ESCALADOS E CAMINHÕES DISPONÍVEIS)');
 
     html += `
         <div style="margin-top: 30px; text-align: center; font-size: 10px; color: #555;">
@@ -908,7 +926,7 @@ window.gerarRelatorioImpressao = function() {
     </body>
     </html>
     `;
-
+    
     const w = window.open('', '', 'width=900,height=700');
     w.document.write(html);
     w.document.close();
