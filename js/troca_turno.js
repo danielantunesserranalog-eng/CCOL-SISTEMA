@@ -58,14 +58,23 @@ window.alternarAbaTroca = function(aba) {
     if (aba === 'registros') {
         window.carregarTrocasDoDia();
     } else if (aba === 'locais') {
-        setTimeout(() => window.iniciarMapaTroca(), 100);
         window.carregarLocaisTroca();
+        setTimeout(() => {
+            window.iniciarMapaTroca();
+            if (window.mapaTroca) window.mapaTroca.invalidateSize();
+        }, 250);
     } else if (aba === 'historico') {
         window.popularFiltrosHistoricoTroca();
         window.carregarHistoricoTrocas();
     } else if (aba === 'indicadores') {
-        setTimeout(() => window.iniciarMapaIndicadores(), 100);
-        window.carregarIndicadoresTroca();
+        // CORREÇÃO DO BUG DO MAPA:
+        // Atrasamos a montagem do mapa em 250ms para garantir que a aba já esteja 100% visível, 
+        // recarregamos as dimensões (invalidateSize) e só então injetamos os dados no mapa.
+        setTimeout(() => {
+            window.iniciarMapaIndicadores();
+            if (window.mapaIndicadores) window.mapaIndicadores.invalidateSize();
+            window.carregarIndicadoresTroca();
+        }, 250);
     }
 }
 
