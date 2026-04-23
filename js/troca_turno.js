@@ -5,7 +5,8 @@ window.markerTroca = null;
 window.mapaIndicadores = null;
 window.layerGrupoBolas = null;
 window.motSelectPendente = null; 
-window.dadosHistoricoTrocasAtual = []; // Guarda os dados filtrados para poder exportar
+window.dadosHistoricoTrocasAtual = []; 
+window.dadosIndicadoresBrutos = []; // Cache para detalhamento sem nova consulta
 
 window.renderizarTrocaTurno = async function() {
     const agora = new Date();
@@ -40,6 +41,27 @@ window.iniciarMapaIndicadores = function() {
     window.layerGrupoBolas = L.layerGroup().addTo(window.mapaIndicadores);
 }
 
+// NOVA FUNÇÃO: TELA CHEIA DO MAPA
+window.toggleFullscreenMap = function() {
+    const wrapper = document.getElementById('mapaIndicadoresWrapper');
+    if (!document.fullscreenElement) {
+        wrapper.requestFullscreen().catch(err => {
+            alert(`Erro ao tentar modo tela cheia: ${err.message}`);
+        });
+    } else {
+        document.exitFullscreen();
+    }
+}
+
+// Recalcula o tamanho do mapa caso a tela cheia seja ativada ou desativada
+document.addEventListener('fullscreenchange', () => {
+    if (window.mapaIndicadores) {
+        setTimeout(() => {
+            window.mapaIndicadores.invalidateSize();
+        }, 250); // Atraso de segurança para renderização do navegador
+    }
+});
+
 window.alternarAbaTroca = function(aba) {
     const abas = ['registros', 'locais', 'historico', 'indicadores'];
     const prefixAba = 'aba-';
@@ -67,9 +89,6 @@ window.alternarAbaTroca = function(aba) {
         window.popularFiltrosHistoricoTroca();
         window.carregarHistoricoTrocas();
     } else if (aba === 'indicadores') {
-        // CORREÇÃO DO BUG DO MAPA:
-        // Atrasamos a montagem do mapa em 250ms para garantir que a aba já esteja 100% visível, 
-        // recarregamos as dimensões (invalidateSize) e só então injetamos os dados no mapa.
         setTimeout(() => {
             window.iniciarMapaIndicadores();
             if (window.mapaIndicadores) window.mapaIndicadores.invalidateSize();
@@ -95,7 +114,7 @@ window.carregarLocaisTroca = async function() {
                     <tr>
                         <td style="font-weight:bold;">${l.nome}</td>
                         <td style="text-align:center;">
-                            <a href="https://www.google.com/maps?q=${l.latitude},${l.longitude}" target="_blank" class="badge-go">
+                            <a href="https://maps.google.com/?q=${l.latitude},${l.longitude}" target="_blank" class="badge-go">
                                 <i class="fas fa-map-marker-alt"></i> Maps
                             </a>
                         </td>
@@ -138,7 +157,6 @@ window.calcularProximaTroca = function(domId) {
     divProxima.innerText = `${((h + 12) % 24).toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 }
 
-// ---------------- TRAVA DO MOTORISTA (OBSERVAÇÃO) ----------------
 window.verificarMudancaMotorista = function(domId) {
     const selectMot = document.getElementById(`mot_${domId}`);
     const original = selectMot.getAttribute('data-original');
@@ -172,7 +190,6 @@ window.confirmarObservacaoTroca = function() {
     document.getElementById('modalObservacaoTroca').style.display = 'none';
 }
 
-// ---------------- CRUZAMENTO COM TABELA DE CONJUNTOS E ESCALA ----------------
 window.carregarTrocasDoDia = async function() {
     const dataRef = document.getElementById('dataFiltroTroca').value;
     const tbody = document.getElementById('tbodyTrocaTurno');
@@ -310,8 +327,6 @@ window.salvarTroca = async function(domId, placa, turnoPrevisto) {
     } catch (e) { alert("Erro de conexão ao salvar."); }
 }
 
-// ---------------- HISTÓRICO DE TROCAS & EXPORTAÇÃO EXCEL ----------------
-
 window.popularFiltrosHistoricoTroca = function() {
     const selectPlaca = document.getElementById('filtroPlacaHistoricoTroca');
     const selectMot = document.getElementById('filtroMotoristaHistoricoTroca');
@@ -356,7 +371,7 @@ window.carregarHistoricoTrocas = async function() {
     if (!tbody) return;
 
     if (!dataFiltro && !placaFiltro && !motoristaFiltro) {
-        window.dadosHistoricoTrocasAtual = []; // Zera a lista se não houver busca
+        window.dadosHistoricoTrocasAtual = []; 
         tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 20px; color:#94a3b8;">Por favor, selecione uma placa, um motorista ou escolha a data para exibir os registros.</td></tr>`;
         return;
     }
@@ -373,12 +388,11 @@ window.carregarHistoricoTrocas = async function() {
         if (error) throw error;
 
         if (!data || data.length === 0) {
-            window.dadosHistoricoTrocasAtual = []; // Zera a lista se vier vazia
+            window.dadosHistoricoTrocasAtual = []; 
             tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 20px; color:#f59e0b;"><i class="fas fa-exclamation-triangle"></i> Nenhum registro encontrado.</td></tr>`;
             return;
         }
 
-        // Armazena a pesquisa localmente para quando for exportar
         window.dadosHistoricoTrocasAtual = data;
 
         if (window.locaisTrocaCache.length === 0) {
@@ -407,7 +421,7 @@ window.carregarHistoricoTrocas = async function() {
 
     } catch (e) {
         console.error("Erro", e);
-        window.dadosHistoricoTrocasAtual = []; // Em caso de erro
+        window.dadosHistoricoTrocasAtual = []; 
         tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 20px; color:#ef4444;"><i class="fas fa-times-circle"></i> Ocorreu um erro.</td></tr>`;
     }
 }
@@ -425,8 +439,6 @@ window.exportarHistoricoTrocasExcel = function() {
         const local = window.locaisTrocaCache.find(l => String(l.id) === String(reg.local_troca_id));
         const localNome = local ? local.nome : 'Local Desconhecido';
         const dataFormatada = reg.data_referencia ? reg.data_referencia.split('-').reverse().join('/') : '-';
-        
-        // Remove quebras de linha e pontos-e-vírgulas da observação para não quebrar as colunas do Excel
         const obsFormatada = reg.observacao ? reg.observacao.replace(/;/g, ',').replace(/\n/g, ' ') : '-';
 
         const linha = [
@@ -446,7 +458,6 @@ window.exportarHistoricoTrocasExcel = function() {
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
     
-    // Nome do arquivo com a data de exportação
     const agora = new Date();
     const dataDoc = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`;
     
@@ -456,17 +467,18 @@ window.exportarHistoricoTrocasExcel = function() {
     document.body.removeChild(link);
 };
 
-// ---------------- INDICADORES E MAPA DE CALOR ----------------
 window.carregarIndicadoresTroca = async function() {
     const tempoFiltro = document.getElementById('filtroTempoIndicadores').value;
     
+    document.getElementById('containerDetalhesMotoristas').style.display = 'none';
+
     if (window.locaisTrocaCache.length === 0) {
         const resLocais = await window.supabaseClient.from('locais_troca').select('*');
         if (resLocais.data) window.locaisTrocaCache = resLocais.data;
     }
 
     try {
-        let query = window.supabaseClient.from('registro_troca_turno').select('local_troca_id, data_referencia');
+        let query = window.supabaseClient.from('registro_troca_turno').select('local_troca_id, data_referencia, motorista_programado');
 
         if (tempoFiltro !== 'all') {
             const dataPassada = new Date();
@@ -481,6 +493,8 @@ window.carregarIndicadoresTroca = async function() {
 
         const { data, error } = await query;
         if (error) throw error;
+
+        window.dadosIndicadoresBrutos = data || [];
 
         let locaisMap = {};
         window.locaisTrocaCache.forEach(l => {
@@ -527,7 +541,7 @@ window.carregarIndicadoresTroca = async function() {
                 else if (idx === 2) color = '#b45309'; 
                 
                 rankHtml += `
-                    <tr>
+                    <tr onclick="window.mostrarDetalhesMotoristasPorLocal('${loc.id}', '${loc.nome}')" style="cursor: pointer;">
                         <td style="font-weight: bold; color: ${color}; font-size: 1.05rem;">${idx + 1}º ${loc.nome}</td>
                         <td style="text-align: center; color: var(--ccol-blue-bright); font-weight: 800; font-size: 1.2rem;">${loc.count}</td>
                     </tr>
@@ -541,10 +555,8 @@ window.carregarIndicadoresTroca = async function() {
             
             ranking.forEach(loc => {
                 const isPA = loc.nome.toUpperCase().includes('PA ') || loc.nome.toUpperCase().includes('P.A') || loc.nome.toUpperCase().includes('APOIO');
-                
                 const minRadius = 15;
                 const radius = Math.min(60, minRadius + (loc.count * 1.5));
-                
                 const color = isPA ? '#f59e0b' : '#3b82f6';
                 
                 const circle = L.circleMarker([loc.latitude, loc.longitude], {
@@ -562,7 +574,7 @@ window.carregarIndicadoresTroca = async function() {
                     className: 'bubble-tooltip'
                 });
 
-                circle.bindPopup(`<strong style="font-size:1.1rem;">${loc.nome}</strong><br>Total de Trocas: <b>${loc.count}</b>`);
+                circle.bindPopup(`<strong style="font-size:1.1rem;">${loc.nome}</strong><br>Total de Trocas: <b>${loc.count}</b><br><br><button onclick="window.mostrarDetalhesMotoristasPorLocal('${loc.id}', '${loc.nome}')" style="background:#3b82f6; color:#white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold;">Ver Motoristas</button>`);
 
                 window.layerGrupoBolas.addLayer(circle);
             });
@@ -576,4 +588,40 @@ window.carregarIndicadoresTroca = async function() {
     } catch(e) {
         console.error("Erro nos Indicadores:", e);
     }
+}
+
+window.mostrarDetalhesMotoristasPorLocal = function(localId, localNome) {
+    const container = document.getElementById('containerDetalhesMotoristas');
+    const tbody = document.getElementById('tbodyDetalhesMotoristasLocal');
+    const titulo = document.getElementById('tituloDetalhesMotoristas');
+
+    if (!container || !tbody || !window.dadosIndicadoresBrutos) return;
+
+    const trocasLocal = window.dadosIndicadoresBrutos.filter(r => String(r.local_troca_id) === String(localId));
+
+    let contagemMot = {};
+    trocasLocal.forEach(r => {
+        const nome = r.motorista_programado || "Não Informado";
+        contagemMot[nome] = (contagemMot[nome] || 0) + 1;
+    });
+
+    const rankingMot = Object.entries(contagemMot)
+        .map(([nome, qtd]) => ({ nome, qtd }))
+        .sort((a, b) => b.qtd - a.qtd);
+
+    titulo.innerHTML = `Motoristas que realizaram trocas em: <span style="color:#fbbf24">${localNome}</span>`;
+    
+    if (rankingMot.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="2" style="text-align:center; padding:15px;">Nenhum motorista registrado neste local.</td></tr>`;
+    } else {
+        tbody.innerHTML = rankingMot.map(m => `
+            <tr>
+                <td style="font-weight: bold; color: #fff;">${m.nome}</td>
+                <td style="text-align: center; color: #4ade80; font-weight: 800; font-size: 1.1rem;">${m.qtd}</td>
+            </tr>
+        `).join('');
+    }
+
+    container.style.display = 'block';
+    container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
