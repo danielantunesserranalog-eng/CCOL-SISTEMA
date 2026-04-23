@@ -195,7 +195,7 @@ window.carregarTrocasDoDia = async function() {
     const tbody = document.getElementById('tbodyTrocaTurno');
     if (!tbody || !dataRef) return;
     
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 20px;">Processando escala e cruzando frotas...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 20px;">Processando escala e ordenando horários...</td></tr>`;
     
     try {
         let registros = [];
@@ -212,8 +212,10 @@ window.carregarTrocasDoDia = async function() {
             return;
         }
 
-        let html = '';
-        cLista.sort((a, b) => Number(a.id) - Number(b.id)).forEach(conj => {
+        // 1. Achatar todos os registros do dia para uma lista simples
+        let linhasData = [];
+        
+        cLista.forEach(conj => {
             if (!conj.caminhoes || conj.caminhoes.length === 0) return;
             
             conj.caminhoes.forEach((cam, idxCam) => {
@@ -236,60 +238,105 @@ window.carregarTrocasDoDia = async function() {
                 }
 
                 motoristasHoje.forEach((esc, idxTurno) => {
-                    const domId = `${placaNorm.replace(/[^A-Z0-9]/g, '')}_${idxTurno}`;
-                    const reg = registros.find(r => r.placa_cavalo.toUpperCase() === placaNorm && r.turno_previsto === esc.turno) || {};
-                    const motoristaAtual = reg.motorista_programado || esc.nome || '';
-                    const horarioReal = reg.horario_real || '';
-                    const obsReal = reg.observacao || '';
-                    
-                    let proximaTroca = '--:--';
-                    if(horarioReal) {
-                        let [h, m] = horarioReal.split(':').map(Number);
-                        proximaTroca = `${((h + 12) % 24).toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+                    // Extrai as horas (em minutos do dia) para usar na ordenação
+                    function extrairMinutosDoTurno(turno) {
+                        if (!turno || typeof turno !== 'string') return 9999;
+                        const t = turno.toUpperCase();
+                        if (t.includes('SEM ESCALA') || t.includes('INDEFINIDO') || t.includes('PARADO')) return 9999;
+                        
+                        // Exemplo: '06:00'
+                        const match = t.match(/(\d{1,2})[:Hh](\d{2})/);
+                        if (match) return parseInt(match[1]) * 60 + parseInt(match[2]);
+                        
+                        // Exemplo: '06h'
+                        const matchHora = t.match(/(\d{1,2})/);
+                        if (matchHora) return parseInt(matchHora[1]) * 60;
+                        
+                        return 9999; // Se não encontrou, joga para o fim
                     }
 
-                    let selectMot = `<select id="mot_${domId}" class="input-moderno" data-original="${esc.nome || ''}" onchange="verificarMudancaMotorista('${domId}')">`;
-                    if (esc.nome) selectMot += `<option value="${esc.nome}" selected>${esc.nome} (Escala)</option>`;
-                    else selectMot += `<option value="">-- Parado --</option>`;
-                    
-                    mLista.forEach(m => { 
-                        if(m.nome !== esc.nome) selectMot += `<option value="${m.nome}" ${m.nome === motoristaAtual ? 'selected' : ''}>${m.nome}</option>`; 
+                    linhasData.push({
+                        conjId: conj.id,
+                        go: go,
+                        placaNorm: placaNorm,
+                        esc: esc,
+                        idxTurno: idxTurno,
+                        ordemTurno: extrairMinutosDoTurno(esc.turno)
                     });
-                    selectMot += `</select>`;
-
-                    let selectLocal = `<select id="local_${domId}" class="input-moderno"><option value="">Selecione...</option>`;
-                    window.locaisTrocaCache.forEach(l => {
-                        selectLocal += `<option value="${l.id}" ${reg.local_troca_id === l.id ? 'selected' : ''}>${l.nome}</option>`;
-                    });
-                    selectLocal += `</select>`;
-
-                    let bgStyle = (idxTurno === 1) ? 'background: rgba(0,0,0,0.2); border-bottom: 2px solid rgba(59, 130, 246, 0.3);' : 'border-bottom: 1px solid rgba(255,255,255,0.05);';
-                    let badgeClass = esc.turno !== 'Sem Escala' ? `<span class="badge-turno">${esc.turno}</span>` : `<span style="color:#ef4444; font-size:0.8rem; font-weight:bold;">PARADO</span>`;
-
-                    html += `
-                        <tr style="${bgStyle}">
-                            <td style="font-weight: bold; color: var(--ccol-blue-bright);">
-                                TRINCA ${String(conj.id).padStart(2,'0')} 
-                                <br><span class="badge-go" style="margin-top:4px;">GO ${go}</span>
-                            </td>
-                            <td style="font-weight: bold; color: #fff; font-size:1.1rem;">${placaNorm}</td>
-                            <td style="text-align: center;">${badgeClass}</td>
-                            <td>${selectMot}</td>
-                            <td>${selectLocal}</td>
-                            <td><input type="time" id="hora_${domId}" class="input-moderno" value="${horarioReal}" onchange="calcularProximaTroca('${domId}')"></td>
-                            <td style="text-align: center;"><span id="prox_${domId}" class="hora-estimada">${proximaTroca}</span></td>
-                            <td>
-                                <input type="text" id="obs_${domId}" class="input-moderno" placeholder="Requer alteração..." value="${obsReal}" readonly 
-                                style="cursor: not-allowed; background-color: rgba(0,0,0,0.5) !important; color: #94a3b8 !important;" 
-                                title="Só é possível alterar a observação ao alterar o motorista escalado.">
-                            </td>
-                            <td><button class="btn-primary-green" onclick="salvarTroca('${domId}', '${placaNorm}', '${esc.turno}')" style="width:100%; padding:8px;"><i class="fas fa-save"></i> Salvar</button></td>
-                        </tr>
-                    `;
                 });
             });
         });
+
+        // 2. Ordenar a lista: Primeiro pelos minutos extraídos (mais cedo primeiro), depois desempatar pelo Conjunto
+        linhasData.sort((a, b) => {
+            if (a.ordemTurno !== b.ordemTurno) {
+                return a.ordemTurno - b.ordemTurno;
+            }
+            return Number(a.conjId) - Number(b.conjId);
+        });
+
+        // 3. Montar o HTML varrendo a lista ordenada
+        let html = '';
+        linhasData.forEach((linha, indiceGlobal) => {
+            const { conjId, go, placaNorm, esc, idxTurno } = linha;
+            
+            // Adicionado indiceGlobal no domId para garantir IDs únicos na renderização
+            const domId = `${placaNorm.replace(/[^A-Z0-9]/g, '')}_${idxTurno}_${indiceGlobal}`; 
+            
+            const reg = registros.find(r => r.placa_cavalo.toUpperCase() === placaNorm && r.turno_previsto === esc.turno) || {};
+            const motoristaAtual = reg.motorista_programado || esc.nome || '';
+            const horarioReal = reg.horario_real || '';
+            const obsReal = reg.observacao || '';
+            
+            let proximaTroca = '--:--';
+            if(horarioReal) {
+                let [h, m] = horarioReal.split(':').map(Number);
+                proximaTroca = `${((h + 12) % 24).toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+            }
+
+            let selectMot = `<select id="mot_${domId}" class="input-moderno" data-original="${esc.nome || ''}" onchange="verificarMudancaMotorista('${domId}')">`;
+            if (esc.nome) selectMot += `<option value="${esc.nome}" selected>${esc.nome} (Escala)</option>`;
+            else selectMot += `<option value="">-- Parado --</option>`;
+            
+            mLista.forEach(m => { 
+                if(m.nome !== esc.nome) selectMot += `<option value="${m.nome}" ${m.nome === motoristaAtual ? 'selected' : ''}>${m.nome}</option>`; 
+            });
+            selectMot += `</select>`;
+
+            let selectLocal = `<select id="local_${domId}" class="input-moderno"><option value="">Selecione...</option>`;
+            window.locaisTrocaCache.forEach(l => {
+                selectLocal += `<option value="${l.id}" ${reg.local_troca_id === l.id ? 'selected' : ''}>${l.nome}</option>`;
+            });
+            selectLocal += `</select>`;
+
+            // Zebrar as linhas para não ficar confuso
+            let bgStyle = (indiceGlobal % 2 === 0) ? 'background: rgba(0,0,0,0.2); border-bottom: 2px solid rgba(59, 130, 246, 0.3);' : 'border-bottom: 1px solid rgba(255,255,255,0.05);';
+            let badgeClass = esc.turno !== 'Sem Escala' ? `<span class="badge-turno"><i class="far fa-clock"></i> ${esc.turno}</span>` : `<span style="color:#ef4444; font-size:0.8rem; font-weight:bold;">PARADO</span>`;
+
+            html += `
+                <tr style="${bgStyle}">
+                    <td style="font-weight: bold; color: var(--ccol-blue-bright);">
+                        TRINCA ${String(conjId).padStart(2,'0')} 
+                        <br><span class="badge-go" style="margin-top:4px;">GO ${go}</span>
+                    </td>
+                    <td style="font-weight: bold; color: #fff; font-size:1.1rem;">${placaNorm}</td>
+                    <td style="text-align: center;">${badgeClass}</td>
+                    <td>${selectMot}</td>
+                    <td>${selectLocal}</td>
+                    <td><input type="time" id="hora_${domId}" class="input-moderno" value="${horarioReal}" onchange="calcularProximaTroca('${domId}')"></td>
+                    <td style="text-align: center;"><span id="prox_${domId}" class="hora-estimada">${proximaTroca}</span></td>
+                    <td>
+                        <input type="text" id="obs_${domId}" class="input-moderno" placeholder="Requer alteração..." value="${obsReal}" readonly 
+                        style="cursor: not-allowed; background-color: rgba(0,0,0,0.5) !important; color: #94a3b8 !important;" 
+                        title="Só é possível alterar a observação ao alterar o motorista escalado.">
+                    </td>
+                    <td><button class="btn-primary-green" onclick="salvarTroca('${domId}', '${placaNorm}', '${esc.turno}')" style="width:100%; padding:8px;"><i class="fas fa-save"></i> Salvar</button></td>
+                </tr>
+            `;
+        });
+        
         tbody.innerHTML = html;
+        
     } catch (e) {
         console.error("Erro na varredura", e);
         tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 20px; color:#ef4444;">Erro ao cruzar os dados. Veja o console.</td></tr>`;
