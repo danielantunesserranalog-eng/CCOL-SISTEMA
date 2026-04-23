@@ -85,12 +85,10 @@ async function processarImportacaoDM(event) {
     reader.readAsArrayBuffer(file);
 }
 
-// ADICIONADO: O parâmetro filtroPeriodo para respeitar a escolha na tela
 window.renderizarGraficoDMOperacional = async function(filtroPeriodo = '30') {
     const divGrafico = document.getElementById('graficoDmOperacional');
     if (!divGrafico || divGrafico.offsetWidth === 0) return;
 
-    // LÓGICA DE FILTRO DE DATAS
     const hoje = new Date();
     let dataStrCorte = '';
 
@@ -108,7 +106,6 @@ window.renderizarGraficoDMOperacional = async function(filtroPeriodo = '30') {
     }
 
     try {
-        // FILTRO NO BANCO: Puxa apenas registros maiores ou iguais à data de corte
         const { data, error } = await supabaseClient
             .from('dm_operacional')
             .select('*')
@@ -126,7 +123,7 @@ window.renderizarGraficoDMOperacional = async function(filtroPeriodo = '30') {
         }
 
         if (!data || data.length === 0) {
-            divGrafico.innerHTML = `<div style="color:#94a3b8; display:flex; justify-content:center; align-items:center; height:100%; border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px; text-align:center; padding: 20px;">📂 Nenhum dado operacional encontrado neste período (${filtroPeriodo === 'mes_atual' ? 'Mês Atual' : filtroPeriodo + ' dias'}).<br>Importe a planilha Excel nas configurações.</div>`;
+            divGrafico.innerHTML = `<div style="color:#94a3b8; display:flex; justify-content:center; align-items:center; height:100%; border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px; text-align:center; padding: 20px;">📂 Nenhum dado operacional encontrado neste período.</div>`;
             return;
         }
 
@@ -219,16 +216,14 @@ window.renderizarGraficoDMOperacional = async function(filtroPeriodo = '30') {
         };
 
         chart.setOption(option);
-        
         window.removeEventListener('resize', chart.resize); 
         window.addEventListener('resize', () => chart.resize());
-
     } catch (err) {
         console.error("Erro interno do gráfico", err);
     }
 }
 
-// ==================== NOVAS FUNÇÕES: DM INDIVIDUAL POR FROTA ====================
+// ==================== DM INDIVIDUAL POR FROTA ====================
 
 window.popularSelectPlacasDMInd = function() {
     const select = document.getElementById('filtroPlacaDMInd');
@@ -237,7 +232,6 @@ window.popularSelectPlacasDMInd = function() {
     const currentVal = select.value;
     let pOptions = '<option value="">Selecione um Veículo...</option>';
     
-    // Tenta usar frotasManutencao global, ou ordensServico se for necessário
     if (typeof frotasManutencao !== 'undefined' && frotasManutencao.length > 0) {
         const placas = [...new Set(frotasManutencao.map(f => f.cavalo))].filter(Boolean).sort();
         placas.forEach(p => {
@@ -260,44 +254,38 @@ window.renderizarDMIndividual = function() {
     const dataFimStr = document.getElementById('filtroDataFimDMInd').value;
     const divGrafico = document.getElementById('graficoDmIndividual');
 
-    if (!placa || !dataInicioStr || !dataFimStr || !divGrafico) {
-        return;
-    }
+    if (!placa || !dataInicioStr || !dataFimStr || !divGrafico) return;
 
     const dataInicio = new Date(dataInicioStr + 'T00:00:00');
     const dataFim = new Date(dataFimStr + 'T23:59:59');
+    const hoje = new Date();
 
     if (dataInicio > dataFim) {
         alert("A data de início deve ser menor ou igual à data de fim.");
         return;
     }
 
-    if (typeof ordensServico === 'undefined') {
-        divGrafico.innerHTML = `<div style="color:#ef4444; display:flex; justify-content:center; align-items:center; height:100%;">Ordens de Serviço não carregadas.</div>`;
-        return;
-    }
-
     const diasArray = [];
     const dmArray = [];
-    const hoje = new Date();
     
     let atual = new Date(dataInicio);
     while (atual <= dataFim) {
-        // Não renderiza DM de dias futuros
-        if (atual > hoje && atual.getDate() !== hoje.getDate()) {
-            break;
-        }
+        if (atual > hoje && atual.toDateString() !== hoje.toDateString()) break;
 
-        const ano = atual.getFullYear();
-        const mes = atual.getMonth();
-        const dia = atual.getDate();
-        
-        const diaInicio = new Date(ano, mes, dia, 0, 0, 0, 0);
-        const diaFim = new Date(ano, mes, dia, 23, 59, 59, 999);
+        const diaInicio = new Date(atual.getFullYear(), atual.getMonth(), atual.getDate(), 0, 0, 0, 0);
+        const diaFim = new Date(atual.getFullYear(), atual.getMonth(), atual.getDate(), 23, 59, 59, 999);
         
         let msTotalDia = 24 * 60 * 60 * 1000;
-        let msManutencao = 0;
+        let fimParaCalculo = diaFim;
 
+        // AJUSTE PARA O DIA ATUAL: O denominador deve ser o tempo decorrido hoje
+        const ehHoje = atual.toDateString() === hoje.toDateString();
+        if (ehHoje) {
+            msTotalDia = hoje - diaInicio;
+            fimParaCalculo = hoje;
+        }
+
+        let msManutencao = 0;
         const osDoVeiculo = ordensServico.filter(o => o.placa === placa && o.status !== 'Agendada');
         
         osDoVeiculo.forEach(os => {
@@ -314,7 +302,7 @@ window.renderizarDMIndividual = function() {
             }
 
             const overlapInicio = osInicio > diaInicio ? osInicio : diaInicio;
-            const overlapFim = osFimObj < diaFim ? osFimObj : diaFim;
+            const overlapFim = osFimObj < fimParaCalculo ? osFimObj : fimParaCalculo;
 
             if (overlapInicio < overlapFim) {
                 msManutencao += (overlapFim - overlapInicio);
@@ -323,9 +311,10 @@ window.renderizarDMIndividual = function() {
 
         if (msManutencao > msTotalDia) msManutencao = msTotalDia;
         
-        const dmDia = ((msTotalDia - msManutencao) / msTotalDia) * 100;
+        // Se msTotalDia for zero (ex: carregou exatamente meia noite), evita NaN
+        const dmDia = msTotalDia > 0 ? ((msTotalDia - msManutencao) / msTotalDia) * 100 : 0;
         
-        const labelDia = `${String(dia).padStart(2, '0')}/${String(mes + 1).padStart(2, '0')}`;
+        const labelDia = `${String(atual.getDate()).padStart(2, '0')}/${String(atual.getMonth() + 1).padStart(2, '0')}`;
         diasArray.push(labelDia);
         dmArray.push(dmDia.toFixed(1));
         
@@ -369,11 +358,7 @@ window.renderizarDMIndividual = function() {
             symbol: 'circle',
             symbolSize: 8,
             label: {
-                show: true,
-                position: 'top',
-                color: '#ffffff',
-                fontWeight: 'bold',
-                formatter: '{c}%'
+                show: true, position: 'top', color: '#ffffff', fontWeight: 'bold', formatter: '{c}%'
             },
             itemStyle: { color: '#a855f7' },
             lineStyle: { width: 3, color: '#a855f7' },
@@ -391,37 +376,50 @@ window.renderizarDMIndividual = function() {
     window.addEventListener('resize', () => chart.resize());
 };
 
-// ==================== INICIALIZAÇÃO DE INTERVALOS ====================
+// NOVA FUNÇÃO: EXPORTAR DM INDIVIDUAL EXCEL
+window.exportarDMIndividualExcel = function() {
+    const placa = document.getElementById('filtroPlacaDMInd').value;
+    if (!placa) {
+        alert("Selecione um veículo primeiro.");
+        return;
+    }
+
+    const chart = echarts.getInstanceByDom(document.getElementById('graficoDmIndividual'));
+    if (!chart) return;
+
+    const option = chart.getOption();
+    const datas = option.xAxis[0].data;
+    const valores = option.series[0].data;
+
+    const rows = [["Data", "Placa", "Disponibilidade Mecânica (%)"]];
+    datas.forEach((d, i) => {
+        rows.push([d, placa, valores[i]]);
+    });
+
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "DM Individual");
+    XLSX.writeFile(workbook, `DM_Individual_${placa}_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`);
+};
+
+// INICIALIZAÇÃO
 setInterval(() => {
-    // DM Operacional Importada
     const divGrafico = document.getElementById('graficoDmOperacional');
     if (divGrafico && divGrafico.offsetWidth > 0 && !divGrafico.getAttribute('data-rendered')) {
         divGrafico.setAttribute('data-rendered', 'true');
-        const selectFiltro = document.getElementById('filtroPeriodoDM');
-        const filtroVal = selectFiltro ? selectFiltro.value : '30';
-        window.renderizarGraficoDMOperacional(filtroVal);
+        window.renderizarGraficoDMOperacional(document.getElementById('filtroPeriodoDM')?.value || '30');
     }
 
-    // Inicialização da DM Individual (Preencher Select e Datas Padrão)
     const selectPlaca = document.getElementById('filtroPlacaDMInd');
     if (selectPlaca && !selectPlaca.getAttribute('data-populated')) {
         selectPlaca.setAttribute('data-populated', 'true');
-        
-        if(typeof window.popularSelectPlacasDMInd === 'function') {
-            window.popularSelectPlacasDMInd();
-        }
-        
-        // Define intervalo padrão de exibição (Últimos 7 dias até hoje)
+        window.popularSelectPlacasDMInd();
         const inputInicio = document.getElementById('filtroDataInicioDMInd');
         const inputFim = document.getElementById('filtroDataFimDMInd');
-        
-        if(inputInicio && inputFim && !inputInicio.value) {
+        if(inputInicio && !inputInicio.value) {
             const hoje = new Date();
-            const seteDiasAtras = new Date(hoje.getTime() - (7 * 24 * 60 * 60 * 1000));
-            
-            // Corrige problema de fuso horário definindo D-7
             inputFim.value = hoje.toISOString().split('T')[0];
-            inputInicio.value = seteDiasAtras.toISOString().split('T')[0];
+            inputInicio.value = new Date(hoje.getTime() - (7 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
         }
     }
 }, 1000);
