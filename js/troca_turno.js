@@ -6,7 +6,14 @@ window.mapaIndicadores = null;
 window.layerGrupoBolas = null;
 
 window.renderizarTrocaTurno = async function() {
-    document.getElementById('dataFiltroTroca').value = new Date().toISOString().split('T')[0];
+    // CORREÇÃO DO FUSO HORÁRIO: Garante a data local do Brasil, ignorando o UTC
+    const agora = new Date();
+    const ano = agora.getFullYear();
+    const mes = String(agora.getMonth() + 1).padStart(2, '0');
+    const dia = String(agora.getDate()).padStart(2, '0');
+    
+    document.getElementById('dataFiltroTroca').value = `${ano}-${mes}-${dia}`;
+    
     await window.carregarLocaisTroca();
     await window.carregarTrocasDoDia();
 }
@@ -360,9 +367,14 @@ window.carregarIndicadoresTroca = async function() {
         let query = window.supabaseClient.from('registro_troca_turno').select('local_troca_id, data_referencia');
 
         if (tempoFiltro !== 'all') {
+            // CORREÇÃO DO FUSO HORÁRIO AQUI TAMBÉM:
             const dataPassada = new Date();
             dataPassada.setDate(dataPassada.getDate() - parseInt(tempoFiltro));
-            const dataFormatada = dataPassada.toISOString().split('T')[0];
+            const ano = dataPassada.getFullYear();
+            const mes = String(dataPassada.getMonth() + 1).padStart(2, '0');
+            const dia = String(dataPassada.getDate()).padStart(2, '0');
+            const dataFormatada = `${ano}-${mes}-${dia}`;
+            
             query = query.gte('data_referencia', dataFormatada);
         }
 
