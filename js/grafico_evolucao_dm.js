@@ -1,30 +1,57 @@
-window.renderizarGraficoEvolucaoDM = function(dataFiltro) {
+// =================================================================
+// FUNÇÕES DO FILTRO GLOBAL (Movidas para cá para evitar erro no index.html)
+// =================================================================
+window.getDatasFiltroGlobal = function() {
+    const selectFiltro = document.getElementById('filtroGlobalPeriodo');
+    const filtro = selectFiltro ? selectFiltro.value : 'mes_atual';
+    const hoje = new Date();
+    let inicio = new Date(hoje);
+    inicio.setHours(0,0,0,0);
+    hoje.setHours(23,59,59,999);
+
+    if (filtro === 'dia_atual') {
+        // inicio já é hoje às 00:00
+    } else if (filtro === 'semana_atual') {
+        inicio.setDate(inicio.getDate() - inicio.getDay());
+    } else if (filtro === 'mes_atual') {
+        inicio.setDate(1);
+    } else {
+        let d = parseInt(filtro) || 30;
+        inicio.setDate(inicio.getDate() - d + 1);
+    }
+    return { inicio: inicio, fim: hoje, valorBruto: filtro };
+};
+
+window.dispararFiltrosGlobais = function() {
+    if(typeof renderizarGraficoEvolucaoDM === 'function') renderizarGraficoEvolucaoDM();
+    if(typeof renderizarGraficoEvolucaoDMDiaria === 'function') renderizarGraficoEvolucaoDMDiaria();
+    
+    if(typeof renderizarGraficoDMOperacional === 'function') renderizarGraficoDMOperacional();
+    if(typeof renderizarDMIndividual === 'function') renderizarDMIndividual();
+    
+    // Sincroniza o valor do filtro oculto para a Tabela não quebrar e renderiza
+    const hiddenFiltroTabela = document.getElementById('filtroPeriodoDM');
+    if(hiddenFiltroTabela) {
+        let val = document.getElementById('filtroGlobalPeriodo').value;
+        if(val === 'dia_atual') val = '1';
+        else if(val === 'semana_atual') val = '7'; 
+        hiddenFiltroTabela.value = val;
+        if(typeof renderizarRelatorioDM === 'function') renderizarRelatorioDM();
+    }
+};
+
+// =================================================================
+// GRÁFICO 1: EVOLUÇÃO HORÁRIA (DIA ATUAL) E STATUS DA FROTA
+// =================================================================
+window.renderizarGraficoEvolucaoDM = function() {
     if (!frotasManutencao || frotasManutencao.length === 0) return;
     
     const agora = new Date();
     let dataBase = new Date(); 
     let ehHoje = true;
 
-    if (dataFiltro && dataFiltro !== 'mes_atual' && dataFiltro.length > 5) {
-        const partesData = dataFiltro.split('-');
-        if(partesData.length === 3) {
-            dataBase = new Date(partesData[0], partesData[1] - 1, partesData[2]);
-            ehHoje = (dataBase.getDate() === agora.getDate() && 
-                      dataBase.getMonth() === agora.getMonth() && 
-                      dataBase.getFullYear() === agora.getFullYear());
-        }
-    } else {
-        const inputData = document.getElementById('filtroDataEvolucaoDM');
-        if (inputData && !inputData.value) {
-            const mesStr = String(agora.getMonth() + 1).padStart(2, '0');
-            const diaStr = String(agora.getDate()).padStart(2, '0');
-            inputData.value = `${agora.getFullYear()}-${mesStr}-${diaStr}`;
-        }
-    }
-
     const labelsX = [];
     const dadosLinhaDM = [];
-    
     const dadosBarraAtivos = [];
     const dadosBarraManut = [];
     const dadosBarraSOS = [];
@@ -156,7 +183,6 @@ window.renderizarGraficoEvolucaoDM = function(dataFiltro) {
     }
 
     if (typeof echarts === 'undefined') {
-        console.warn('ECharts não carregado.');
         return;
     }
 
@@ -192,7 +218,7 @@ window.renderizarGraficoEvolucaoDM = function(dataFiltro) {
                     position: 'top',
                     formatter: '{c}%',
                     color: '#e2e8f0',
-                    fontSize: 13, // FONTE AUMENTADA DE 11 PARA 13 AQUI
+                    fontSize: 13,
                     fontWeight: 'bold'
                 },
                 itemStyle: { color: '#3b82f6' },
@@ -271,14 +297,13 @@ window.renderizarGraficoEvolucaoDM = function(dataFiltro) {
     }
 };
 
-// =======================================================
-// GRÁFICO: EVOLUÇÃO DIÁRIA DM (MÉDIA DISPONÍVEL / TOTAL)
-// =======================================================
+// =================================================================
+// GRÁFICO 2: EVOLUÇÃO DIÁRIA DM (MÉDIA DISPONÍVEL / TOTAL)
+// =================================================================
 window.renderizarGraficoEvolucaoDMDiaria = function() {
     if (!frotasManutencao || frotasManutencao.length === 0) return;
 
-    const selectDias = document.getElementById('filtroDiasEvolucaoDMDiaria');
-    const filtroVal = selectDias ? selectDias.value : 'mes_atual';
+    const filtroVal = window.getDatasFiltroGlobal ? window.getDatasFiltroGlobal().valorBruto : 'mes_atual';
 
     const hoje = new Date();
     hoje.setHours(23, 59, 59, 999);
@@ -358,7 +383,6 @@ window.renderizarGraficoEvolucaoDMDiaria = function() {
             if (dispNoDiaMs < 0) dispNoDiaMs = 0;
 
             let percentDM = (dispNoDiaMs / totalMsDisponivelDia) * 100;
-            
             let mediaCavalosDisp = Math.round(dispNoDiaMs / msTotalDia);
 
             const diaStr = String(atual.getDate()).padStart(2, '0') + '/' + String(atual.getMonth() + 1).padStart(2, '0');
@@ -412,7 +436,7 @@ window.renderizarGraficoEvolucaoDMDiaria = function() {
                 data: dadosDMDiaria,
                 smooth: true,
                 symbol: 'circle',
-                symbolSize: 8, // Aumentado o tamanho da bolinha
+                symbolSize: 8,
                 label: {
                     show: true,
                     position: 'top',
@@ -420,10 +444,10 @@ window.renderizarGraficoEvolucaoDMDiaria = function() {
                         return `${params.data.disp}/${params.data.total}\n(${params.data.value}%)`;
                     },
                     color: '#ffffff',
-                    fontSize: 14, // FONTE AUMENTADA AQUI (ESTAVA 11)
+                    fontSize: 14,
                     fontWeight: '900',
                     align: 'center',
-                    lineHeight: 18, // ESPAÇAMENTO AUMENTADO PARA O TEXTO NÃO FICAR COLADO
+                    lineHeight: 18,
                     textBorderColor: 'rgba(0, 0, 0, 0.8)',
                     textBorderWidth: 3
                 },

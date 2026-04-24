@@ -5,6 +5,28 @@
     </div>
 </div>
 
+<div class="content-panel global-filter-bar" style="grid-column: 1 / -1; margin-bottom: 25px; border: 1px solid #3b82f6; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); border-radius: 12px; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);">
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <div style="background: rgba(59, 130, 246, 0.2); padding: 12px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+            <i class="fas fa-filter" style="color: #3b82f6; font-size: 1.5rem;"></i>
+        </div>
+        <div>
+            <h3 style="color: #fff; margin: 0; font-size: 1.2rem; font-weight: 700;">Filtro Global de Período</h3>
+            <span style="color: #94a3b8; font-size: 0.85rem;">Ao selecionar, toda a tela será atualizada automaticamente</span>
+        </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+        <select id="filtroGlobalPeriodo" class="dark-select" onchange="window.dispararFiltrosGlobais()" style="background: #1e293b; border: 1px solid #3b82f6; color: white; padding: 10px 20px; border-radius: 8px; font-size: 1.05rem; font-weight: 600; min-width: 220px; cursor: pointer; outline: none; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
+            <option value="dia_atual">Somente Dia Atual</option>
+            <option value="semana_atual">Semana Atual</option>
+            <option value="mes_atual" selected>Mês Atual</option>
+            <option value="7">Últimos 7 Dias</option>
+            <option value="15">Últimos 15 Dias</option>
+            <option value="30">Últimos 30 Dias</option>
+        </select>
+    </div>
+</div>
+
 <div class="quick-stats-header" style="justify-content: space-between; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px;">
     <div class="q-stat" style="flex: 1; text-align: center; min-width: 120px;">Total O.S. <br><span id="kpiTotalOS" style="font-size: 1.8rem; color: #fff;">0</span></div>
     <div class="q-stat" style="flex: 1; text-align: center; min-width: 120px; border-left: 3px solid #ef4444;">Abertas <br><span id="kpiAbertasOS" style="font-size: 1.8rem; color: #f87171;">0</span></div>
@@ -47,10 +69,9 @@
     <div class="panel-header" style="padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); flex-wrap: wrap; gap: 10px;">
         <h3 style="color: #3b82f6; margin: 0; display: flex; align-items: center; gap: 10px;">
             <span style="width: 8px; height: 8px; background: #3b82f6; border-radius: 50%;"></span>
-            📈 Evolução Horária da Disponibilidade Mecânica (DM)
+            📈 Evolução Horária da Disponibilidade Mecânica (Dia Atual)
         </h3>
         <div style="display: flex; gap: 10px; align-items: center;">
-            <input type="date" id="filtroDataEvolucaoDM" class="dark-select" onchange="renderizarGraficoEvolucaoDM(this.value)" style="background: #1e293b; border: 1px solid #334155; color: white; padding: 5px 12px; border-radius: 6px; height: 32px; font-size: 0.9rem;">
             <button class="btn-secondary-dark" onclick="exportarGraficoPNG('graficoEvolucaoDM', 'Evolucao_DM')" style="border-radius: 6px; background: #334155; padding: 5px 12px; font-size: 0.8rem; height: 32px;">📸 Exportar</button>
         </div>
     </div>
@@ -64,12 +85,6 @@
             📅 Evolução Diária da Disponibilidade Mecânica (Média DM/Dia)
         </h3>
         <div style="display: flex; gap: 10px; align-items: center;">
-            <select id="filtroDiasEvolucaoDMDiaria" class="dark-select" onchange="renderizarGraficoEvolucaoDMDiaria()" style="background: #1e293b; border: 1px solid #334155; color: white; padding: 5px 12px; border-radius: 6px; height: 32px; font-size: 0.9rem;">
-                <option value="dia_atual">Dia Atual</option>
-                <option value="semana_atual">Semana Atual</option>
-                <option value="mes_atual" selected>Mês Atual</option>
-                <option value="7">Últimos 7 Dias</option>
-            </select>
             <button class="btn-secondary-dark" onclick="exportarGraficoPNG('graficoEvolucaoDMDiaria', 'Evolucao_DM_Diaria')" style="border-radius: 6px; background: #334155; padding: 5px 12px; font-size: 0.8rem; height: 32px;">📸 Exportar</button>
         </div>
     </div>
@@ -155,9 +170,6 @@
             <select id="filtroPlacaDMInd" class="dark-select" style="background: #1e293b; border: 1px solid #334155; color: white; padding: 5px 12px; border-radius: 6px; height: 34px; font-size: 0.9rem;" onchange="renderizarDMIndividual()">
                 <option value="">Selecione um Veículo...</option>
             </select>
-            <input type="date" id="filtroDataInicioDMInd" class="dark-select" style="background: #1e293b; border: 1px solid #334155; color: white; padding: 5px 12px; border-radius: 6px; height: 34px; font-size: 0.9rem;" onchange="renderizarDMIndividual()">
-            <span style="color: #94a3b8;">até</span>
-            <input type="date" id="filtroDataFimDMInd" class="dark-select" style="background: #1e293b; border: 1px solid #334155; color: white; padding: 5px 12px; border-radius: 6px; height: 34px; font-size: 0.9rem;" onchange="renderizarDMIndividual()">
             <div style="display: flex; gap: 5px;">
                 <button class="btn-secondary-dark" onclick="exportarGraficoPNG('graficoDmIndividual', 'DM_Individual_Frota')" style="border-radius: 6px; background: #334155; padding: 6px 14px; font-size: 0.85rem; height: 34px; font-weight: 600;">📸 Exportar PNG</button>
                 <button class="btn-primary-green" onclick="exportarDMIndividualExcel()" style="border-radius: 6px; padding: 6px 14px; font-size: 0.85rem; height: 34px; font-weight: 600;">📥 Exportar Excel</button>
@@ -165,7 +177,7 @@
         </div>
     </div>
     <div style="width: 100%; height: 350px; padding: 20px;" id="graficoDmIndividual">
-        <div style="color:#94a3b8; display:flex; justify-content:center; align-items:center; height:100%; border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px; text-align:center;">Selecione um veículo e o período para visualizar a DM.</div>
+        <div style="color:#94a3b8; display:flex; justify-content:center; align-items:center; height:100%; border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px; text-align:center;">Selecione um veículo para visualizar a DM no período global.</div>
     </div>
 </div>
 
@@ -173,15 +185,7 @@
     <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px;">
         <h3 style="color: var(--ccol-green-bright); margin: 0;">📊 Disponibilidade Mecânica (DM) por Cavalo</h3>
         <div class="form-group-dark" style="margin: 0; display: flex; align-items: center; gap: 10px;">
-            <label style="color: var(--text-secondary); margin: 0;">Período Retroativo:</label>
-            <select id="filtroPeriodoDM" class="dark-select" onchange="renderizarRelatorioDM()" style="min-width: 150px;">
-                <option value="1">D-1 (Últimas 24h)</option>
-                <option value="2">D-2 (Últimas 48h)</option>
-                <option value="7">D-7 (Últimos 7 dias)</option>
-                <option value="30" selected>D-30 (Últimos 30 dias)</option>
-                 <option value="mes_atual">Somente Mês Atual</option> 
-            </select>
-            <button class="btn-primary-green" onclick="exportarRelatorioDMExcel()" style="padding: 6px 12px; font-size: 0.85rem;">📥 Exportar DM (Excel)</button>
+            <input type="hidden" id="filtroPeriodoDM" value="mes_atual"> <button class="btn-primary-green" onclick="exportarRelatorioDMExcel()" style="padding: 6px 12px; font-size: 0.85rem;">📥 Exportar Tabela Completa (Excel)</button>
         </div>
     </div>
     <div class="table-modern-wrapper">

@@ -70,10 +70,7 @@ async function processarImportacaoDM(event) {
             
             const chartDiv = document.getElementById('graficoDmOperacional');
             if (chartDiv) chartDiv.removeAttribute('data-rendered');
-            
-            const selectFiltro = document.getElementById('filtroPeriodoDM');
-            const filtroVal = selectFiltro ? selectFiltro.value : '30';
-            window.renderizarGraficoDMOperacional(filtroVal);
+            window.renderizarGraficoDMOperacional();
             
         } catch (error) {
             console.error("Erro na importação:", error);
@@ -85,9 +82,14 @@ async function processarImportacaoDM(event) {
     reader.readAsArrayBuffer(file);
 }
 
-window.renderizarGraficoDMOperacional = async function(filtroPeriodo = '30') {
+window.renderizarGraficoDMOperacional = async function() {
     const divGrafico = document.getElementById('graficoDmOperacional');
     if (!divGrafico || divGrafico.offsetWidth === 0) return;
+
+    let filtroPeriodo = 'mes_atual';
+    if (window.getDatasFiltroGlobal) {
+        filtroPeriodo = window.getDatasFiltroGlobal().valorBruto;
+    }
 
     const hoje = new Date();
     let dataStrCorte = '';
@@ -96,13 +98,16 @@ window.renderizarGraficoDMOperacional = async function(filtroPeriodo = '30') {
         const y = hoje.getFullYear();
         const m = String(hoje.getMonth() + 1).padStart(2, '0');
         dataStrCorte = `${y}-${m}-01`;
+    } else if (filtroPeriodo === 'semana_atual') {
+        const d = new Date(hoje);
+        d.setDate(d.getDate() - d.getDay());
+        dataStrCorte = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    } else if (filtroPeriodo === 'dia_atual') {
+        dataStrCorte = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
     } else {
         const dias = parseInt(filtroPeriodo) || 30;
         const dataPassada = new Date(hoje.getTime() - (dias * 24 * 60 * 60 * 1000));
-        const y = dataPassada.getFullYear();
-        const m = String(dataPassada.getMonth() + 1).padStart(2, '0');
-        const d = String(dataPassada.getDate()).padStart(2, '0');
-        dataStrCorte = `${y}-${m}-${d}`;
+        dataStrCorte = `${dataPassada.getFullYear()}-${String(dataPassada.getMonth() + 1).padStart(2, '0')}-${String(dataPassada.getDate()).padStart(2, '0')}`;
     }
 
     try {
@@ -250,18 +255,25 @@ window.popularSelectPlacasDMInd = function() {
 
 window.renderizarDMIndividual = function() {
     const placa = document.getElementById('filtroPlacaDMInd').value;
-    const dataInicioStr = document.getElementById('filtroDataInicioDMInd').value;
-    const dataFimStr = document.getElementById('filtroDataFimDMInd').value;
     const divGrafico = document.getElementById('graficoDmIndividual');
 
-    if (!placa || !dataInicioStr || !dataFimStr || !divGrafico) return;
+    if (!placa || !divGrafico) return;
 
-    const dataInicio = new Date(dataInicioStr + 'T00:00:00');
-    const dataFim = new Date(dataFimStr + 'T23:59:59');
+    let dataInicio, dataFim;
+    if (window.getDatasFiltroGlobal) {
+        const datas = window.getDatasFiltroGlobal();
+        dataInicio = datas.inicio;
+        dataFim = datas.fim;
+    } else {
+        dataFim = new Date();
+        dataInicio = new Date();
+        dataInicio.setDate(dataInicio.getDate() - 30);
+    }
+
     const hoje = new Date();
 
     if (dataInicio > dataFim) {
-        alert("A data de início deve ser menor ou igual à data de fim.");
+        alert("Erro nas datas do Filtro Global.");
         return;
     }
 
@@ -278,7 +290,6 @@ window.renderizarDMIndividual = function() {
         let msTotalDia = 24 * 60 * 60 * 1000;
         let fimParaCalculo = diaFim;
 
-        // AJUSTE PARA O DIA ATUAL: O denominador deve ser o tempo decorrido hoje
         const ehHoje = atual.toDateString() === hoje.toDateString();
         if (ehHoje) {
             msTotalDia = hoje - diaInicio;
@@ -311,7 +322,6 @@ window.renderizarDMIndividual = function() {
 
         if (msManutencao > msTotalDia) msManutencao = msTotalDia;
         
-        // Se msTotalDia for zero (ex: carregou exatamente meia noite), evita NaN
         const dmDia = msTotalDia > 0 ? ((msTotalDia - msManutencao) / msTotalDia) * 100 : 0;
         
         const labelDia = `${String(atual.getDate()).padStart(2, '0')}/${String(atual.getMonth() + 1).padStart(2, '0')}`;
@@ -376,7 +386,6 @@ window.renderizarDMIndividual = function() {
     window.addEventListener('resize', () => chart.resize());
 };
 
-// NOVA FUNÇÃO: EXPORTAR DM INDIVIDUAL EXCEL
 window.exportarDMIndividualExcel = function() {
     const placa = document.getElementById('filtroPlacaDMInd').value;
     if (!placa) {
@@ -402,24 +411,16 @@ window.exportarDMIndividualExcel = function() {
     XLSX.writeFile(workbook, `DM_Individual_${placa}_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`);
 };
 
-// INICIALIZAÇÃO
 setInterval(() => {
     const divGrafico = document.getElementById('graficoDmOperacional');
     if (divGrafico && divGrafico.offsetWidth > 0 && !divGrafico.getAttribute('data-rendered')) {
         divGrafico.setAttribute('data-rendered', 'true');
-        window.renderizarGraficoDMOperacional(document.getElementById('filtroPeriodoDM')?.value || '30');
+        window.renderizarGraficoDMOperacional();
     }
 
     const selectPlaca = document.getElementById('filtroPlacaDMInd');
     if (selectPlaca && !selectPlaca.getAttribute('data-populated')) {
         selectPlaca.setAttribute('data-populated', 'true');
         window.popularSelectPlacasDMInd();
-        const inputInicio = document.getElementById('filtroDataInicioDMInd');
-        const inputFim = document.getElementById('filtroDataFimDMInd');
-        if(inputInicio && !inputInicio.value) {
-            const hoje = new Date();
-            inputFim.value = hoje.toISOString().split('T')[0];
-            inputInicio.value = new Date(hoje.getTime() - (7 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
-        }
     }
 }, 1000);
