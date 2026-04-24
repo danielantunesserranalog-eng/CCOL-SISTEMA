@@ -1,5 +1,5 @@
 // =================================================================
-// FUNÇÕES DO FILTRO GLOBAL (Movidas para cá para evitar erro no index.html)
+// FUNÇÕES DO FILTRO GLOBAL 
 // =================================================================
 window.getDatasFiltroGlobal = function() {
     const selectFiltro = document.getElementById('filtroGlobalPeriodo');
@@ -24,12 +24,12 @@ window.getDatasFiltroGlobal = function() {
 
 window.dispararFiltrosGlobais = function() {
     if(typeof renderizarGraficoEvolucaoDM === 'function') renderizarGraficoEvolucaoDM();
+    if(typeof renderizarGraficoStatusFrotaHorario === 'function') renderizarGraficoStatusFrotaHorario();
     if(typeof renderizarGraficoEvolucaoDMDiaria === 'function') renderizarGraficoEvolucaoDMDiaria();
     
     if(typeof renderizarGraficoDMOperacional === 'function') renderizarGraficoDMOperacional();
     if(typeof renderizarDMIndividual === 'function') renderizarDMIndividual();
     
-    // Sincroniza o valor do filtro oculto para a Tabela não quebrar e renderiza
     const hiddenFiltroTabela = document.getElementById('filtroPeriodoDM');
     if(hiddenFiltroTabela) {
         let val = document.getElementById('filtroGlobalPeriodo').value;
@@ -41,7 +41,7 @@ window.dispararFiltrosGlobais = function() {
 };
 
 // =================================================================
-// GRÁFICO 1: EVOLUÇÃO HORÁRIA (DIA ATUAL) E STATUS DA FROTA
+// GRÁFICO 1: EVOLUÇÃO HORÁRIA DA DM (SEMPRE DIA ATUAL)
 // =================================================================
 window.renderizarGraficoEvolucaoDM = function() {
     if (!frotasManutencao || frotasManutencao.length === 0) return;
@@ -52,9 +52,6 @@ window.renderizarGraficoEvolucaoDM = function() {
 
     const labelsX = [];
     const dadosLinhaDM = [];
-    const dadosBarraAtivos = [];
-    const dadosBarraManut = [];
-    const dadosBarraSOS = [];
 
     const msPorHora = 60 * 60 * 1000;
     const totalFrota = frotasManutencao.length;
@@ -110,12 +107,8 @@ window.renderizarGraficoEvolucaoDM = function() {
                     const prioridadeOS = (os.prioridade || '').toUpperCase();
 
                     if (
-                        tipoOS.includes('S.O.S') || 
-                        tipoOS.includes('SOS') || 
-                        tipoOS.includes('SOCORRO') ||
-                        descOS.includes('S.O.S') || 
-                        descOS.includes('SOS') || 
-                        descOS.includes('SOCORRO') ||
+                        tipoOS.includes('S.O.S') || tipoOS.includes('SOS') || tipoOS.includes('SOCORRO') ||
+                        descOS.includes('S.O.S') || descOS.includes('SOS') || descOS.includes('SOCORRO') ||
                         prioridadeOS.includes('EMERGÊNCIA')
                     ) {
                         teveSOS = true;
@@ -146,10 +139,6 @@ window.renderizarGraficoEvolucaoDM = function() {
         let qtdAtivos = totalFrota - qtdEmManutencao - qtdEmSOS;
         if (qtdAtivos < 0) qtdAtivos = 0;
 
-        dadosBarraAtivos.push(qtdAtivos);
-        dadosBarraManut.push(qtdEmManutencao);
-        dadosBarraSOS.push(qtdEmSOS);
-
         somaDM += percentDM;
         somaAtivos += qtdAtivos;
         somaManut += qtdEmManutencao;
@@ -172,19 +161,9 @@ window.renderizarGraficoEvolucaoDM = function() {
         if(elAvgAtivos) elAvgAtivos.innerText = mediaAtivos;
         if(elAvgManut) elAvgManut.innerText = mediaManut;
         if(elAvgSOS) elAvgSOS.innerText = mediaSOS;
-
-        const elAvgAtivosInterno = document.getElementById('avgAtivosInterno');
-        const elAvgManutInterno = document.getElementById('avgManutInterno');
-        const elAvgSOSInterno = document.getElementById('avgSOSInterno');
-
-        if(elAvgAtivosInterno) elAvgAtivosInterno.innerText = mediaAtivos;
-        if(elAvgManutInterno) elAvgManutInterno.innerText = mediaManut;
-        if(elAvgSOSInterno) elAvgSOSInterno.innerText = mediaSOS;
     }
 
-    if (typeof echarts === 'undefined') {
-        return;
-    }
+    if (typeof echarts === 'undefined') return;
 
     const chartDomLinha = document.getElementById('graficoEvolucaoDM');
     if (chartDomLinha) {
@@ -214,12 +193,7 @@ window.renderizarGraficoEvolucaoDM = function() {
                 data: dadosLinhaDM,
                 smooth: true,
                 label: {
-                    show: true,
-                    position: 'top',
-                    formatter: '{c}%',
-                    color: '#e2e8f0',
-                    fontSize: 13,
-                    fontWeight: 'bold'
+                    show: true, position: 'top', formatter: '{c}%', color: '#e2e8f0', fontSize: 13, fontWeight: 'bold'
                 },
                 itemStyle: { color: '#3b82f6' },
                 lineStyle: { width: 4 },
@@ -235,6 +209,133 @@ window.renderizarGraficoEvolucaoDM = function() {
         myChartLinha.setOption(optionLinha);
         window.addEventListener('resize', () => myChartLinha.resize());
     }
+};
+
+// =================================================================
+// GRÁFICO 1.5: STATUS FROTA HORÁRIO (BARRAS - DATA ESPECÍFICA)
+// =================================================================
+window.renderizarGraficoStatusFrotaHorario = function() {
+    if (!frotasManutencao || frotasManutencao.length === 0) return;
+    
+    const agora = new Date();
+    let dataBase = new Date(); 
+    let ehHoje = true;
+
+    const inputData = document.getElementById('filtroDataEspecificaHoraria');
+    if (inputData && inputData.value) {
+        const partesData = inputData.value.split('-');
+        if(partesData.length === 3) {
+            dataBase = new Date(partesData[0], partesData[1] - 1, partesData[2]);
+            ehHoje = (dataBase.getDate() === agora.getDate() && 
+                      dataBase.getMonth() === agora.getMonth() && 
+                      dataBase.getFullYear() === agora.getFullYear());
+        }
+    } else if (inputData && !inputData.value) {
+        const mesStr = String(agora.getMonth() + 1).padStart(2, '0');
+        const diaStr = String(agora.getDate()).padStart(2, '0');
+        inputData.value = `${agora.getFullYear()}-${mesStr}-${diaStr}`;
+    }
+
+    const labelsX = [];
+    const dadosBarraAtivos = [];
+    const dadosBarraManut = [];
+    const dadosBarraSOS = [];
+
+    const msPorHora = 60 * 60 * 1000;
+    const totalFrota = frotasManutencao.length;
+
+    let horaLimite = 23;
+    if (ehHoje) {
+        horaLimite = agora.getHours();
+    }
+
+    let somaAtivos = 0;
+    let somaManut = 0;
+    let somaSOS = 0;
+    let contagemHoras = 0;
+
+    for (let i = 0; i <= horaLimite; i++) {
+        const inicioHora = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate(), i, 0, 0, 0);
+        const fimHora = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate(), i, 59, 59, 999);
+        
+        let qtdEmManutencao = 0;
+        let qtdEmSOS = 0;
+
+        frotasManutencao.forEach(frota => {
+            let teveManutencaoComum = false;
+            let teveSOS = false;
+
+            const todasOSCavalo = ordensServico.filter(o => o.placa === frota.cavalo);
+            
+            todasOSCavalo.forEach(os => {
+                let osInicioStr = os.data_abertura;
+                if (!osInicioStr) return;
+                if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
+                const osInicio = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
+                
+                let osFim = agora;
+                if (os.data_conclusao) {
+                    let osFimStr = os.data_conclusao;
+                    if (!osFimStr.includes('T')) osFimStr += 'T00:00:00';
+                    osFim = new Date(osFimStr.replace('Z', '').replace('+00:00', ''));
+                }
+
+                const overlapInicio = osInicio > inicioHora ? osInicio : inicioHora;
+                const overlapFim = osFim < fimHora ? osFim : fimHora;
+
+                if (overlapInicio < overlapFim && os.status !== 'Agendada') {
+                    const tipoOS = (os.tipo || os.tipo_manutencao || '').toUpperCase();
+                    const descOS = (os.descricao || '').toUpperCase();
+                    const prioridadeOS = (os.prioridade || '').toUpperCase();
+
+                    if (
+                        tipoOS.includes('S.O.S') || tipoOS.includes('SOS') || tipoOS.includes('SOCORRO') ||
+                        descOS.includes('S.O.S') || descOS.includes('SOS') || descOS.includes('SOCORRO') ||
+                        prioridadeOS.includes('EMERGÊNCIA')
+                    ) {
+                        teveSOS = true;
+                    } else {
+                        teveManutencaoComum = true;
+                    }
+                }
+            });
+
+            if (teveSOS) {
+                qtdEmSOS++;
+            } else if (teveManutencaoComum) {
+                qtdEmManutencao++;
+            }
+        });
+
+        let qtdAtivos = totalFrota - qtdEmManutencao - qtdEmSOS;
+        if (qtdAtivos < 0) qtdAtivos = 0;
+
+        labelsX.push(`${String(i).padStart(2,'0')}:00`);
+        dadosBarraAtivos.push(qtdAtivos);
+        dadosBarraManut.push(qtdEmManutencao);
+        dadosBarraSOS.push(qtdEmSOS);
+
+        somaAtivos += qtdAtivos;
+        somaManut += qtdEmManutencao;
+        somaSOS += qtdEmSOS;
+        contagemHoras++;
+    }
+
+    if (contagemHoras > 0) {
+        const mediaAtivos = Math.round(somaAtivos / contagemHoras);
+        const mediaManut = Math.round(somaManut / contagemHoras);
+        const mediaSOS = Math.round(somaSOS / contagemHoras);
+
+        const elAvgAtivosInterno = document.getElementById('avgAtivosInterno');
+        const elAvgManutInterno = document.getElementById('avgManutInterno');
+        const elAvgSOSInterno = document.getElementById('avgSOSInterno');
+
+        if(elAvgAtivosInterno) elAvgAtivosInterno.innerText = mediaAtivos;
+        if(elAvgManutInterno) elAvgManutInterno.innerText = mediaManut;
+        if(elAvgSOSInterno) elAvgSOSInterno.innerText = mediaSOS;
+    }
+
+    if (typeof echarts === 'undefined') return;
 
     const chartDomBarras = document.getElementById('graficoStatusFrotaHorario');
     if (chartDomBarras) {
@@ -474,6 +575,15 @@ setInterval(() => {
         chartDomDiaria.setAttribute('data-rendered', 'true');
         if (typeof window.renderizarGraficoEvolucaoDMDiaria === 'function') {
             window.renderizarGraficoEvolucaoDMDiaria();
+        }
+    }
+    
+    // Inicia o grafico de barras da data especifica tambem
+    const chartDomBarras = document.getElementById('graficoStatusFrotaHorario');
+    if (chartDomBarras && chartDomBarras.offsetWidth > 0 && !chartDomBarras.getAttribute('data-rendered')) {
+        chartDomBarras.setAttribute('data-rendered', 'true');
+        if (typeof window.renderizarGraficoStatusFrotaHorario === 'function') {
+            window.renderizarGraficoStatusFrotaHorario();
         }
     }
 }, 1000);
