@@ -31,9 +31,6 @@
         if(typeof renderizarGraficoStatusFrotaHorario === 'function') renderizarGraficoStatusFrotaHorario();
         if(typeof renderizarGraficoEvolucaoDMDiaria === 'function') renderizarGraficoEvolucaoDMDiaria();
         
-        if(typeof renderizarGraficoDMOperacional === 'function') {
-            renderizarGraficoDMOperacional();
-        }
         if(typeof renderizarDMIndividual === 'function') renderizarDMIndividual();
         
         const hiddenFiltroTabela = document.getElementById('filtroPeriodoDM');
@@ -194,17 +191,6 @@
     <div style="width: 100%; height: 350px; padding: 20px;" id="graficoStatusFrotaHorario"></div>
 </div>
 
-<div class="content-panel" style="grid-column: 1 / -1; margin-bottom: 20px; border: 1px solid #10b981;">
-    <div class="panel-header" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
-        <h3 style="color: #10b981; margin: 0;">🚚 DM Operacional (Carros Rodando / Frota Total) - Importado</h3>
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <button class="btn-secondary-dark" onclick="exportarGraficoPNG('graficoDmOperacional', 'DM_Operacional')" style="padding: 5px 12px; font-size: 0.8rem;">📸 Exportar PNG</button>
-            <img src="assets/logoverde.png" alt="Serrana Log" style="height: 32px; object-fit: contain; opacity: 0.9;">
-        </div>
-    </div>
-    <div style="width: 100%; height: 350px; margin-top: 15px;" id="graficoDmOperacional"></div>
-</div>
-
 <div class="content-panel" style="grid-column: 1 / -1; margin-bottom: 20px; border: 1px solid #a855f7; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); border-radius: 16px; overflow: hidden; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);">
     <div class="panel-header" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
         <h3 style="color: #a855f7; margin: 0; display: flex; align-items: center; gap: 10px;">
@@ -283,16 +269,5 @@
             <h3 style="color: #fde047;">⚠️ Alertas de Prioridade</h3>
         </div>
         <div style="padding: 15px;" id="graficoPrioridadeOS"></div>
-    </div>
-</div>
-
-<div class="content-panel form-panel-dark" style="grid-column: 1 / -1; margin-top: 20px; background: rgba(16, 185, 129, 0.1); border: 1px solid var(--ccol-green-bright);">
-    <div class="panel-header" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px;">
-        <h4 style="color: var(--ccol-green-bright); margin: 0;">📥 Importar DM Operacional (Excel)</h4>
-    </div>
-    <p style="color: #94a3b8; font-size: 0.85rem; margin-top: 15px; margin-bottom: 15px;">A planilha deve conter 3 colunas em ordem: <strong>Data (DD/MM/AAAA)</strong>, <strong>Carros Rodaram</strong>, e <strong>Total Frota</strong>. Isso alimentará o gráfico "DM Operacional" acima.</p>
-    <div style="max-width: 400px;">
-        <input type="file" id="uploadDMExcel" accept=".xlsx, .xls, .csv" style="display: none;" onchange="processarImportacaoDM(event)">
-        <button class="btn-primary-green btn-full" onclick="document.getElementById('uploadDMExcel').click()">📄 Selecionar Planilha e Importar</button>
     </div>
 </div>
