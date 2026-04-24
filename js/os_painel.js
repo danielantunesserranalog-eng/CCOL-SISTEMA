@@ -632,10 +632,9 @@ function atualizarRelogioTV() {
     elData.innerText = agora.toLocaleDateString('pt-BR', opcoesData).toUpperCase();
 }
 
-// ---------------- EXPORTAÇÃO DO HISTÓRICO COM TEMPO DE ABERTURA E TIPO ----------------
+// ---------------- EXPORTAÇÕES (EXCEL E PDF) ----------------
 
 function exportarHistoricoOSExcel() {
-    // Busca os filtros atuais preenchidos na tela
     const num = document.getElementById('filtroHistOSNum')?.value.toLowerCase();
     const placa = document.getElementById('filtroHistPlaca')?.value.toLowerCase();
     const motorista = document.getElementById('filtroHistMotorista')?.value.toLowerCase();
@@ -644,7 +643,6 @@ function exportarHistoricoOSExcel() {
 
     let filtradas = ordensServico;
 
-    // Aplica as filtragens na base
     if (num) filtradas = filtradas.filter(o => o.id.toString() === num);
     if (placa) filtradas = filtradas.filter(o => o.placa && o.placa.toLowerCase().includes(placa));
     if (motorista) filtradas = filtradas.filter(o => o.motorista && o.motorista.toLowerCase().includes(motorista));
@@ -664,18 +662,16 @@ function exportarHistoricoOSExcel() {
     }
 
     let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-    // Define as colunas do Excel, incluindo "Tipo de Serviço" e "Tempo Aberta"
     csvContent += "Nº O.S.;Placa (Cavalo);Motorista;Tipo de Serviço;Status;Prioridade;Data Abertura;Data Conclusão;Tempo Aberta (Horas/Minutos)\n";
 
     filtradas.forEach(os => {
         const inicioStr = formatarDataHoraBrasil(os.data_abertura);
         const conclusaoStr = os.data_conclusao ? formatarDataHoraBrasil(os.data_conclusao) : 'Em Aberto';
         
-        // --- Cálculo inteligente do tempo que a OS ficou aberta ---
         let tempoAbertaTexto = '-';
         if (os.data_abertura) {
             const inicio = new Date(os.data_abertura.replace('Z', '').replace('+00:00', ''));
-            let fim = new Date(); // Caso não concluída, mede até o exato momento atual da exportação
+            let fim = new Date(); 
             
             if (os.data_conclusao) {
                 fim = new Date(os.data_conclusao.replace('Z', '').replace('+00:00', ''));
@@ -685,7 +681,7 @@ function exportarHistoricoOSExcel() {
                 const diffMs = fim - inicio;
                 const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
                 const diffMin = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                tempoAbertaTexto = `${diffHrs}h ${diffMin}m`; // Ex: 12h 45m
+                tempoAbertaTexto = `${diffHrs}h ${diffMin}m`; 
             }
         }
 
@@ -711,4 +707,173 @@ function exportarHistoricoOSExcel() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+}
+
+// Carregador Dinâmico para as bibliotecas de PDF
+function loadScriptPDF(url) {
+    return new Promise((resolve, reject) => {
+        if (document.querySelector(`script[src="${url}"]`)) {
+            resolve();
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = url;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+}
+
+async function exportarHistoricoOSPDF() {
+    try {
+        // Carrega jsPDF e AutoTable dinamicamente
+        await loadScriptPDF('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+        await loadScriptPDF('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js');
+    } catch(e) {
+        alert("Não foi possível carregar as bibliotecas de exportação PDF. Verifique a conexão com a internet.");
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('landscape'); // Usando modo paisagem para caber a tabela com conforto
+
+    // Resgatar os mesmos filtros que estão na tela
+    const num = document.getElementById('filtroHistOSNum')?.value.toLowerCase();
+    const placa = document.getElementById('filtroHistPlaca')?.value.toLowerCase();
+    const motorista = document.getElementById('filtroHistMotorista')?.value.toLowerCase();
+    const dataStr = document.getElementById('filtroHistData')?.value;
+    const tipoFiltro = document.getElementById('filtroHistTipo')?.value.toLowerCase(); 
+
+    let filtradas = ordensServico;
+
+    if (num) filtradas = filtradas.filter(o => o.id.toString() === num);
+    if (placa) filtradas = filtradas.filter(o => o.placa && o.placa.toLowerCase().includes(placa));
+    if (motorista) filtradas = filtradas.filter(o => o.motorista && o.motorista.toLowerCase().includes(motorista));
+    if (dataStr) {
+        filtradas = filtradas.filter(o => {
+            if (!o.data_abertura) return false;
+            return o.data_abertura.startsWith(dataStr); 
+        });
+    }
+    if (tipoFiltro) {
+        filtradas = filtradas.filter(o => o.tipo && o.tipo.toLowerCase().includes(tipoFiltro));
+    }
+
+    if (filtradas.length === 0) {
+        alert("Não há dados para exportar com os filtros atuais.");
+        return;
+    }
+
+    let temposPorTipo = {};
+    let linhasTabela = [];
+
+    filtradas.forEach(os => {
+        const inicioStr = formatarDataHoraBrasil(os.data_abertura);
+        const conclusaoStr = os.data_conclusao ? formatarDataHoraBrasil(os.data_conclusao) : 'Em Aberto';
+        
+        let tempoAbertaTexto = '-';
+        let tempoMs = 0;
+        
+        if (os.data_abertura) {
+            const inicio = new Date(os.data_abertura.replace('Z', '').replace('+00:00', ''));
+            let fim = new Date(); 
+            
+            if (os.data_conclusao) {
+                fim = new Date(os.data_conclusao.replace('Z', '').replace('+00:00', ''));
+            }
+            
+            if (!isNaN(inicio) && !isNaN(fim) && fim >= inicio) {
+                tempoMs = fim - inicio;
+                const diffHrs = Math.floor(tempoMs / (1000 * 60 * 60));
+                const diffMin = Math.floor((tempoMs % (1000 * 60 * 60)) / (1000 * 60));
+                tempoAbertaTexto = `${diffHrs}h ${diffMin}m`; 
+            }
+        }
+
+        const tipoDesc = os.tipo || 'Não Informado';
+        
+        // Acumula os valores para gerar a média depois
+        if (!temposPorTipo[tipoDesc]) {
+            temposPorTipo[tipoDesc] = { count: 0, totalMs: 0 };
+        }
+        temposPorTipo[tipoDesc].count++;
+        temposPorTipo[tipoDesc].totalMs += tempoMs;
+
+        // O motorista NÃO é incluído no push, apenas os dados do Cavalo e O.S.
+        linhasTabela.push([
+            `#${os.id}`,
+            os.placa || '-',
+            tipoDesc,
+            os.status || '-',
+            inicioStr,
+            conclusaoStr,
+            tempoAbertaTexto
+        ]);
+    });
+
+    // Montar Tabela Resumo com a Média
+    let linhasResumo = [];
+    for (const [tipo, dados] of Object.entries(temposPorTipo)) {
+        if(dados.count > 0) {
+            const mediaMs = dados.totalMs / dados.count;
+            const mediaHrs = Math.floor(mediaMs / (1000 * 60 * 60));
+            const mediaMin = Math.floor((mediaMs % (1000 * 60 * 60)) / (1000 * 60));
+            linhasResumo.push([tipo, dados.count.toString(), `${mediaHrs}h ${mediaMin}m`]);
+        }
+    }
+
+    // Adicionando a Logo da Empresa (usa a imagem que você já tem no sistema)
+    const logoUrl = 'assets/logo.png'; 
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onerror = () => gerarDocumentoPDF(doc, null, linhasResumo, linhasTabela); 
+    img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const dataUrl = canvas.toDataURL('image/png');
+        gerarDocumentoPDF(doc, dataUrl, linhasResumo, linhasTabela);
+    };
+    img.src = logoUrl;
+}
+
+function gerarDocumentoPDF(doc, logoDataUrl, linhasResumo, linhasTabela) {
+    // Caso a logo seja carregada corretamente
+    if (logoDataUrl) {
+        doc.addImage(logoDataUrl, 'PNG', 14, 10, 45, 15);
+    }
+    
+    // Títulos e Cabeçalhos
+    doc.setFontSize(18);
+    doc.setTextColor(40);
+    doc.text("Relatório Histórico de Ordens de Serviço", 14, 35);
+    
+    doc.setFontSize(10);
+    doc.text(`Data de Emissão: ${new Date().toLocaleString('pt-BR')}`, 14, 42);
+
+    // Tabela 1: Resumo das Médias de Tempo por Tipo
+    doc.autoTable({
+        startY: 48,
+        head: [['Tipo de Serviço', 'Qtd. de O.S.', 'Média de Tempo Parada']],
+        body: linhasResumo,
+        theme: 'grid',
+        headStyles: { fillColor: [4, 120, 87] }, // Verde Escuro combinando com o sistema
+        margin: { top: 10 },
+        styles: { fontSize: 10 }
+    });
+
+    // Tabela 2: Listagem Completa de O.S. (Sem o Motorista)
+    doc.autoTable({
+        startY: doc.lastAutoTable.finalY + 15,
+        head: [['Nº O.S.', 'Cavalo', 'Tipo de Serviço', 'Status', 'Data Abertura', 'Data Conclusão', 'Tempo Total']],
+        body: linhasTabela,
+        theme: 'striped',
+        headStyles: { fillColor: [15, 23, 42] }, // Azul Escuro base do sistema
+        styles: { fontSize: 9 }
+    });
+
+    // Salvar o arquivo
+    doc.save(`Relatorio_Historico_OS_${new Date().toISOString().split('T')[0]}.pdf`);
 }
