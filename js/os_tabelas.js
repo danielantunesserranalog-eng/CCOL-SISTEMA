@@ -104,6 +104,7 @@ function renderizarTabelaHistoricoOS() {
     const placa = document.getElementById('filtroHistPlaca')?.value.toLowerCase();
     const motorista = document.getElementById('filtroHistMotorista')?.value.toLowerCase();
     const dataStr = document.getElementById('filtroHistData')?.value;
+    const tipo = document.getElementById('filtroHistTipo')?.value.toLowerCase();
 
     let filtradas = ordensServico;
 
@@ -116,6 +117,10 @@ function renderizarTabelaHistoricoOS() {
             if (!o.data_abertura) return false;
             return o.data_abertura.startsWith(dataStr); 
         });
+    }
+    
+    if (tipo) {
+        filtradas = filtradas.filter(o => o.tipo && o.tipo.toLowerCase().includes(tipo));
     }
 
     tbody.innerHTML = filtradas.map(os => {

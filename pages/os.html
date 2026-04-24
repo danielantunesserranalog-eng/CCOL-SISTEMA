@@ -85,6 +85,19 @@
             <label>Data de Abertura</label>
             <input type="date" id="filtroHistData" class="dark-select" onchange="renderizarTabelaHistoricoOS()">
         </div>
+        <div class="form-group-dark">
+            <label>Tipo de Serviço</label>
+            <select id="filtroHistTipo" class="dark-select" onchange="renderizarTabelaHistoricoOS()">
+                <option value="">Todos os Tipos</option>
+                <option value="Corretiva">Corretiva</option>
+                <option value="Preventiva">Preventiva</option>
+                <option value="Elétrica">Elétrica</option>
+                <option value="Lubrificação">Lubrificação / Filtros</option>
+                <option value="Borracharia">Borracharia (PNEU)</option>
+                <option value="S.O.S">S.O.S</option>
+                <option value="Sinistro">Sinistro</option>
+            </select>
+        </div>
     </div>
     <div class="table-modern-wrapper">
         <table class="data-table-modern">

@@ -631,3 +631,84 @@ function atualizarRelogioTV() {
     const opcoesData = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     elData.innerText = agora.toLocaleDateString('pt-BR', opcoesData).toUpperCase();
 }
+
+// ---------------- EXPORTAÇÃO DO HISTÓRICO COM TEMPO DE ABERTURA E TIPO ----------------
+
+function exportarHistoricoOSExcel() {
+    // Busca os filtros atuais preenchidos na tela
+    const num = document.getElementById('filtroHistOSNum')?.value.toLowerCase();
+    const placa = document.getElementById('filtroHistPlaca')?.value.toLowerCase();
+    const motorista = document.getElementById('filtroHistMotorista')?.value.toLowerCase();
+    const dataStr = document.getElementById('filtroHistData')?.value;
+    const tipo = document.getElementById('filtroHistTipo')?.value.toLowerCase(); 
+
+    let filtradas = ordensServico;
+
+    // Aplica as filtragens na base
+    if (num) filtradas = filtradas.filter(o => o.id.toString() === num);
+    if (placa) filtradas = filtradas.filter(o => o.placa && o.placa.toLowerCase().includes(placa));
+    if (motorista) filtradas = filtradas.filter(o => o.motorista && o.motorista.toLowerCase().includes(motorista));
+    if (dataStr) {
+        filtradas = filtradas.filter(o => {
+            if (!o.data_abertura) return false;
+            return o.data_abertura.startsWith(dataStr); 
+        });
+    }
+    if (tipo) {
+        filtradas = filtradas.filter(o => o.tipo && o.tipo.toLowerCase().includes(tipo));
+    }
+
+    if (filtradas.length === 0) {
+        alert("Não há dados para exportar com os filtros atuais.");
+        return;
+    }
+
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+    // Define as colunas do Excel, incluindo "Tipo de Serviço" e "Tempo Aberta"
+    csvContent += "Nº O.S.;Placa (Cavalo);Motorista;Tipo de Serviço;Status;Prioridade;Data Abertura;Data Conclusão;Tempo Aberta (Horas/Minutos)\n";
+
+    filtradas.forEach(os => {
+        const inicioStr = formatarDataHoraBrasil(os.data_abertura);
+        const conclusaoStr = os.data_conclusao ? formatarDataHoraBrasil(os.data_conclusao) : 'Em Aberto';
+        
+        // --- Cálculo inteligente do tempo que a OS ficou aberta ---
+        let tempoAbertaTexto = '-';
+        if (os.data_abertura) {
+            const inicio = new Date(os.data_abertura.replace('Z', '').replace('+00:00', ''));
+            let fim = new Date(); // Caso não concluída, mede até o exato momento atual da exportação
+            
+            if (os.data_conclusao) {
+                fim = new Date(os.data_conclusao.replace('Z', '').replace('+00:00', ''));
+            }
+            
+            if (!isNaN(inicio) && !isNaN(fim) && fim >= inicio) {
+                const diffMs = fim - inicio;
+                const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+                const diffMin = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                tempoAbertaTexto = `${diffHrs}h ${diffMin}m`; // Ex: 12h 45m
+            }
+        }
+
+        const linha = [
+            `"${os.id}"`,
+            `"${os.placa || '-'}"`,
+            `"${os.motorista || '-'}"`,
+            `"${os.tipo || '-'}"`,
+            `"${os.status || '-'}"`,
+            `"${os.prioridade || 'Normal'}"`,
+            `"${inicioStr}"`,
+            `"${conclusaoStr}"`,
+            `"${tempoAbertaTexto}"`
+        ].join(';');
+        
+        csvContent += linha + "\n";
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Historico_Completo_OS_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
