@@ -57,6 +57,25 @@
     <div style="width: 100%; height: 350px; padding: 20px;" id="graficoEvolucaoDM"></div>
 </div>
 
+<div class="content-panel" style="grid-column: 1 / -1; margin-bottom: 25px; border: 1px solid rgba(16, 185, 129, 0.3); background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(10px); border-radius: 16px; overflow: hidden;">
+    <div class="panel-header" style="padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); flex-wrap: wrap; gap: 10px;">
+        <h3 style="color: #10b981; margin: 0; display: flex; align-items: center; gap: 10px;">
+            <span style="width: 8px; height: 8px; background: #10b981; border-radius: 50%;"></span>
+            📅 Evolução Diária da Disponibilidade Mecânica (Média DM/Dia)
+        </h3>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <select id="filtroDiasEvolucaoDMDiaria" class="dark-select" onchange="renderizarGraficoEvolucaoDMDiaria()" style="background: #1e293b; border: 1px solid #334155; color: white; padding: 5px 12px; border-radius: 6px; height: 32px; font-size: 0.9rem;">
+                <option value="dia_atual">Dia Atual</option>
+                <option value="semana_atual">Semana Atual</option>
+                <option value="mes_atual" selected>Mês Atual</option>
+                <option value="7">Últimos 7 Dias</option>
+            </select>
+            <button class="btn-secondary-dark" onclick="exportarGraficoPNG('graficoEvolucaoDMDiaria', 'Evolucao_DM_Diaria')" style="border-radius: 6px; background: #334155; padding: 5px 12px; font-size: 0.8rem; height: 32px;">📸 Exportar</button>
+        </div>
+    </div>
+    <div style="width: 100%; height: 350px; padding: 20px;" id="graficoEvolucaoDMDiaria"></div>
+</div>
+
 <div class="content-panel" style="grid-column: 1 / -1; margin-bottom: 25px; border: 1px solid rgba(245, 158, 11, 0.5); background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); border-radius: 16px; overflow: hidden; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);">
     <div class="panel-header" style="padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(90deg, rgba(245, 158, 11, 0.1) 0%, rgba(15, 23, 42, 0) 100%); border-bottom: 1px solid rgba(255,255,255,0.05); flex-wrap: wrap; gap: 10px;">
         <div style="display: flex; align-items: center; gap: 15px;">
