@@ -62,26 +62,16 @@ window.renderizarGraficoEvolucaoDM = function() {
         horaLimite = agora.getHours();
     }
 
-    let somaDM = 0;
-    let somaAtivos = 0;
-    let somaManut = 0;
-    let somaSOS = 0;
-    let contagemHoras = 0;
-
+    // Parte 1: Calcular os pontos do gráfico de linha (hora a hora)
     for (let i = 0; i <= horaLimite; i++) {
         const inicioHora = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate(), i, 0, 0, 0);
         const fimHora = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate(), i, 59, 59, 999);
         
         let msManutencaoNestaHora = 0;
-        let qtdEmManutencao = 0;
-        let qtdEmSOS = 0;
 
         frotasManutencao.forEach(frota => {
             let manutencaoCavalo = 0;
-            let teveManutencaoComum = false;
-            let teveSOS = false;
-
-            const todasOSCavalo = ordensServico.filter(o => o.placa === frota.cavalo);
+            const todasOSCavalo = ordensServico.filter(o => o.placa === frota.cavalo && o.status !== 'Agendada');
             
             todasOSCavalo.forEach(os => {
                 let osInicioStr = os.data_abertura;
@@ -99,9 +89,59 @@ window.renderizarGraficoEvolucaoDM = function() {
                 const overlapInicio = osInicio > inicioHora ? osInicio : inicioHora;
                 const overlapFim = osFim < fimHora ? osFim : fimHora;
 
-                if (overlapInicio < overlapFim && os.status !== 'Agendada') {
+                if (overlapInicio < overlapFim) {
                     manutencaoCavalo += (overlapFim - overlapInicio);
-                    
+                }
+            });
+            
+            if (manutencaoCavalo > msPorHora) manutencaoCavalo = msPorHora;
+            msManutencaoNestaHora += manutencaoCavalo;
+        });
+
+        let dispNestaHora = totalMsDisponivelPorHora - msManutencaoNestaHora;
+        if(dispNestaHora < 0) dispNestaHora = 0;
+        
+        let percentDM = (dispNestaHora / totalMsDisponivelPorHora) * 100;
+        labelsX.push(`${String(i).padStart(2,'0')}:00`);
+        dadosLinhaDM.push(percentDM.toFixed(2));
+    }
+
+    // Parte 2: Calcular a Média exata do dia (em milissegundos) para os KPIs do topo
+    let msTotalDiaCalc = 24 * 60 * 60 * 1000;
+    let inicioDiaCalc = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate(), 0, 0, 0, 0);
+    let fimParaCalculoTotal = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate(), 23, 59, 59, 999);
+
+    if (ehHoje) {
+        msTotalDiaCalc = agora - inicioDiaCalc;
+        fimParaCalculoTotal = agora;
+    }
+
+    if (msTotalDiaCalc > 0) {
+        let msManutencaoComumDia = 0;
+        let msSOSDia = 0;
+
+        frotasManutencao.forEach(frota => {
+            let manutComumCavalo = 0;
+            let sosCavalo = 0;
+            const todasOSCavalo = ordensServico.filter(o => o.placa === frota.cavalo && o.status !== 'Agendada');
+            
+            todasOSCavalo.forEach(os => {
+                let osInicioStr = os.data_abertura;
+                if (!osInicioStr) return;
+                if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
+                const osInicio = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
+                
+                let osFim = agora; 
+                if (os.data_conclusao) {
+                    let osFimStr = os.data_conclusao;
+                    if (!osFimStr.includes('T')) osFimStr += 'T00:00:00';
+                    osFim = new Date(osFimStr.replace('Z', '').replace('+00:00', ''));
+                }
+
+                const overlapInicio = osInicio > inicioDiaCalc ? osInicio : inicioDiaCalc;
+                const overlapFim = osFim < fimParaCalculoTotal ? osFim : fimParaCalculoTotal;
+
+                if (overlapInicio < overlapFim) {
                     const tipoOS = (os.tipo || os.tipo_manutencao || '').toUpperCase();
                     const descOS = (os.descricao || '').toUpperCase();
                     const prioridadeOS = (os.prioridade || '').toUpperCase();
@@ -111,56 +151,42 @@ window.renderizarGraficoEvolucaoDM = function() {
                         descOS.includes('S.O.S') || descOS.includes('SOS') || descOS.includes('SOCORRO') ||
                         prioridadeOS.includes('EMERGÊNCIA')
                     ) {
-                        teveSOS = true;
+                        sosCavalo += (overlapFim - overlapInicio);
                     } else {
-                        teveManutencaoComum = true;
+                        manutComumCavalo += (overlapFim - overlapInicio);
                     }
                 }
             });
             
-            if (manutencaoCavalo > msPorHora) manutencaoCavalo = msPorHora;
-            msManutencaoNestaHora += manutencaoCavalo;
-
-            if (teveSOS) {
-                qtdEmSOS++;
-            } else if (teveManutencaoComum) {
-                qtdEmManutencao++;
+            if (manutComumCavalo + sosCavalo > msTotalDiaCalc) {
+                let proporcao = msTotalDiaCalc / (manutComumCavalo + sosCavalo);
+                manutComumCavalo *= proporcao;
+                sosCavalo *= proporcao;
             }
+
+            msManutencaoComumDia += manutComumCavalo;
+            msSOSDia += sosCavalo;
         });
 
-        let dispNestaHora = totalMsDisponivelPorHora - msManutencaoNestaHora;
-        if(dispNestaHora < 0) dispNestaHora = 0;
-        
-        let percentDM = (dispNestaHora / totalMsDisponivelPorHora) * 100;
-        
-        labelsX.push(`${String(i).padStart(2,'0')}:00`);
-        dadosLinhaDM.push(percentDM.toFixed(2));
+        const totalMsDisponivelDia = totalFrota * msTotalDiaCalc;
+        let msManutTotal = msManutencaoComumDia + msSOSDia;
+        let dispNoDiaMs = totalMsDisponivelDia - msManutTotal;
+        if (dispNoDiaMs < 0) dispNoDiaMs = 0;
 
-        let qtdAtivos = totalFrota - qtdEmManutencao - qtdEmSOS;
-        if (qtdAtivos < 0) qtdAtivos = 0;
-
-        somaDM += percentDM;
-        somaAtivos += qtdAtivos;
-        somaManut += qtdEmManutencao;
-        somaSOS += qtdEmSOS;
-        contagemHoras++;
-    }
-
-    if (contagemHoras > 0) {
-        const mediaDM = (somaDM / contagemHoras).toFixed(1) + '%';
-        const mediaAtivos = Math.round(somaAtivos / contagemHoras);
-        const mediaManut = Math.round(somaManut / contagemHoras);
-        const mediaSOS = Math.round(somaSOS / contagemHoras);
+        const mediaAtivosReal = Math.round(dispNoDiaMs / msTotalDiaCalc);
+        const mediaManutReal = Math.round(msManutencaoComumDia / msTotalDiaCalc);
+        const mediaSOSReal = Math.round(msSOSDia / msTotalDiaCalc);
+        const percentDMReal = (dispNoDiaMs / totalMsDisponivelDia) * 100;
 
         const elAvgDM = document.getElementById('avgDM');
         const elAvgAtivos = document.getElementById('avgAtivos');
         const elAvgManut = document.getElementById('avgManut');
         const elAvgSOS = document.getElementById('avgSOS');
         
-        if(elAvgDM) elAvgDM.innerText = mediaDM;
-        if(elAvgAtivos) elAvgAtivos.innerText = mediaAtivos;
-        if(elAvgManut) elAvgManut.innerText = mediaManut;
-        if(elAvgSOS) elAvgSOS.innerText = mediaSOS;
+        if(elAvgDM) elAvgDM.innerText = percentDMReal.toFixed(1) + '%';
+        if(elAvgAtivos) elAvgAtivos.innerText = mediaAtivosReal;
+        if(elAvgManut) elAvgManut.innerText = mediaManutReal;
+        if(elAvgSOS) elAvgSOS.innerText = mediaSOSReal;
     }
 
     if (typeof echarts === 'undefined') return;
@@ -241,19 +267,13 @@ window.renderizarGraficoStatusFrotaHorario = function() {
     const dadosBarraManut = [];
     const dadosBarraSOS = [];
 
-    const msPorHora = 60 * 60 * 1000;
     const totalFrota = frotasManutencao.length;
-
     let horaLimite = 23;
     if (ehHoje) {
         horaLimite = agora.getHours();
     }
 
-    let somaAtivos = 0;
-    let somaManut = 0;
-    let somaSOS = 0;
-    let contagemHoras = 0;
-
+    // Parte 1: Gráfico de barras (status discreto por hora)
     for (let i = 0; i <= horaLimite; i++) {
         const inicioHora = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate(), i, 0, 0, 0);
         const fimHora = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate(), i, 59, 59, 999);
@@ -314,25 +334,86 @@ window.renderizarGraficoStatusFrotaHorario = function() {
         dadosBarraAtivos.push(qtdAtivos);
         dadosBarraManut.push(qtdEmManutencao);
         dadosBarraSOS.push(qtdEmSOS);
-
-        somaAtivos += qtdAtivos;
-        somaManut += qtdEmManutencao;
-        somaSOS += qtdEmSOS;
-        contagemHoras++;
     }
 
-    if (contagemHoras > 0) {
-        const mediaAtivos = Math.round(somaAtivos / contagemHoras);
-        const mediaManut = Math.round(somaManut / contagemHoras);
-        const mediaSOS = Math.round(somaSOS / contagemHoras);
+    // Parte 2: Calcular a Média exata do dia selecionado (para os KPIs internos baterem com a evolução diária)
+    let msTotalDiaCalc = 24 * 60 * 60 * 1000;
+    let inicioDiaCalc = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate(), 0, 0, 0, 0);
+    let fimParaCalculoTotal = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate(), 23, 59, 59, 999);
+
+    if (ehHoje) {
+        msTotalDiaCalc = agora - inicioDiaCalc;
+        fimParaCalculoTotal = agora;
+    }
+
+    if (msTotalDiaCalc > 0) {
+        let msManutencaoComumDia = 0;
+        let msSOSDia = 0;
+
+        frotasManutencao.forEach(frota => {
+            let manutComumCavalo = 0;
+            let sosCavalo = 0;
+            const todasOSCavalo = ordensServico.filter(o => o.placa === frota.cavalo && o.status !== 'Agendada');
+            
+            todasOSCavalo.forEach(os => {
+                let osInicioStr = os.data_abertura;
+                if (!osInicioStr) return;
+                if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
+                const osInicio = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
+                
+                let osFim = agora; 
+                if (os.data_conclusao) {
+                    let osFimStr = os.data_conclusao;
+                    if (!osFimStr.includes('T')) osFimStr += 'T00:00:00';
+                    osFim = new Date(osFimStr.replace('Z', '').replace('+00:00', ''));
+                }
+
+                const overlapInicio = osInicio > inicioDiaCalc ? osInicio : inicioDiaCalc;
+                const overlapFim = osFim < fimParaCalculoTotal ? osFim : fimParaCalculoTotal;
+
+                if (overlapInicio < overlapFim) {
+                    const tipoOS = (os.tipo || os.tipo_manutencao || '').toUpperCase();
+                    const descOS = (os.descricao || '').toUpperCase();
+                    const prioridadeOS = (os.prioridade || '').toUpperCase();
+
+                    if (
+                        tipoOS.includes('S.O.S') || tipoOS.includes('SOS') || tipoOS.includes('SOCORRO') ||
+                        descOS.includes('S.O.S') || descOS.includes('SOS') || descOS.includes('SOCORRO') ||
+                        prioridadeOS.includes('EMERGÊNCIA')
+                    ) {
+                        sosCavalo += (overlapFim - overlapInicio);
+                    } else {
+                        manutComumCavalo += (overlapFim - overlapInicio);
+                    }
+                }
+            });
+            
+            if (manutComumCavalo + sosCavalo > msTotalDiaCalc) {
+                let proporcao = msTotalDiaCalc / (manutComumCavalo + sosCavalo);
+                manutComumCavalo *= proporcao;
+                sosCavalo *= proporcao;
+            }
+
+            msManutencaoComumDia += manutComumCavalo;
+            msSOSDia += sosCavalo;
+        });
+
+        const totalMsDisponivelDia = totalFrota * msTotalDiaCalc;
+        let msManutTotal = msManutencaoComumDia + msSOSDia;
+        let dispNoDiaMs = totalMsDisponivelDia - msManutTotal;
+        if (dispNoDiaMs < 0) dispNoDiaMs = 0;
+
+        const mediaAtivosReal = Math.round(dispNoDiaMs / msTotalDiaCalc);
+        const mediaManutReal = Math.round(msManutencaoComumDia / msTotalDiaCalc);
+        const mediaSOSReal = Math.round(msSOSDia / msTotalDiaCalc);
 
         const elAvgAtivosInterno = document.getElementById('avgAtivosInterno');
         const elAvgManutInterno = document.getElementById('avgManutInterno');
         const elAvgSOSInterno = document.getElementById('avgSOSInterno');
 
-        if(elAvgAtivosInterno) elAvgAtivosInterno.innerText = mediaAtivos;
-        if(elAvgManutInterno) elAvgManutInterno.innerText = mediaManut;
-        if(elAvgSOSInterno) elAvgSOSInterno.innerText = mediaSOS;
+        if(elAvgAtivosInterno) elAvgAtivosInterno.innerText = mediaAtivosReal;
+        if(elAvgManutInterno) elAvgManutInterno.innerText = mediaManutReal;
+        if(elAvgSOSInterno) elAvgSOSInterno.innerText = mediaSOSReal;
     }
 
     if (typeof echarts === 'undefined') return;
