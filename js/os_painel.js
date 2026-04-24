@@ -1,9 +1,8 @@
 // ==================== js/os_painel.js ====================
-// Módulo de Painéis, Indicadores Gerenciais, Gráficos DM, Modo TV e Exportações
+// Módulo de Painéis, Indicadores Gerenciais, Gráficos DM, Modo TV e Exportação
 
 function renderizarRelatorioGerencialOS() {
     const osManutencao = ordensServico.filter(o => o.tipo !== 'Sinistro');
-
     if (osManutencao.length === 0) {
         if(document.getElementById('kpiTotalOS')) document.getElementById('kpiTotalOS').innerText = '0';
         if(document.getElementById('kpiAbertasOS')) document.getElementById('kpiAbertasOS').innerText = '0';
@@ -13,20 +12,18 @@ function renderizarRelatorioGerencialOS() {
         renderizarRelatorioDM();
         return;
     }
-
     const total = osManutencao.length;
     const abertas = osManutencao.filter(o => o.status === 'Aguardando Oficina' || o.status === 'Em Manutenção').length;
     const concluidas = osManutencao.filter(o => o.status === 'Concluída');
     const taxa = ((concluidas.length / total) * 100).toFixed(1);
-
+    
     if(document.getElementById('kpiTotalOS')) document.getElementById('kpiTotalOS').innerText = total;
     if(document.getElementById('kpiAbertasOS')) document.getElementById('kpiAbertasOS').innerText = abertas;
     if(document.getElementById('kpiConcluidasOS')) document.getElementById('kpiConcluidasOS').innerText = concluidas.length;
     if(document.getElementById('kpiTaxaOS')) document.getElementById('kpiTaxaOS').innerText = taxa + '%';
-
+    
     let tempoTotalMs = 0;
     let qtdValidas = 0;
-
     concluidas.forEach(o => {
         if (o.data_abertura && o.data_conclusao) {
             // CORREÇÃO DE FUSO MATEMÁTICA
@@ -39,7 +36,7 @@ function renderizarRelatorioGerencialOS() {
             }
         }
     });
-
+    
     let textoTempoMedio = '0h 0m';
     if (qtdValidas > 0) {
         const mediaMs = tempoTotalMs / qtdValidas;
@@ -50,7 +47,7 @@ function renderizarRelatorioGerencialOS() {
     
     const elTempoMedio = document.getElementById('kpiTempoMedioOS');
     if (elTempoMedio) elTempoMedio.innerText = textoTempoMedio;
-
+    
     const porCavalo = {};
     osManutencao.forEach(o => { porCavalo[o.placa] = (porCavalo[o.placa] || 0) + 1; });
     const topCavalos = Object.entries(porCavalo).sort((a, b) => b[1] - a[1]).slice(0, 5);
@@ -76,7 +73,7 @@ function renderizarRelatorioGerencialOS() {
     });
     const rankingEl = document.getElementById('rankingCavalosOS');
     if(rankingEl) rankingEl.innerHTML = htmlCavalos || '<p>Sem dados.</p>';
-
+    
     const porTipo = {};
     osManutencao.forEach(o => { porTipo[o.tipo] = (porTipo[o.tipo] || 0) + 1; });
     const listaTipos = Object.entries(porTipo).sort((a, b) => b[1] - a[1]);
@@ -93,7 +90,7 @@ function renderizarRelatorioGerencialOS() {
     htmlTipos += '</ul>';
     const tipoEl = document.getElementById('graficoTipoOS');
     if(tipoEl) tipoEl.innerHTML = htmlTipos;
-
+    
     const porPrioridade = { 'Urgente': 0, 'Alta': 0, 'Normal': 0, 'Baixa': 0 };
     osManutencao.forEach(o => { if(porPrioridade[o.prioridade] !== undefined) porPrioridade[o.prioridade]++; });
     
@@ -116,14 +113,14 @@ function renderizarRelatorioGerencialOS() {
     });
     const prioEl = document.getElementById('graficoPrioridadeOS');
     if(prioEl) prioEl.innerHTML = htmlPrio;
-
+    
     renderizarRelatorioDM();
 }
 
 function renderizarDisponibilidadeMecanica() {
     const tbody = document.getElementById('tabelaDisponibilidade');
     if (!tbody) return;
-
+    
     let totalCavalos = frotasManutencao.length;
     let manutencao = 0;
     let sinistrados = 0;
@@ -141,9 +138,9 @@ function renderizarDisponibilidadeMecanica() {
             tituloH4.innerHTML = `Histórico (Retrato do dia ${d.toLocaleDateString('pt-BR')})`;
         }
     }
-
+    
     let linhasHtml = [];
-
+    
     frotasManutencao.forEach(frota => {
         let status = 'Disponível';
         let osVinculada = null;
@@ -152,7 +149,7 @@ function renderizarDisponibilidadeMecanica() {
         let tempoParadoTexto = '-';
         
         let dataAlvoInicio, dataAlvoFim;
-
+        
         if (isTempoReal) {
             osVinculada = ordensServico.find(o => o.placa === frota.cavalo && o.status !== 'Concluída' && o.status !== 'Agendada');
             dataAlvoFim = new Date();
@@ -160,7 +157,7 @@ function renderizarDisponibilidadeMecanica() {
             const dataFiltroStr = filtroDataInput;
             const fimDoDiaFiltro = new Date(dataFiltroStr + 'T23:59:59');
             dataAlvoFim = fimDoDiaFiltro;
-
+            
             osVinculada = ordensServico.find(o => {
                 if (o.placa !== frota.cavalo) return false;
                 if (!o.data_abertura) return false;
@@ -168,21 +165,19 @@ function renderizarDisponibilidadeMecanica() {
                 let osInicioStr = o.data_abertura;
                 if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
                 const osInicio = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
-
+                
                 if (osInicio > fimDoDiaFiltro) return false;
                 if (o.status === 'Agendada' && o.data_conclusao === null) return false; 
-
                 if (o.status === 'Concluída' && o.data_conclusao) {
                     let osFimStr = o.data_conclusao;
                     if (!osFimStr.includes('T')) osFimStr += 'T00:00:00';
                     const osFim = new Date(osFimStr.replace('Z', '').replace('+00:00', ''));
                     if (osFim < fimDoDiaFiltro) return false;
                 }
-
                 return true; 
             });
         }
-
+        
         if (osVinculada) {
             let osInicioStr = osVinculada.data_abertura;
             if (osInicioStr) {
@@ -197,7 +192,7 @@ function renderizarDisponibilidadeMecanica() {
                     tempoParadoTexto = `${diffHrs}h ${diffMin}m`;
                 }
             }
-
+            
             if (osVinculada.tipo === 'Sinistro' || osVinculada.status === 'Sinistrado') {
                 status = 'Sinistrado';
                 sinistrados++;
@@ -210,17 +205,18 @@ function renderizarDisponibilidadeMecanica() {
         } else {
             disponiveis++;
         }
-
+        
         let bgRow = '';
-        let statusBadge = `<span style="color: var(--ccol-green-bright); font-weight: bold;">✅ Disponível</span>`;
+        let statusBadge = `<span style="color: var(--ccol-green-bright); font-weight: bold;">  Disponível</span>`;
+        
         if (status === 'Oficina') {
             bgRow = 'background: rgba(245, 158, 11, 0.05);';
-            statusBadge = `<span style="color: #f59e0b; font-weight: bold;">🔧 Em Oficina</span>`;
+            statusBadge = `<span style="color: #f59e0b; font-weight: bold;">  Em Oficina</span>`;
         } else if (status === 'Sinistrado') {
             bgRow = 'background: rgba(239, 68, 68, 0.05);';
-            statusBadge = `<span style="color: #ef4444; font-weight: bold;">🚨 Sinistrado</span>`;
+            statusBadge = `<span style="color: #ef4444; font-weight: bold;">  Sinistrado</span>`;
         }
-
+        
         linhasHtml.push({
             statusObj: status,
             html: `
@@ -238,20 +234,21 @@ function renderizarDisponibilidadeMecanica() {
             `
         });
     });
-
+    
     linhasHtml.sort((a, b) => {
         const order = { 'Sinistrado': 1, 'Oficina': 2, 'Disponível': 3 };
         return order[a.statusObj] - order[b.statusObj];
     });
-
+    
     tbody.innerHTML = linhasHtml.map(l => l.html).join('');
-
+    
     const dmCalc = totalCavalos > 0 ? ((disponiveis / totalCavalos) * 100).toFixed(1) : 0;
-
+    
     if (document.getElementById('kpiDispTotal')) document.getElementById('kpiDispTotal').innerText = totalCavalos;
     if (document.getElementById('kpiDispDisponiveis')) document.getElementById('kpiDispDisponiveis').innerText = disponiveis;
     if (document.getElementById('kpiDispManutencao')) document.getElementById('kpiDispManutencao').innerText = manutencao;
     if (document.getElementById('kpiDispSinistro')) document.getElementById('kpiDispSinistro').innerText = sinistrados;
+    
     if (document.getElementById('kpiDispTaxa')) {
         const pTaxa = document.getElementById('kpiDispTaxa');
         pTaxa.innerText = dmCalc + '%';
@@ -262,13 +259,13 @@ function renderizarDisponibilidadeMecanica() {
 function renderizarRelatorioDM() {
     const tbody = document.getElementById('tabelaRelatorioDM');
     if (!tbody) return;
-
+    
     const filtroValue = document.getElementById('filtroPeriodoDM')?.value || '30';
     const agora = new Date();
     let inicioPeriodo;
     let totalMsPeriodo;
     let diasParaGrafico;
-
+    
     if (filtroValue === 'mes_atual') {
         inicioPeriodo = new Date(agora.getFullYear(), agora.getMonth(), 1, 0, 0, 0);
         totalMsPeriodo = agora.getTime() - inicioPeriodo.getTime();
@@ -279,47 +276,46 @@ function renderizarRelatorioDM() {
         inicioPeriodo = new Date(agora.getTime() - totalMsPeriodo);
         diasParaGrafico = dias;
     }
-
+    
     const totalHorasPeriodo = (totalMsPeriodo / (1000 * 60 * 60)).toFixed(1);
+    
     let dmData = [];
-
+    
     frotasManutencao.forEach(frota => {
         let manutencaoMs = 0;
-        let statusAtual = `<span style="color: var(--ccol-green-bright); font-weight: bold;">✅ Disponível</span>`;
+        let statusAtual = `<span style="color: var(--ccol-green-bright); font-weight: bold;">  Disponível</span>`;
         
         const osAberta = ordensServico.find(o => o.placa === frota.cavalo && o.status !== 'Concluída');
-        if (osAberta) {
-             if (osAberta.tipo === 'Sinistro' || osAberta.status === 'Sinistrado') statusAtual = `<span style="color: #ef4444; font-weight: bold;">🚨 Sinistrado</span>`;
-             else if (osAberta.status === 'Agendada') statusAtual = `<span style="color: #8b5cf6; font-weight: bold;">📅 Agendado</span>`;
-             else statusAtual = `<span style="color: #f59e0b; font-weight: bold;">🔧 Em Oficina</span>`;
+        if (osAberta) { 
+            if (osAberta.tipo === 'Sinistro' || osAberta.status === 'Sinistrado') statusAtual = `<span style="color: #ef4444; font-weight: bold;">  Sinistrado</span>`; 
+            else if (osAberta.status === 'Agendada') statusAtual = `<span style="color: #8b5cf6; font-weight: bold;">  Agendado</span>`; 
+            else statusAtual = `<span style="color: #f59e0b; font-weight: bold;">  Em Oficina</span>`;
         }
-
+        
         const todasOSCavalo = ordensServico.filter(o => o.placa === frota.cavalo);
-
         todasOSCavalo.forEach(os => {
             let osInicioStr = os.data_abertura;
             if (!osInicioStr) return; 
-
             if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
             const osInicio = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
-            let osFim = agora; 
             
+            let osFim = agora;              
             if (os.data_conclusao) {
                 let osFimStr = os.data_conclusao;
                 if (!osFimStr.includes('T')) osFimStr += 'T00:00:00';
                 osFim = new Date(osFimStr.replace('Z', '').replace('+00:00', ''));
             }
-
+            
             const overlapInicio = osInicio > inicioPeriodo ? osInicio : inicioPeriodo;
             const overlapFim = osFim < agora ? osFim : agora;
-
+            
             if (overlapInicio < overlapFim && os.status !== 'Agendada') { 
                 manutencaoMs += (overlapFim - overlapInicio);
             }
         });
-
+        
         if (manutencaoMs > totalMsPeriodo) manutencaoMs = totalMsPeriodo;
-
+        
         const disponivelMs = totalMsPeriodo - manutencaoMs;
         const dmPercent = totalMsPeriodo > 0 ? ((disponivelMs / totalMsPeriodo) * 100).toFixed(2) : 100;
         
@@ -328,7 +324,7 @@ function renderizarRelatorioDM() {
         
         const horasDisp = Math.floor(disponivelMs / (1000 * 60 * 60));
         const minDisp = Math.floor((disponivelMs % (1000 * 60 * 60)) / (1000 * 60));
-
+        
         dmData.push({
             cavalo: frota.cavalo,
             totalHoras: `${totalHorasPeriodo}h`,
@@ -338,14 +334,14 @@ function renderizarRelatorioDM() {
             statusAtual
         });
     });
-
+    
     dmData.sort((a, b) => a.dm - b.dm);
-
+    
     tbody.innerHTML = dmData.map(item => {
         let colorDM = 'var(--ccol-green-bright)'; 
         if (item.dm < 90) colorDM = '#f59e0b'; 
         if (item.dm < 80) colorDM = '#ef4444'; 
-
+        
         return `
             <tr style="background: rgba(0,0,0,0.1);">
                 <td style="color: var(--ccol-blue-bright); font-weight: bold; font-size: 1.1rem;">${item.cavalo}</td>
@@ -379,10 +375,10 @@ function exportarDisponibilidadeExcel() {
         alert("Não há dados de disponibilidade para exportar.");
         return;
     }
-
+    
     let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
     csvContent += "Placa (Cavalo);GO;Status;OS Vinculada;Inicio Parada;Motivo / Diagnostico;Tempo Indisponivel\n";
-
+    
     const rows = tbody.querySelectorAll('tr');
     rows.forEach(row => {
         const cols = row.querySelectorAll('td');
@@ -390,7 +386,7 @@ function exportarDisponibilidadeExcel() {
             const linha = [
                 `"${cols[0].innerText}"`,
                 `"${cols[1].innerText}"`,
-                `"${cols[2].innerText.replace('✅ ', '').replace('🔧 ', '').replace('🚨 ', '')}"`,
+                `"${cols[2].innerText.replace('  ', '').replace('  ', '').replace('  ', '')}"`,
                 `"${cols[3].innerText}"`,
                 `"${cols[4].innerText}"`,
                 `"${cols[5].innerText}"`,
@@ -399,7 +395,7 @@ function exportarDisponibilidadeExcel() {
             csvContent += linha + "\n";
         }
     });
-
+    
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -418,10 +414,10 @@ function exportarRelatorioDMExcel() {
         alert("Não há dados de DM para exportar.");
         return;
     }
-
+    
     let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
     csvContent += "Placa Cavalo;Tempo Total Período;Tempo Manutenção;Tempo Disponível;Índice DM (%)\n";
-
+    
     window.dmDataAtualExport.forEach(item => {
         const linha = [
             item.cavalo,
@@ -432,7 +428,7 @@ function exportarRelatorioDMExcel() {
         ].join(';');
         csvContent += linha + "\n";
     });
-
+    
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -448,11 +444,10 @@ function exportarRelatorioDMExcel() {
 }
 
 // ---------------- FUNÇÕES DO PAINEL TV CORRIGIDAS ----------------
-
 function entrarModoTV() {
     const telaTV = document.getElementById('telaPainelTV');
     if (!telaTV) return;
-
+    
     // Em vez de dar display none no app inteiro, joga a TV em tela cheia por cima
     telaTV.style.display = 'block';
     telaTV.style.position = 'fixed';
@@ -466,14 +461,14 @@ function entrarModoTV() {
     if (document.documentElement.requestFullscreen) {
         document.documentElement.requestFullscreen().catch(err => console.warn("Fullscreen falhou:", err));
     }
-
+    
     atualizarRelogioTV();
     if (!window.tvClockInterval) {
         window.tvClockInterval = setInterval(atualizarRelogioTV, 1000);
     }
-
+    
     setTimeout(renderizarCardsTV, 100);
-
+    
     if (window.tvInterval) clearInterval(window.tvInterval);
     window.tvInterval = setInterval(() => {
         if(typeof carregarDadosOS === 'function') {
@@ -497,7 +492,6 @@ function sairModoTV() {
         clearInterval(window.tvClockInterval);
         window.tvClockInterval = null;
     }
-
     if (document.fullscreenElement) {
         document.exitFullscreen().catch(err => console.warn(err));
     }
@@ -506,22 +500,22 @@ function sairModoTV() {
 function renderizarCardsTV() {
     const container = document.getElementById('tvCardsContainer');
     if (!container) return;
-
+    
     const osAtivas = ordensServico.filter(o => 
         (o.status === 'Aguardando Oficina' || o.status === 'Em Manutenção') && 
         o.tipo !== 'Sinistro'
     );
-
+    
     if (osAtivas.length === 0) {
         container.innerHTML = `
             <div style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh;">
-                <h1 style="color: var(--ccol-green-bright); font-size: 4rem; margin: 0;">PÁTIO VAZIO ✅</h1>
+                <h1 style="color: var(--ccol-green-bright); font-size: 4rem; margin: 0;">PÁTIO VAZIO  </h1>
                 <p style="color: #94a3b8; font-size: 2rem;">Nenhum veículo aguardando manutenção.</p>
             </div>
         `;
         return;
     }
-
+    
     osAtivas.sort((a, b) => {
         const pesoPri = { 'Urgente': 4, 'Alta': 3, 'Normal': 2, 'Baixa': 1 };
         const pA = pesoPri[a.prioridade] || 0;
@@ -529,15 +523,15 @@ function renderizarCardsTV() {
         if (pA !== pB) return pB - pA;
         return new Date(a.data_abertura) - new Date(b.data_abertura);
     });
-
+    
     const agora = new Date();
-
+    
     container.innerHTML = osAtivas.map(os => {
         let corPrioridade = '#3b82f6'; 
         if (os.prioridade === 'Urgente') corPrioridade = '#ef4444';
         else if (os.prioridade === 'Alta') corPrioridade = '#f97316';
         else if (os.prioridade === 'Baixa') corPrioridade = '#10b981';
-
+        
         // CORREÇÃO DE FUSO PARA O PAINEL DE TV: O relógio e o Tempo de Pátio
         let diffHrs = 0;
         let diffMin = 0;
@@ -559,13 +553,13 @@ function renderizarCardsTV() {
         let alertaClass = '';
         if (diffHrs >= 24) { colorCronometro = '#ef4444'; alertaClass = 'piscar-alerta'; } 
         else if (diffHrs >= 12) { colorCronometro = '#f59e0b'; }
-
+        
         const frotaVinculada = frotasManutencao.find(f => f.cavalo === os.placa) || {};
         const conjuntosBadge = [frotaVinculada.carreta1, frotaVinculada.carreta2, frotaVinculada.carreta3]
             .filter(Boolean)
             .map(c => `<span style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.2); margin-right: 5px;">${c}</span>`)
             .join('');
-
+            
         let avisoPrevisao = '';
         let campoPrevisao = os.previsao_entrega || os.previsao;
         
@@ -573,16 +567,16 @@ function renderizarCardsTV() {
             // CORREÇÃO DE FUSO PARA A PREVISÃO NA TV
             const dataPrevisao = new Date(campoPrevisao.replace('Z', '').replace('+00:00', ''));
             if (agora > dataPrevisao) {
-                avisoPrevisao = `<div style="background: #7f1d1d; color: #fca5a5; padding: 5px; text-align: center; font-weight: bold; border-radius: 4px; margin-top: 10px; font-size: 0.9rem;">⚠️ PREVISÃO VENCIDA</div>`;
+                avisoPrevisao = `<div style="background: #7f1d1d; color: #fca5a5; padding: 5px; text-align: center; font-weight: bold; border-radius: 4px; margin-top: 10px; font-size: 0.9rem;">  PREVISÃO VENCIDA</div>`;
             } else {
                 avisoPrevisao = `<div style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; padding: 5px; text-align: center; border: 1px solid #8b5cf6; border-radius: 4px; margin-top: 10px; font-size: 0.9rem;">PREVISÃO: ${formatarDataHoraBrasil(campoPrevisao)}</div>`;
             }
         }
-
-        const textoStatus = os.status === 'Em Manutenção' ? '🔧 EM OFICINA' : '⏳ AGUARDANDO ATENDIMENTO';
+        
+        const textoStatus = os.status === 'Em Manutenção' ? '  EM OFICINA' : '  AGUARDANDO ATENDIMENTO';
         const bgStatus = os.status === 'Em Manutenção' ? '#1e3a8a' : '#1e293b'; 
         const borderStatus = os.status === 'Em Manutenção' ? '#3b82f6' : '#475569'; 
-
+        
         return `
             <div class="${alertaClass}" style="background: ${bgStatus}; border: 3px solid ${borderStatus}; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); display: flex; flex-direction: column;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
@@ -596,7 +590,9 @@ function renderizarCardsTV() {
                         </div>
                     </div>
                 </div>
+                
                 <div style="margin-bottom: 15px;">${conjuntosBadge}</div>
+                
                 <div style="background: rgba(0,0,0,0.4); border-radius: 8px; padding: 15px; margin-bottom: 15px; flex: 1;">
                     <div style="color: #60a5fa; font-weight: bold; font-size: 1.2rem; margin-bottom: 5px;">${os.tipo}</div>
                     <div style="color: #cbd5e1; font-size: 1.1rem;">Motorista: <strong style="color: #fff;">${os.motorista}</strong></div>
@@ -604,6 +600,7 @@ function renderizarCardsTV() {
                         Detalhe: ${os.problema || 'Nenhum detalhe reportado'}
                     </div>
                 </div>
+                
                 <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
                     <div style="color: #94a3b8; font-size: 1rem;">
                         Entrada: <br><strong style="color: #fff;">${entradaHoraStr}</strong>
@@ -625,7 +622,7 @@ function atualizarRelogioTV() {
     const elRelogio = document.getElementById('tvRelogio');
     const elData = document.getElementById('tvData');
     if (!elRelogio || !elData) return;
-
+    
     const agora = new Date();
     elRelogio.innerText = agora.toLocaleTimeString('pt-BR');
     const opcoesData = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -633,16 +630,15 @@ function atualizarRelogioTV() {
 }
 
 // ---------------- EXPORTAÇÕES (EXCEL E PDF) ----------------
-
 function exportarHistoricoOSExcel() {
     const num = document.getElementById('filtroHistOSNum')?.value.toLowerCase();
     const placa = document.getElementById('filtroHistPlaca')?.value.toLowerCase();
     const motorista = document.getElementById('filtroHistMotorista')?.value.toLowerCase();
     const dataStr = document.getElementById('filtroHistData')?.value;
-    const tipo = document.getElementById('filtroHistTipo')?.value.toLowerCase(); 
-
+    const tipo = document.getElementById('filtroHistTipo')?.value.toLowerCase();
+    
     let filtradas = ordensServico;
-
+    
     if (num) filtradas = filtradas.filter(o => o.id.toString() === num);
     if (placa) filtradas = filtradas.filter(o => o.placa && o.placa.toLowerCase().includes(placa));
     if (motorista) filtradas = filtradas.filter(o => o.motorista && o.motorista.toLowerCase().includes(motorista));
@@ -655,15 +651,15 @@ function exportarHistoricoOSExcel() {
     if (tipo) {
         filtradas = filtradas.filter(o => o.tipo && o.tipo.toLowerCase().includes(tipo));
     }
-
+    
     if (filtradas.length === 0) {
         alert("Não há dados para exportar com os filtros atuais.");
         return;
     }
-
+    
     let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
     csvContent += "Nº O.S.;Placa (Cavalo);Motorista;Tipo de Serviço;Status;Prioridade;Data Abertura;Data Conclusão;Tempo Aberta (Horas/Minutos)\n";
-
+    
     filtradas.forEach(os => {
         const inicioStr = formatarDataHoraBrasil(os.data_abertura);
         const conclusaoStr = os.data_conclusao ? formatarDataHoraBrasil(os.data_conclusao) : 'Em Aberto';
@@ -671,8 +667,7 @@ function exportarHistoricoOSExcel() {
         let tempoAbertaTexto = '-';
         if (os.data_abertura) {
             const inicio = new Date(os.data_abertura.replace('Z', '').replace('+00:00', ''));
-            let fim = new Date(); 
-            
+            let fim = new Date();              
             if (os.data_conclusao) {
                 fim = new Date(os.data_conclusao.replace('Z', '').replace('+00:00', ''));
             }
@@ -684,7 +679,7 @@ function exportarHistoricoOSExcel() {
                 tempoAbertaTexto = `${diffHrs}h ${diffMin}m`; 
             }
         }
-
+        
         const linha = [
             `"${os.id}"`,
             `"${os.placa || '-'}"`,
@@ -699,7 +694,7 @@ function exportarHistoricoOSExcel() {
         
         csvContent += linha + "\n";
     });
-
+    
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -733,19 +728,19 @@ async function exportarHistoricoOSPDF() {
         alert("Não foi possível carregar as bibliotecas de exportação PDF. Verifique a conexão com a internet.");
         return;
     }
-
+    
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('landscape'); // Usando modo paisagem para caber a tabela com conforto
-
+    
     // Resgatar os mesmos filtros que estão na tela
     const num = document.getElementById('filtroHistOSNum')?.value.toLowerCase();
     const placa = document.getElementById('filtroHistPlaca')?.value.toLowerCase();
     const motorista = document.getElementById('filtroHistMotorista')?.value.toLowerCase();
     const dataStr = document.getElementById('filtroHistData')?.value;
-    const tipoFiltro = document.getElementById('filtroHistTipo')?.value.toLowerCase(); 
-
+    const tipoFiltro = document.getElementById('filtroHistTipo')?.value.toLowerCase();
+    
     let filtradas = ordensServico;
-
+    
     if (num) filtradas = filtradas.filter(o => o.id.toString() === num);
     if (placa) filtradas = filtradas.filter(o => o.placa && o.placa.toLowerCase().includes(placa));
     if (motorista) filtradas = filtradas.filter(o => o.motorista && o.motorista.toLowerCase().includes(motorista));
@@ -758,15 +753,15 @@ async function exportarHistoricoOSPDF() {
     if (tipoFiltro) {
         filtradas = filtradas.filter(o => o.tipo && o.tipo.toLowerCase().includes(tipoFiltro));
     }
-
+    
     if (filtradas.length === 0) {
         alert("Não há dados para exportar com os filtros atuais.");
         return;
     }
-
+    
     let temposPorTipo = {};
     let linhasTabela = [];
-
+    
     filtradas.forEach(os => {
         const inicioStr = formatarDataHoraBrasil(os.data_abertura);
         const conclusaoStr = os.data_conclusao ? formatarDataHoraBrasil(os.data_conclusao) : 'Em Aberto';
@@ -776,8 +771,7 @@ async function exportarHistoricoOSPDF() {
         
         if (os.data_abertura) {
             const inicio = new Date(os.data_abertura.replace('Z', '').replace('+00:00', ''));
-            let fim = new Date(); 
-            
+            let fim = new Date();              
             if (os.data_conclusao) {
                 fim = new Date(os.data_conclusao.replace('Z', '').replace('+00:00', ''));
             }
@@ -789,7 +783,7 @@ async function exportarHistoricoOSPDF() {
                 tempoAbertaTexto = `${diffHrs}h ${diffMin}m`; 
             }
         }
-
+        
         const tipoDesc = os.tipo || 'Não Informado';
         
         // Acumula os valores para gerar a média depois
@@ -798,7 +792,7 @@ async function exportarHistoricoOSPDF() {
         }
         temposPorTipo[tipoDesc].count++;
         temposPorTipo[tipoDesc].totalMs += tempoMs;
-
+        
         // O motorista NÃO é incluído no push, apenas os dados do Cavalo e O.S.
         linhasTabela.push([
             `#${os.id}`,
@@ -810,7 +804,7 @@ async function exportarHistoricoOSPDF() {
             tempoAbertaTexto
         ]);
     });
-
+    
     // Montar Tabela Resumo com a Média
     let linhasResumo = [];
     for (const [tipo, dados] of Object.entries(temposPorTipo)) {
@@ -821,9 +815,10 @@ async function exportarHistoricoOSPDF() {
             linhasResumo.push([tipo, dados.count.toString(), `${mediaHrs}h ${mediaMin}m`]);
         }
     }
-
-    // Adicionando a Logo da Empresa (usa a imagem que você já tem no sistema)
-    const logoUrl = 'assets/logo.png'; 
+    
+    // Adicionando a Logo da Empresa (usa a imagem que você tem no sistema)
+    const logoUrl = 'C:\\projetos\\CCOL-SISTEMA\\assets\\logoverde.png';
+    
     const img = new Image();
     img.crossOrigin = 'Anonymous';
     img.onerror = () => gerarDocumentoPDF(doc, null, linhasResumo, linhasTabela); 
@@ -852,7 +847,7 @@ function gerarDocumentoPDF(doc, logoDataUrl, linhasResumo, linhasTabela) {
     
     doc.setFontSize(10);
     doc.text(`Data de Emissão: ${new Date().toLocaleString('pt-BR')}`, 14, 42);
-
+    
     // Tabela 1: Resumo das Médias de Tempo por Tipo
     doc.autoTable({
         startY: 48,
@@ -863,7 +858,7 @@ function gerarDocumentoPDF(doc, logoDataUrl, linhasResumo, linhasTabela) {
         margin: { top: 10 },
         styles: { fontSize: 10 }
     });
-
+    
     // Tabela 2: Listagem Completa de O.S. (Sem o Motorista)
     doc.autoTable({
         startY: doc.lastAutoTable.finalY + 15,
@@ -873,7 +868,7 @@ function gerarDocumentoPDF(doc, logoDataUrl, linhasResumo, linhasTabela) {
         headStyles: { fillColor: [15, 23, 42] }, // Azul Escuro base do sistema
         styles: { fontSize: 9 }
     });
-
+    
     // Salvar o arquivo
     doc.save(`Relatorio_Historico_OS_${new Date().toISOString().split('T')[0]}.pdf`);
 }
