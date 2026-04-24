@@ -211,6 +211,22 @@
             <i class="fas fa-chart-area"></i> 🎯 DM Específica por Frota (Veículo)
         </h3>
         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            
+            <div style="display: flex; align-items: center; gap: 5px; border-right: 1px solid rgba(255,255,255,0.1); padding-right: 10px;">
+                <span style="color: #94a3b8; font-size: 0.85rem;">De:</span>
+                <input type="date" id="dataInicioDMInd" class="dark-select" style="background: #1e293b; border: 1px solid #334155; color: white; padding: 5px 8px; border-radius: 6px; height: 34px; font-size: 0.85rem; outline: none; cursor: pointer;">
+                <span style="color: #94a3b8; font-size: 0.85rem; margin-left: 5px;">Até:</span>
+                <input type="date" id="dataFimDMInd" class="dark-select" style="background: #1e293b; border: 1px solid #334155; color: white; padding: 5px 8px; border-radius: 6px; height: 34px; font-size: 0.85rem; outline: none; cursor: pointer;">
+                
+                <button class="btn-primary-blue" onclick="renderizarDMIndividual()" style="border-radius: 6px; background: #3b82f6; color: #fff; padding: 0 12px; font-size: 0.85rem; height: 34px; margin-left: 5px; border: none; cursor: pointer; font-weight: bold; transition: 0.3s;" title="Filtrar por data" onmouseover="this.style.background='#2563eb';" onmouseout="this.style.background='#3b82f6';">
+                    <i class="fas fa-search"></i> Filtrar
+                </button>
+
+                <button class="btn-secondary-dark" onclick="document.getElementById('dataInicioDMInd').value=''; document.getElementById('dataFimDMInd').value=''; renderizarDMIndividual();" style="border-radius: 6px; background: rgba(239, 68, 68, 0.2); color: #ef4444; padding: 0 10px; font-size: 0.85rem; height: 34px; margin-left: 5px; border: 1px solid rgba(239, 68, 68, 0.5); cursor: pointer; transition: 0.3s;" title="Limpar Filtro de Datas" onmouseover="this.style.background='#ef4444'; this.style.color='#fff';" onmouseout="this.style.background='rgba(239, 68, 68, 0.2)'; this.style.color='#ef4444';">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
             <select id="filtroPlacaDMInd" class="dark-select" style="background: #1e293b; border: 1px solid #334155; color: white; padding: 5px 12px; border-radius: 6px; height: 34px; font-size: 0.9rem;" onchange="renderizarDMIndividual()">
                 <option value="">Selecione um Veículo...</option>
             </select>

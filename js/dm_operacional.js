@@ -254,136 +254,172 @@ window.popularSelectPlacasDMInd = function() {
 };
 
 window.renderizarDMIndividual = function() {
-    const placa = document.getElementById('filtroPlacaDMInd').value;
-    const divGrafico = document.getElementById('graficoDmIndividual');
+    try {
+        const placa = document.getElementById('filtroPlacaDMInd').value;
+        const divGrafico = document.getElementById('graficoDmIndividual');
 
-    if (!placa || !divGrafico) return;
+        if (!placa || !divGrafico) return;
 
-    let dataInicio, dataFim;
-    if (window.getDatasFiltroGlobal) {
-        const datas = window.getDatasFiltroGlobal();
-        dataInicio = datas.inicio;
-        dataFim = datas.fim;
-    } else {
-        dataFim = new Date();
-        dataInicio = new Date();
-        dataInicio.setDate(dataInicio.getDate() - 30);
-    }
-
-    const hoje = new Date();
-
-    if (dataInicio > dataFim) {
-        alert("Erro nas datas do Filtro Global.");
-        return;
-    }
-
-    const diasArray = [];
-    const dmArray = [];
-    
-    let atual = new Date(dataInicio);
-    while (atual <= dataFim) {
-        if (atual > hoje && atual.toDateString() !== hoje.toDateString()) break;
-
-        const diaInicio = new Date(atual.getFullYear(), atual.getMonth(), atual.getDate(), 0, 0, 0, 0);
-        const diaFim = new Date(atual.getFullYear(), atual.getMonth(), atual.getDate(), 23, 59, 59, 999);
+        let dataInicio, dataFim;
         
-        let msTotalDia = 24 * 60 * 60 * 1000;
-        let fimParaCalculo = diaFim;
+        const inputInicio = document.getElementById('dataInicioDMInd');
+        const inputFim = document.getElementById('dataFimDMInd');
+        let usouFiltroEspecifico = false;
 
-        const ehHoje = atual.toDateString() === hoje.toDateString();
-        if (ehHoje) {
-            msTotalDia = hoje - diaInicio;
-            fimParaCalculo = hoje;
+        // Trata o caso do usuário ter selecionado pelo menos uma das datas
+        if ((inputInicio && inputInicio.value) || (inputFim && inputFim.value)) {
+            usouFiltroEspecifico = true;
+            
+            if (inputInicio && inputInicio.value) {
+                const partesIni = inputInicio.value.split('-');
+                dataInicio = new Date(partesIni[0], partesIni[1] - 1, partesIni[2], 0, 0, 0, 0);
+            } else {
+                dataInicio = new Date();
+                dataInicio.setDate(dataInicio.getDate() - 30);
+                dataInicio.setHours(0,0,0,0);
+            }
+            
+            if (inputFim && inputFim.value) {
+                const partesFim = inputFim.value.split('-');
+                dataFim = new Date(partesFim[0], partesFim[1] - 1, partesFim[2], 23, 59, 59, 999);
+            } else {
+                dataFim = new Date();
+                dataFim.setHours(23, 59, 59, 999);
+            }
+        } 
+        
+        // Se as datas específicas estiverem vazias, usa o Filtro Global
+        if (!usouFiltroEspecifico) {
+            if (window.getDatasFiltroGlobal) {
+                const datas = window.getDatasFiltroGlobal();
+                dataInicio = datas.inicio;
+                dataFim = datas.fim;
+            } else {
+                dataFim = new Date();
+                dataInicio = new Date();
+                dataInicio.setDate(dataInicio.getDate() - 30);
+            }
         }
 
-        let msManutencao = 0;
-        const osDoVeiculo = ordensServico.filter(o => o.placa === placa && o.status !== 'Agendada');
+        const hoje = new Date();
+
+        if (dataInicio > dataFim) {
+            // Evita erro ao preencher invertido
+            const temp = dataInicio;
+            dataInicio = dataFim;
+            dataFim = temp;
+        }
+
+        const diasArray = [];
+        const dmArray = [];
         
-        osDoVeiculo.forEach(os => {
-            let osInicioStr = os.data_abertura;
-            if (!osInicioStr) return;
-            if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
-            const osInicio = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
+        let atual = new Date(dataInicio);
+        while (atual <= dataFim) {
+            if (atual > hoje && atual.toDateString() !== hoje.toDateString()) break;
+
+            const diaInicio = new Date(atual.getFullYear(), atual.getMonth(), atual.getDate(), 0, 0, 0, 0);
+            const diaFim = new Date(atual.getFullYear(), atual.getMonth(), atual.getDate(), 23, 59, 59, 999);
             
-            let osFimObj = hoje; 
-            if (os.data_conclusao) {
-                let osFimStr = os.data_conclusao;
-                if (!osFimStr.includes('T')) osFimStr += 'T00:00:00';
-                osFimObj = new Date(osFimStr.replace('Z', '').replace('+00:00', ''));
+            let msTotalDia = 24 * 60 * 60 * 1000;
+            let fimParaCalculo = diaFim;
+
+            const ehHoje = atual.toDateString() === hoje.toDateString();
+            if (ehHoje) {
+                msTotalDia = hoje - diaInicio;
+                fimParaCalculo = hoje;
             }
 
-            const overlapInicio = osInicio > diaInicio ? osInicio : diaInicio;
-            const overlapFim = osFimObj < fimParaCalculo ? osFimObj : fimParaCalculo;
+            let msManutencao = 0;
+            const osDoVeiculo = ordensServico.filter(o => o.placa === placa && o.status !== 'Agendada');
+            
+            osDoVeiculo.forEach(os => {
+                let osInicioStr = os.data_abertura;
+                if (!osInicioStr) return;
+                if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
+                const osInicio = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
+                
+                let osFimObj = hoje; 
+                if (os.data_conclusao) {
+                    let osFimStr = os.data_conclusao;
+                    if (!osFimStr.includes('T')) osFimStr += 'T00:00:00';
+                    osFimObj = new Date(osFimStr.replace('Z', '').replace('+00:00', ''));
+                }
 
-            if (overlapInicio < overlapFim) {
-                msManutencao += (overlapFim - overlapInicio);
-            }
-        });
+                const overlapInicio = osInicio > diaInicio ? osInicio : diaInicio;
+                const overlapFim = osFimObj < fimParaCalculo ? osFimObj : fimParaCalculo;
 
-        if (msManutencao > msTotalDia) msManutencao = msTotalDia;
-        
-        const dmDia = msTotalDia > 0 ? ((msTotalDia - msManutencao) / msTotalDia) * 100 : 0;
-        
-        const labelDia = `${String(atual.getDate()).padStart(2, '0')}/${String(atual.getMonth() + 1).padStart(2, '0')}`;
-        diasArray.push(labelDia);
-        dmArray.push(dmDia.toFixed(1));
-        
-        atual.setDate(atual.getDate() + 1);
-    }
+                if (overlapInicio < overlapFim) {
+                    msManutencao += (overlapFim - overlapInicio);
+                }
+            });
 
-    if (typeof echarts === 'undefined') return;
+            if (msManutencao > msTotalDia) msManutencao = msTotalDia;
+            
+            const dmDia = msTotalDia > 0 ? ((msTotalDia - msManutencao) / msTotalDia) * 100 : 0;
+            
+            const labelDia = `${String(atual.getDate()).padStart(2, '0')}/${String(atual.getMonth() + 1).padStart(2, '0')}`;
+            diasArray.push(labelDia);
+            dmArray.push(dmDia.toFixed(1));
+            
+            atual.setDate(atual.getDate() + 1);
+        }
 
-    let chart = echarts.getInstanceByDom(divGrafico);
-    if (chart) chart.dispose();
-    chart = echarts.init(divGrafico);
+        if (typeof echarts === 'undefined') return;
 
-    const option = {
-        tooltip: { 
-            trigger: 'axis', 
-            backgroundColor: 'rgba(0,0,0,0.85)',
-            borderColor: '#a855f7',
-            textStyle: { color: '#fff' },
-            formatter: '{b} <br/> <span style="color:#a855f7;">●</span> DM do Veículo: <b>{c}%</b>' 
-        },
-        grid: { left: '3%', right: '4%', bottom: '5%', containLabel: true },
-        xAxis: {
-            type: 'category',
-            boundaryGap: false,
-            data: diasArray,
-            axisLabel: { color: '#94a3b8' },
-            axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } }
-        },
-        yAxis: {
-            type: 'value',
-            min: 0,
-            max: 100,
-            axisLabel: { formatter: '{value}%', color: '#94a3b8' },
-            splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)', type: 'dashed' } }
-        },
-        series: [{
-            name: 'DM Individual',
-            type: 'line',
-            data: dmArray,
-            smooth: true,
-            symbol: 'circle',
-            symbolSize: 8,
-            label: {
-                show: true, position: 'top', color: '#ffffff', fontWeight: 'bold', formatter: '{c}%'
+        let chart = echarts.getInstanceByDom(divGrafico);
+        if (chart) chart.dispose();
+        chart = echarts.init(divGrafico);
+
+        const option = {
+            tooltip: { 
+                trigger: 'axis', 
+                backgroundColor: 'rgba(0,0,0,0.85)',
+                borderColor: '#a855f7',
+                textStyle: { color: '#fff' },
+                formatter: '{b} <br/> <span style="color:#a855f7;">●</span> DM do Veículo: <b>{c}%</b>' 
             },
-            itemStyle: { color: '#a855f7' },
-            lineStyle: { width: 3, color: '#a855f7' },
-            areaStyle: {
-                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                    { offset: 0, color: 'rgba(168, 85, 247, 0.4)' },
-                    { offset: 1, color: 'rgba(168, 85, 247, 0)' }
-                ])
-            }
-        }]
-    };
+            grid: { left: '3%', right: '4%', bottom: '5%', containLabel: true },
+            xAxis: {
+                type: 'category',
+                boundaryGap: false,
+                data: diasArray,
+                axisLabel: { color: '#94a3b8' },
+                axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } }
+            },
+            yAxis: {
+                type: 'value',
+                min: 0,
+                max: 100,
+                axisLabel: { formatter: '{value}%', color: '#94a3b8' },
+                splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)', type: 'dashed' } }
+            },
+            series: [{
+                name: 'DM Individual',
+                type: 'line',
+                data: dmArray,
+                smooth: true,
+                symbol: 'circle',
+                symbolSize: 8,
+                label: {
+                    show: true, position: 'top', color: '#ffffff', fontWeight: 'bold', formatter: '{c}%'
+                },
+                itemStyle: { color: '#a855f7' },
+                lineStyle: { width: 3, color: '#a855f7' },
+                areaStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: 'rgba(168, 85, 247, 0.4)' },
+                        { offset: 1, color: 'rgba(168, 85, 247, 0)' }
+                    ])
+                }
+            }]
+        };
 
-    chart.setOption(option);
-    window.removeEventListener('resize', chart.resize); 
-    window.addEventListener('resize', () => chart.resize());
+        chart.setOption(option);
+        window.removeEventListener('resize', chart.resize); 
+        window.addEventListener('resize', () => chart.resize());
+    } catch(e) {
+        console.error("Erro ao renderizar DM Individual:", e);
+    }
 };
 
 window.exportarDMIndividualExcel = function() {
