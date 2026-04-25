@@ -87,6 +87,8 @@ window.alternarAbaTroca = function(aba) {
         window.popularFiltrosHistoricoTroca();
         window.carregarHistoricoTrocas();
     } else if (aba === 'indicadores') {
+        // ALTERAÇÃO AQUI: Garante que toda vez que a aba for aberta, ele reseta para o "Hoje"
+        document.getElementById('filtroTempoIndicadores').value = 'hoje';
         setTimeout(() => {
             window.iniciarMapaIndicadores();
             if (window.mapaIndicadores) window.mapaIndicadores.invalidateSize();
