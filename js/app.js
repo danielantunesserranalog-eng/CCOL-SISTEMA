@@ -5,9 +5,14 @@ window.atualizarStats = function() {
     const statCaminhoes = document.getElementById('statCaminhoes');
     const statMotoristas = document.getElementById('statMotoristas');
     const statDisponiveis = document.getElementById('statDisponiveis');
+    const statCavalos = document.getElementById('statCavalos'); // Novo ID adicionado no HTML
     
+    // Calcula o total de caminhões de todos os conjuntos
+    const totalCaminhoes = conjuntos.reduce((acc, c) => acc + (c.caminhoes?.length || 0), 0);
+
     if (statConjuntos) statConjuntos.innerText = conjuntos.length;
-    if (statCaminhoes) statCaminhoes.innerText = conjuntos.reduce((acc, c) => acc + (c.caminhoes?.length || 0), 0);
+    if (statCaminhoes) statCaminhoes.innerText = totalCaminhoes;
+    if (statCavalos) statCavalos.innerText = totalCaminhoes; // Define a quantidade de cavalos no painel superior
     if (statMotoristas) statMotoristas.innerText = motoristas.length;
     
     if (statDisponiveis) {
