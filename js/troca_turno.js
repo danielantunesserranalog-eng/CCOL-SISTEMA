@@ -147,7 +147,6 @@ window.excluirLocalTroca = async function(id) {
     await window.carregarLocaisTroca();
 }
 
-// ATUALIZADO: Recebe a ordem do turno para validar se deve ficar vermelho na hora de preencher
 window.calcularProximaTroca = function(domId, minutosPrevisto) {
     const inputHora = document.getElementById(`hora_${domId}`).value;
     const divProxima = document.getElementById(`prox_${domId}`);
@@ -162,16 +161,14 @@ window.calcularProximaTroca = function(domId, minutosPrevisto) {
     let [h, m] = inputHora.split(':').map(Number);
     divProxima.innerText = `${((h + 12) % 24).toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 
-    // Lógica para colorir a linha se a diferença for maior ou igual a 1 hora (60 min)
     if(trElement && minutosPrevisto !== undefined && minutosPrevisto !== null && minutosPrevisto !== 9999) {
         let minutosReal = h * 60 + m;
         let diff = Math.abs(minutosReal - parseInt(minutosPrevisto));
         
-        // Tratamento para virada de dia (ex: Previsto 23:30, Real 00:30)
         if (diff > 12 * 60) diff = 24 * 60 - diff; 
 
         if (diff >= 60) {
-            trElement.style.background = 'rgba(239, 68, 68, 0.2)'; // Fundo vermelho clarinho (Tailwind red-500 com 20% opacidade)
+            trElement.style.background = 'rgba(239, 68, 68, 0.2)';
         } else {
             trElement.style.background = trElement.getAttribute('data-original-bg-color') || 'transparent';
         }
@@ -322,19 +319,17 @@ window.carregarTrocasDoDia = async function() {
             });
             selectLocal += `</select>`;
 
-            // Verifica o Zebra da tabela
             let isZebrado = (indiceGlobal % 2 === 0);
             let baseBgColor = isZebrado ? 'rgba(0,0,0,0.2)' : 'transparent';
             let baseBorder = isZebrado ? '2px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(255,255,255,0.05)';
             let currentBgColor = baseBgColor;
 
-            // Verificação de Atraso/Adiantamento ao carregar (se o banco já trouxe o horário real)
             if (horarioReal && linha.ordemTurno !== 9999) {
                 let [hReal, mReal] = horarioReal.split(':').map(Number);
                 let diff = Math.abs((hReal * 60 + mReal) - linha.ordemTurno);
                 if (diff > 12 * 60) diff = 24 * 60 - diff;
                 if (diff >= 60) {
-                    currentBgColor = 'rgba(239, 68, 68, 0.2)'; // Vermelho clarinho
+                    currentBgColor = 'rgba(239, 68, 68, 0.2)';
                 }
             }
 
@@ -555,14 +550,33 @@ window.carregarIndicadoresTroca = async function() {
         let query = window.supabaseClient.from('registro_troca_turno').select('local_troca_id, data_referencia, motorista_programado');
 
         if (tempoFiltro !== 'all') {
-            const dataPassada = new Date();
-            dataPassada.setDate(dataPassada.getDate() - parseInt(tempoFiltro));
-            const ano = dataPassada.getFullYear();
-            const mes = String(dataPassada.getMonth() + 1).padStart(2, '0');
-            const dia = String(dataPassada.getDate()).padStart(2, '0');
-            const dataFormatada = `${ano}-${mes}-${dia}`;
-            
-            query = query.gte('data_referencia', dataFormatada);
+            const dataHoje = new Date();
+            const ano = dataHoje.getFullYear();
+            const mes = String(dataHoje.getMonth() + 1).padStart(2, '0');
+            const dia = String(dataHoje.getDate()).padStart(2, '0');
+            const dataFormatadaHoje = `${ano}-${mes}-${dia}`;
+
+            if (tempoFiltro === 'hoje') {
+                query = query.eq('data_referencia', dataFormatadaHoje);
+            } else if (tempoFiltro === 'd1') {
+                const dataD1 = new Date(dataHoje);
+                dataD1.setDate(dataD1.getDate() - 1);
+                const d1Ano = dataD1.getFullYear();
+                const d1Mes = String(dataD1.getMonth() + 1).padStart(2, '0');
+                const d1Dia = String(dataD1.getDate()).padStart(2, '0');
+                query = query.eq('data_referencia', `${d1Ano}-${d1Mes}-${d1Dia}`);
+            } else if (tempoFiltro === 'semana') {
+                const inicioSemana = new Date(dataHoje);
+                const diaSemana = inicioSemana.getDay(); 
+                inicioSemana.setDate(inicioSemana.getDate() - diaSemana);
+                const isAno = inicioSemana.getFullYear();
+                const isMes = String(inicioSemana.getMonth() + 1).padStart(2, '0');
+                const isDia = String(inicioSemana.getDate()).padStart(2, '0');
+                query = query.gte('data_referencia', `${isAno}-${isMes}-${isDia}`).lte('data_referencia', dataFormatadaHoje);
+            } else if (tempoFiltro === 'mes') {
+                const dataInicioMes = `${ano}-${mes}-01`;
+                query = query.gte('data_referencia', dataInicioMes).lte('data_referencia', dataFormatadaHoje);
+            }
         }
 
         const { data, error } = await query;
