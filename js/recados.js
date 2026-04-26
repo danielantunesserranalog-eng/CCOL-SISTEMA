@@ -59,7 +59,7 @@ async function salvarRecado() {
         if (error) throw error;
         
         document.getElementById('form-recado').reset();
-        document.getElementById('prioridade-recado').value = 'media'; // Volta pro padrão
+        document.getElementById('prioridade-recado').value = 'media';
         atualizarListaRecados(); 
     } catch (error) {
         console.error('Erro ao salvar recado:', error);
@@ -74,10 +74,13 @@ async function atualizarListaRecados() {
         baixa: document.getElementById('lista-baixa')
     };
 
-    // Limpa as colunas e mostra estado de carregamento
-    Object.values(listas).forEach(lista => lista.innerHTML = '<p style="color:#64748b; font-size:0.8rem;">Carregando...</p>');
+    // Estado de carregamento
+    Object.values(listas).forEach(lista => {
+        if(lista) lista.innerHTML = '<p style="color:#64748b; font-size:0.8rem; padding:10px;">Buscando...</p>';
+    });
 
     try {
+        // BUSCA COM ORDENAÇÃO CRESCENTE POR DATA/HORA
         const { data: recados, error } = await supabaseClient
             .from('recados_anotacoes')
             .select('*')
@@ -86,16 +89,15 @@ async function atualizarListaRecados() {
 
         if (error) throw error;
 
-        // Limpa novamente para injetar os dados
-        Object.values(listas).forEach(lista => lista.innerHTML = '');
+        // Limpa colunas para renderização
+        Object.values(listas).forEach(lista => { if(lista) lista.innerHTML = ''; });
 
         const contadores = { alta: 0, media: 0, baixa: 0 };
 
         if (recados && recados.length > 0) {
             recados.forEach(recado => {
-                // Caso existam recados antigos sem prioridade, define como média
                 const prio = recado.prioridade || 'media'; 
-                contadores[prio]++;
+                if(contadores.hasOwnProperty(prio)) contadores[prio]++;
 
                 let dataFormatada = recado.data_agendamento 
                     ? new Date(recado.data_agendamento).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) 
@@ -120,14 +122,13 @@ async function atualizarListaRecados() {
             });
         }
 
-        // Atualiza Badges numéricos
-        document.getElementById('count-alta').innerText = contadores.alta;
-        document.getElementById('count-media').innerText = contadores.media;
-        document.getElementById('count-baixa').innerText = contadores.baixa;
+        // Atualiza Badges
+        if(document.getElementById('count-alta')) document.getElementById('count-alta').innerText = contadores.alta;
+        if(document.getElementById('count-media')) document.getElementById('count-media').innerText = contadores.media;
+        if(document.getElementById('count-baixa')) document.getElementById('count-baixa').innerText = contadores.baixa;
 
     } catch (error) {
         console.error('Erro ao carregar recados:', error);
-        Object.values(listas).forEach(lista => lista.innerHTML = '<p style="color:#ef4444;">Erro na conexão.</p>');
     }
 }
 
@@ -138,7 +139,7 @@ window.arrastarRecado = function(event, id) {
 };
 
 window.permitirSoltar = function(event) {
-    event.preventDefault(); // Necessário para permitir o drop
+    event.preventDefault();
 };
 
 window.soltarRecado = async function(event, novaPrioridade) {
@@ -146,18 +147,6 @@ window.soltarRecado = async function(event, novaPrioridade) {
     const idRecado = event.dataTransfer.getData('text/plain');
     if (!idRecado) return;
 
-    // Atualiza visualmente na hora (Otimista)
-    const card = document.getElementById(`recado-${idRecado}`);
-    const colunaDestino = document.getElementById(`lista-${novaPrioridade}`);
-    
-    if (card && colunaDestino) {
-        // Atualiza a classe da borda lateral com base na nova prioridade
-        card.className = `card-kanban card-${novaPrioridade}`;
-        colunaDestino.appendChild(card);
-        atualizarContadoresLocais();
-    }
-
-    // Persiste a mudança no banco
     try {
         const { error } = await supabaseClient
             .from('recados_anotacoes')
@@ -165,17 +154,13 @@ window.soltarRecado = async function(event, novaPrioridade) {
             .eq('id', idRecado);
 
         if (error) throw error;
+        
+        // Recarrega para manter a ordem crescente correta após a mudança de coluna
+        atualizarListaRecados();
     } catch (error) {
-        console.error('Erro ao atualizar prioridade no banco:', error);
-        atualizarListaRecados(); // Se der erro, recarrega o estado real do banco
+        console.error('Erro ao atualizar prioridade:', error);
     }
 };
-
-function atualizarContadoresLocais() {
-    document.getElementById('count-alta').innerText = document.getElementById('lista-alta').children.length;
-    document.getElementById('count-media').innerText = document.getElementById('lista-media').children.length;
-    document.getElementById('count-baixa').innerText = document.getElementById('lista-baixa').children.length;
-}
 
 // ==================== LÓGICA DE CONCLUSÃO E HISTÓRICO ====================
 
@@ -187,29 +172,25 @@ window.concluirRecado = async function(id) {
             .eq('id', id);
 
         if (error) throw error;
-        
-        // Remove o card da tela instantaneamente para UX fluida
-        const card = document.getElementById(`recado-${id}`);
-        if(card) card.remove();
-        atualizarContadoresLocais();
-        
+        atualizarListaRecados();
     } catch (error) {
-        console.error('Erro ao concluir recado no banco:', error);
-        alert('Erro ao concluir tarefa: ' + error.message);
+        console.error('Erro ao concluir recado:', error);
     }
 };
 
 window.carregarHistoricoRecados = async function() {
     const container = document.getElementById('lista-historico');
+    if(!container) return;
+    
     container.innerHTML = '<p style="color: #94a3b8; grid-column: 1 / -1;">Buscando histórico...</p>';
 
     try {
+        // ORDENAÇÃO CRESCENTE TAMBÉM NO HISTÓRICO
         const { data: historico, error } = await supabaseClient
             .from('recados_anotacoes')
             .select('*')
             .eq('status', 'concluido')
-            .order('data_agendamento', { ascending: false })
-            .limit(50); // Limita os últimos 50 para não pesar
+            .order('data_agendamento', { ascending: true });
 
         if (error) throw error;
 
@@ -221,28 +202,32 @@ window.carregarHistoricoRecados = async function() {
         }
 
         historico.forEach(recado => {
+            const dataF = recado.data_agendamento 
+                ? new Date(recado.data_agendamento).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) 
+                : 'Sem data';
+
             const div = document.createElement('div');
             div.className = 'card-kanban';
-            div.style.borderLeft = '4px solid #10b981'; // Verde para concluídos
-            div.style.opacity = '0.8'; // Levemente opaco
+            div.style.borderLeft = '4px solid #10b981';
+            div.style.opacity = '0.8';
             
             div.innerHTML = `
                 <h4 class="card-title" style="text-decoration: line-through; color: #10b981;">${recado.titulo}</h4>
                 <p class="card-desc">${recado.descricao}</p>
                 <div class="card-footer">
-                    <span class="card-meta">Concluído</span>
+                    <span class="card-meta">📅 Agendado para: ${dataF}</span>
+                    <span class="card-meta" style="color:#10b981;">Concluído ✔</span>
                 </div>
             `;
             container.appendChild(div);
         });
     } catch (error) {
         console.error('Erro ao carregar histórico:', error);
-        container.innerHTML = '<p style="color: #ef4444; grid-column: 1 / -1;">Erro de conexão com o banco.</p>';
     }
 };
 
 window.limparHistoricoRecados = async function() {
-    if(confirm('Tem certeza que deseja DELETAR todo o histórico de tarefas concluídas? Isso não pode ser desfeito.')) {
+    if(confirm('Tem certeza que deseja DELETAR todo o histórico de tarefas concluídas?')) {
         try {
             const { error } = await supabaseClient
                 .from('recados_anotacoes')
@@ -253,7 +238,6 @@ window.limparHistoricoRecados = async function() {
             carregarHistoricoRecados();
         } catch (error) {
             console.error('Erro ao limpar histórico:', error);
-            alert('Erro ao apagar histórico: ' + error.message);
         }
     }
 };
