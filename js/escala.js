@@ -365,6 +365,7 @@ window.renderizarIndicadorTrocaTurno = function() {
     if (!container) return;
 
     let shiftCounts = {};
+    let totalCaminhoesAtivos = 0; // Novo contador para não duplicar
 
     conjuntos.forEach(conj => {
         let numCaminhoes = conj.caminhoes ? conj.caminhoes.length : 0;
@@ -385,6 +386,11 @@ window.renderizarIndicadorTrocaTurno = function() {
         turnosConjunto.forEach(t => {
             shiftCounts[t] = (shiftCounts[t] || 0) + numCaminhoes;
         });
+
+        // Se o conjunto tem pelo menos um turno configurado, somamos os caminhões reais dele UMA VEZ
+        if (turnosConjunto.size > 0) {
+            totalCaminhoesAtivos += numCaminhoes;
+        }
     });
 
     if (Object.keys(shiftCounts).length === 0) {
@@ -437,13 +443,27 @@ window.renderizarIndicadorTrocaTurno = function() {
     let finalHtml = '<div style="display: flex; flex-direction: column; width: 100%;">';
     
     if (turnosDia.length > 0) {
-        finalHtml += `<div style="width: 100%; color: #fbbf24; font-weight: 800; font-size: 0.95rem; margin-bottom: 10px; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px;"><i class="fas fa-sun" style="margin-right: 5px;"></i> Início Turno do Dia</div>`;
+        let totalDia = turnosDia.reduce((sum, item) => sum + item.count, 0);
+        finalHtml += `<div style="width: 100%; color: #fbbf24; font-weight: 800; font-size: 0.95rem; margin-bottom: 10px; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center;">
+            <span><i class="fas fa-sun" style="margin-right: 5px;"></i> Início Turno do Dia</span>
+            <span style="font-size: 0.75rem; color: #64748b; font-weight: bold; text-transform: none; letter-spacing: normal;">Frotas: ${totalDia} Cavalos</span>
+        </div>`;
         finalHtml += buildCards(turnosDia);
     }
     
     if (turnosNoite.length > 0) {
-        finalHtml += `<div style="width: 100%; color: #93c5fd; font-weight: 800; font-size: 0.95rem; margin-bottom: 10px; margin-top: 10px; text-transform: uppercase; letter-spacing: 1px;"><i class="fas fa-moon" style="margin-right: 5px;"></i> Início Turno da Noite</div>`;
+        let totalNoite = turnosNoite.reduce((sum, item) => sum + item.count, 0);
+        finalHtml += `<div style="width: 100%; color: #93c5fd; font-weight: 800; font-size: 0.95rem; margin-bottom: 10px; margin-top: 10px; text-transform: uppercase; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center;">
+            <span><i class="fas fa-moon" style="margin-right: 5px;"></i> Início Turno da Noite</span>
+            <span style="font-size: 0.75rem; color: #64748b; font-weight: bold; text-transform: none; letter-spacing: normal;">Frotas: ${totalNoite} Cavalos</span>
+        </div>`;
         finalHtml += buildCards(turnosNoite);
+    }
+
+    if (totalCaminhoesAtivos > 0) {
+        finalHtml += `<div style="width: 100%; text-align: right; margin-top: 5px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 10px;">
+            <span style="font-size: 0.8rem; color: #94a3b8; font-weight: 700;">Total da Frota Operante na Trinca: <span style="color: #cbd5e1;">${totalCaminhoesAtivos} Cavalos únicos</span></span>
+        </div>`;
     }
 
     finalHtml += '</div>';
