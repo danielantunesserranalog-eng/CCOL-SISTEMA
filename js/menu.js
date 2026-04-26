@@ -45,11 +45,6 @@ window.renderizarMenu = function() {
     if (meusMenus.includes('relatorio_gerencial') || isAdmin) {
         navHtml += `<button class="nav-item" onclick="navegarPara('relatorio_gerencial', this)" style="color: var(--ccol-green-bright); font-weight: bold;"><i class="fas fa-chart-pie"></i> Relatório Gerencial</button>`;
     }
-    
-    // SSMA
-    if (meusMenus.includes('ssma') || isAdmin) {
-        navHtml += `<button class="nav-item" onclick="navegarPara('ssma', this)" style="color: #f59e0b; font-weight: bold;"><i class="fas fa-hard-hat"></i> SSMA</button>`;
-    }
 
     // TREINAMENTO (VIAGEM ASSISTIDA)
     if (meusMenus.includes('treinamento') || isAdmin) {
@@ -144,7 +139,6 @@ window.navegarPara = async function(pagina, elementoClicado) {
         }
 
         if (pagina === 'os' && typeof window.alternarTelaOS === 'function') window.alternarTelaOS('lista');
-        if (pagina === 'ssma' && typeof window.renderizarSSMA === 'function') window.renderizarSSMA();
         if (pagina === 'recados' && typeof window.carregarRecados === 'function') window.carregarRecados();
         
         if (pagina === 'treinamento' && typeof window.renderizarPaginaTreinamento === 'function') {
