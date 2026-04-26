@@ -84,11 +84,22 @@
             <label>Motorista</label>
             <input type="text" id="filtroHistMotorista" placeholder="Parte do nome..." oninput="renderizarTabelaHistoricoOS()">
         </div>
-        <div class="form-group-dark">
-            <label>Data de Abertura</label>
-            <input type="date" id="filtroHistData" class="dark-select" onchange="renderizarTabelaHistoricoOS()">
+        
+        <div class="form-group-dark" style="grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; background: rgba(0,0,0,0.15); padding: 10px; border-radius: 8px; border: 1px dashed rgba(255,255,255,0.1);">
+            <div>
+                <label style="color: var(--ccol-blue-bright);">Filtrar de (Data Início):</label>
+                <input type="date" id="filtroHistDataInicio" class="dark-select" onchange="renderizarTabelaHistoricoOS()">
+            </div>
+            <div>
+                <label style="color: var(--ccol-blue-bright);">Até (Data Fim):</label>
+                <input type="date" id="filtroHistDataFim" class="dark-select" onchange="renderizarTabelaHistoricoOS()">
+            </div>
+            <div>
+                <button class="btn-primary-blue" onclick="setFiltroMesAtualOS()" style="padding: 8px 15px; height: 38px;" title="Preencher com os dias do mês atual">📅 Mês Atual</button>
+            </div>
         </div>
-        <div class="form-group-dark">
+
+        <div class="form-group-dark" style="grid-column: 1 / -1;">
             <label>Tipo de Serviço</label>
             <select id="filtroHistTipo" class="dark-select" onchange="renderizarTabelaHistoricoOS()">
                 <option value="">Todos os Tipos</option>
@@ -340,8 +351,7 @@
     </div>
     
     <div id="tvCardsContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(450px, 1fr)); gap: 25px;">
-        <!-- Cards gerados via JS -->
-    </div>
+        </div>
 </div>
 
 <div id="modalConclusaoOS" class="modal-overlay">

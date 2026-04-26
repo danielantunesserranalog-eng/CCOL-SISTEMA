@@ -103,7 +103,8 @@ function renderizarTabelaHistoricoOS() {
     const num = document.getElementById('filtroHistOSNum')?.value.toLowerCase();
     const placa = document.getElementById('filtroHistPlaca')?.value.toLowerCase();
     const motorista = document.getElementById('filtroHistMotorista')?.value.toLowerCase();
-    const dataStr = document.getElementById('filtroHistData')?.value;
+    const dataInicio = document.getElementById('filtroHistDataInicio')?.value;
+    const dataFim = document.getElementById('filtroHistDataFim')?.value;
     const tipo = document.getElementById('filtroHistTipo')?.value.toLowerCase();
 
     let filtradas = ordensServico;
@@ -112,10 +113,13 @@ function renderizarTabelaHistoricoOS() {
     if (placa) filtradas = filtradas.filter(o => o.placa && o.placa.toLowerCase().includes(placa));
     if (motorista) filtradas = filtradas.filter(o => o.motorista && o.motorista.toLowerCase().includes(motorista));
     
-    if (dataStr) {
+    if (dataInicio || dataFim) {
         filtradas = filtradas.filter(o => {
             if (!o.data_abertura) return false;
-            return o.data_abertura.startsWith(dataStr); 
+            const dtAbertura = o.data_abertura.split('T')[0];
+            if (dataInicio && dtAbertura < dataInicio) return false;
+            if (dataFim && dtAbertura > dataFim) return false;
+            return true;
         });
     }
     
@@ -172,4 +176,22 @@ function renderizarTabelaFrotaManutencao() {
             </td>
         </tr>
     `).join('');
+}
+
+function setFiltroMesAtualOS() {
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+    const ultimoDia = new Date(ano, hoje.getMonth() + 1, 0).getDate();
+
+    const dataInicio = `${ano}-${mes}-01`;
+    const dataFim = `${ano}-${mes}-${String(ultimoDia).padStart(2, '0')}`;
+
+    const inputInicio = document.getElementById('filtroHistDataInicio');
+    const inputFim = document.getElementById('filtroHistDataFim');
+
+    if (inputInicio) inputInicio.value = dataInicio;
+    if (inputFim) inputFim.value = dataFim;
+
+    if (typeof renderizarTabelaHistoricoOS === 'function') renderizarTabelaHistoricoOS();
 }

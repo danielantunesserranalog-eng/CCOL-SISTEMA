@@ -634,7 +634,8 @@ function exportarHistoricoOSExcel() {
     const num = document.getElementById('filtroHistOSNum')?.value.toLowerCase();
     const placa = document.getElementById('filtroHistPlaca')?.value.toLowerCase();
     const motorista = document.getElementById('filtroHistMotorista')?.value.toLowerCase();
-    const dataStr = document.getElementById('filtroHistData')?.value;
+    const dataInicio = document.getElementById('filtroHistDataInicio')?.value;
+    const dataFim = document.getElementById('filtroHistDataFim')?.value;
     const tipo = document.getElementById('filtroHistTipo')?.value.toLowerCase();
     
     let filtradas = ordensServico;
@@ -642,12 +643,17 @@ function exportarHistoricoOSExcel() {
     if (num) filtradas = filtradas.filter(o => o.id.toString() === num);
     if (placa) filtradas = filtradas.filter(o => o.placa && o.placa.toLowerCase().includes(placa));
     if (motorista) filtradas = filtradas.filter(o => o.motorista && o.motorista.toLowerCase().includes(motorista));
-    if (dataStr) {
+    
+    if (dataInicio || dataFim) {
         filtradas = filtradas.filter(o => {
             if (!o.data_abertura) return false;
-            return o.data_abertura.startsWith(dataStr); 
+            const dtAbertura = o.data_abertura.split('T')[0];
+            if (dataInicio && dtAbertura < dataInicio) return false;
+            if (dataFim && dtAbertura > dataFim) return false;
+            return true;
         });
     }
+
     if (tipo) {
         filtradas = filtradas.filter(o => o.tipo && o.tipo.toLowerCase().includes(tipo));
     }
@@ -736,7 +742,8 @@ async function exportarHistoricoOSPDF() {
     const num = document.getElementById('filtroHistOSNum')?.value.toLowerCase();
     const placa = document.getElementById('filtroHistPlaca')?.value.toLowerCase();
     const motorista = document.getElementById('filtroHistMotorista')?.value.toLowerCase();
-    const dataStr = document.getElementById('filtroHistData')?.value;
+    const dataInicio = document.getElementById('filtroHistDataInicio')?.value;
+    const dataFim = document.getElementById('filtroHistDataFim')?.value;
     const tipoFiltro = document.getElementById('filtroHistTipo')?.value.toLowerCase();
     
     let filtradas = ordensServico;
@@ -744,12 +751,17 @@ async function exportarHistoricoOSPDF() {
     if (num) filtradas = filtradas.filter(o => o.id.toString() === num);
     if (placa) filtradas = filtradas.filter(o => o.placa && o.placa.toLowerCase().includes(placa));
     if (motorista) filtradas = filtradas.filter(o => o.motorista && o.motorista.toLowerCase().includes(motorista));
-    if (dataStr) {
+    
+    if (dataInicio || dataFim) {
         filtradas = filtradas.filter(o => {
             if (!o.data_abertura) return false;
-            return o.data_abertura.startsWith(dataStr); 
+            const dtAbertura = o.data_abertura.split('T')[0];
+            if (dataInicio && dtAbertura < dataInicio) return false;
+            if (dataFim && dtAbertura > dataFim) return false;
+            return true;
         });
     }
+
     if (tipoFiltro) {
         filtradas = filtradas.filter(o => o.tipo && o.tipo.toLowerCase().includes(tipoFiltro));
     }
@@ -816,28 +828,43 @@ async function exportarHistoricoOSPDF() {
         }
     }
     
-    // Adicionando a Logo da Empresa (usa a imagem que você tem no sistema)
-    const logoUrl = 'C:\\projetos\\CCOL-SISTEMA\\assets\\logoverde.png';
-    
+    // Usando o caminho relativo que funciona via servidor local ou web
+    const logoUrl = 'assets/logoverde.png';
     const img = new Image();
-    img.crossOrigin = 'Anonymous';
-    img.onerror = () => gerarDocumentoPDF(doc, null, linhasResumo, linhasTabela); 
+    
     img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-        const dataUrl = canvas.toDataURL('image/png');
-        gerarDocumentoPDF(doc, dataUrl, linhasResumo, linhasTabela);
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            const dataUrl = canvas.toDataURL('image/png');
+            gerarDocumentoPDF(doc, dataUrl, linhasResumo, linhasTabela);
+        } catch(e) {
+            // Em caso de erro de Tainted Canvas (acessando direto do HD via file://)
+            // Tenta inserir a imagem de forma direta como fallback
+            console.warn("Aviso de segurança ao ler imagem local. Tentando fallback.");
+            gerarDocumentoPDF(doc, img, linhasResumo, linhasTabela);
+        }
+    };
+    img.onerror = () => {
+        console.warn("Logomarca não encontrada ou bloqueada:", logoUrl);
+        gerarDocumentoPDF(doc, null, linhasResumo, linhasTabela); 
     };
     img.src = logoUrl;
 }
 
 function gerarDocumentoPDF(doc, logoDataUrl, linhasResumo, linhasTabela) {
-    // Caso a logo seja carregada corretamente
+    const pageWidth = doc.internal.pageSize.getWidth ? doc.internal.pageSize.getWidth() : doc.internal.pageSize.width;
+    
     if (logoDataUrl) {
-        doc.addImage(logoDataUrl, 'PNG', 14, 10, 45, 15);
+        try {
+            // Posiciona no canto superior direito
+            doc.addImage(logoDataUrl, 'PNG', pageWidth - 59, 10, 45, 15);
+        } catch(e) {
+            console.warn("Aviso: Falha ao desenhar a logomarca no PDF.", e);
+        }
     }
     
     // Títulos e Cabeçalhos
