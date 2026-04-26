@@ -359,7 +359,102 @@ async function handleEscalaChange(e) {
     }
 }
 
+// === NOVO INDICADOR DE TROCA DE TURNO COM LINHAS SEPARADAS DIA/NOITE ===
+window.renderizarIndicadorTrocaTurno = function() {
+    const container = document.getElementById('indicadorTrocaTurno');
+    if (!container) return;
+
+    let shiftCounts = {};
+
+    conjuntos.forEach(conj => {
+        let numCaminhoes = conj.caminhoes ? conj.caminhoes.length : 0;
+        if (numCaminhoes === 0) return;
+
+        let mots = motoristas.filter(m => String(m.conjuntoId) === String(conj.id));
+        
+        let turnosConjunto = new Set();
+        
+        // Extrai o turno da equipe de Dia daquela Trinca
+        let turnoDia = mots.find(m => ['A','B','C'].includes(getEq(m)))?.turno;
+        if (turnoDia && turnoDia !== '-') turnosConjunto.add(turnoDia);
+        
+        // Extrai o turno da equipe de Noite daquela Trinca
+        let turnoNoite = mots.find(m => ['D','E','F'].includes(getEq(m)))?.turno;
+        if (turnoNoite && turnoNoite !== '-') turnosConjunto.add(turnoNoite);
+
+        turnosConjunto.forEach(t => {
+            shiftCounts[t] = (shiftCounts[t] || 0) + numCaminhoes;
+        });
+    });
+
+    if (Object.keys(shiftCounts).length === 0) {
+        container.innerHTML = '<div style="color:#94a3b8; font-weight:bold; padding: 10px;">Nenhum turno configurado ou trinca cadastrada.</div>';
+        return;
+    }
+
+    const sortedTurnos = Object.keys(shiftCounts).sort();
+
+    let turnosDia = [];
+    let turnosNoite = [];
+
+    sortedTurnos.forEach(turnoStr => {
+        // Ex: De "02:00-14:00", extrai só o "02:00"
+        let horaInicioStr = turnoStr.split('-')[0].trim(); 
+        let hora = parseInt(horaInicioStr.split(':')[0]);
+        
+        let obj = { label: horaInicioStr, count: shiftCounts[turnoStr] };
+        
+        // Separa os turnos baseados na hora de início (Menor que 12 = Dia, Maior ou igual a 12 = Noite)
+        if (hora >= 0 && hora <= 11) {
+            turnosDia.push(obj);
+        } else {
+            turnosNoite.push(obj);
+        }
+    });
+
+    // Função que monta os quadrados azuis de cada horário
+    const buildCards = (lista) => {
+        let html = '<div style="display: flex; gap: 15px; flex-wrap: wrap; width: 100%; margin-bottom: 15px;">';
+        lista.forEach(item => {
+            html += `
+            <div style="background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(59, 130, 246, 0.5); border-radius: 8px; padding: 15px 20px; flex: 1; min-width: 120px; max-width: 180px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
+                <div style="font-size: 0.8rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; margin-bottom: 5px;">
+                    <i class="fas fa-play-circle" style="color: #3b82f6; margin-right: 4px;"></i> Início
+                </div>
+                <div style="font-size: 1.8rem; color: #fff; font-weight: 900; margin-bottom: 12px; letter-spacing: 1px;">${item.label}</div>
+                <div style="background: rgba(59, 130, 246, 0.15); border-radius: 6px; padding: 8px;">
+                    <span style="font-size: 1.8rem; color: #60a5fa; font-weight: 900; line-height: 1;">${item.count}</span>
+                    <span style="font-size: 0.8rem; color: #93c5fd; font-weight: bold; text-transform: uppercase; margin-left: 3px;">Cavalos</span>
+                </div>
+            </div>
+            `;
+        });
+        html += '</div>';
+        return html;
+    };
+
+    // Monta o visual final com a quebra de linha entre Dia e Noite
+    let finalHtml = '<div style="display: flex; flex-direction: column; width: 100%;">';
+    
+    if (turnosDia.length > 0) {
+        finalHtml += `<div style="width: 100%; color: #fbbf24; font-weight: 800; font-size: 0.95rem; margin-bottom: 10px; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px;"><i class="fas fa-sun" style="margin-right: 5px;"></i> Início Turno do Dia</div>`;
+        finalHtml += buildCards(turnosDia);
+    }
+    
+    if (turnosNoite.length > 0) {
+        finalHtml += `<div style="width: 100%; color: #93c5fd; font-weight: 800; font-size: 0.95rem; margin-bottom: 10px; margin-top: 10px; text-transform: uppercase; letter-spacing: 1px;"><i class="fas fa-moon" style="margin-right: 5px;"></i> Início Turno da Noite</div>`;
+        finalHtml += buildCards(turnosNoite);
+    }
+
+    finalHtml += '</div>';
+    
+    // Injeta tudo no container limpo
+    container.innerHTML = finalHtml;
+}
+
 function renderizarAlocacao() {
+    if(typeof renderizarIndicadorTrocaTurno === 'function') renderizarIndicadorTrocaTurno();
+
     const tbody = document.getElementById('alocacaoList');
     if (!tbody) return;
     
@@ -780,7 +875,6 @@ window.exportarEscalaMensalExcel = function() {
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
 
-// ==================== IMPRESSÃO DIÁRIA MODIFICADA (INCLUI CAMINHÕES VAZIOS) ====================
 window.gerarRelatorioImpressao = function() {
     const dataStr = document.getElementById('printData').value;
     const turnoFiltro = document.getElementById('printTurno').value;
@@ -818,7 +912,6 @@ window.gerarRelatorioImpressao = function() {
         </div>
     `;
 
-    // 1. Filtrar pelo select de turnos (Dia, Noite ou Todos)
     const motoristasOrd = [...motoristas];
     let motoristasFiltrados = motoristasOrd;
     if (turnoFiltro === 'Dia') {
@@ -830,7 +923,6 @@ window.gerarRelatorioImpressao = function() {
     const trabs = [];
     const caminhoesOcupados = [];
 
-    // 2. Guarda na lista quem VAI TRABALHAR
     motoristasFiltrados.forEach(m => {
         const eq = typeof getEq === 'function' ? getEq(m) : (m.equipe || '-');
         const escala = window.getEscalaDiaComputada(m, dataStr);
@@ -845,23 +937,20 @@ window.gerarRelatorioImpressao = function() {
                 caminhao: escala.caminhao 
             });
             
-            // Registra os caminhões que já têm alguém escalado neles
             if (escala.caminhao !== 'T' && escala.caminhao !== 'TRAB') {
                 caminhoesOcupados.push(escala.caminhao);
             }
         }
     });
 
-    // 3. Verifica TODOS os caminhões da empresa para encontrar os vazios
     conjuntos.forEach(conj => {
         if (conj.caminhoes) {
             conj.caminhoes.forEach(cam => {
                 const placa = typeof cam === 'string' ? cam : cam.placa;
                 
-                // Se a placa não estiver na lista de ocupados, ele está sem motorista
                 if (!caminhoesOcupados.includes(placa)) {
                     trabs.push({
-                        nome: '', // Em branco
+                        nome: '', 
                         trinca: String(conj.id).padStart(2, '0'),
                         eq: '-',
                         turno: '-',
@@ -872,27 +961,22 @@ window.gerarRelatorioImpressao = function() {
         }
     });
 
-    // 4. Ordenação: Primeiro pelo Turno (Horário), depois pela Trinca, depois pela Placa
     trabs.sort((a, b) => {
         const turnoA = a.turno !== '-' && a.turno ? a.turno : '99:99';
         const turnoB = b.turno !== '-' && b.turno ? b.turno : '99:99';
         
-        // Primeiro critério: Ordena pelo horário (Turno)
         if (turnoA !== turnoB) return turnoA.localeCompare(turnoB);
         
-        // Segundo critério: Ordena pela trinca caso o horário seja igual
         const trincaA = a.trinca === 'S/F' ? 9999 : Number(a.trinca);
         const trincaB = b.trinca === 'S/F' ? 9999 : Number(b.trinca);
         
         if (trincaA !== trincaB) return trincaA - trincaB;
         
-        // Terceiro critério: Ordena pela placa do caminhão
         if (a.caminhao !== b.caminhao) return a.caminhao.localeCompare(b.caminhao);
         
         return 0;
     });
 
-    // 5. Renderizar a Tabela
     const renderTabela = (lista, titulo) => {
         if (lista.length === 0) return '<p style="text-align:center;">Nenhum registro para exibir.</p>';
 
@@ -900,10 +984,9 @@ window.gerarRelatorioImpressao = function() {
         tHtml += `<table><thead><tr><th style="width: 12%">HORÁRIO</th><th style="width: 10%">TRINCA</th><th style="width: 40%">MOTORISTA</th><th style="width: 10%">EQUIPA</th><th style="width: 28%">STATUS / CAMINHÃO</th></tr></thead><tbody>`;
         
         lista.forEach(l => {
-            const isVazio = l.nome === ''; // Verifica se é um caminhão vazio
+            const isVazio = l.nome === ''; 
             const statusStr = (l.caminhao === 'T' || l.caminhao === 'TRAB') ? 'TRABALHO (SEM CAMINHÃO)' : l.caminhao;
             
-            // Se estiver vazio, aplica classes em vermelho
             tHtml += `<tr class="${isVazio ? 'vazio-row' : ''}">
                 <td style="font-weight:bold;">${l.turno === '99:99' ? '-' : l.turno}</td>
                 <td>${l.trinca}</td>
