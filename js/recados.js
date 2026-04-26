@@ -3,7 +3,6 @@
 window.carregarRecados = function() {
     const formRecado = document.getElementById('form-recado');
     
-    // Evita duplicação de listeners
     if (formRecado && !formRecado.hasAttribute('data-listener')) {
         formRecado.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -15,7 +14,6 @@ window.carregarRecados = function() {
     atualizarListaRecados();
 };
 
-// Alternar entre Quadro e Histórico
 window.alternarAbaRecados = function(aba) {
     const viewQuadro = document.getElementById('view-quadro');
     const viewHistorico = document.getElementById('view-historico');
@@ -69,18 +67,17 @@ async function salvarRecado() {
 
 async function atualizarListaRecados() {
     const listas = {
-        alta: document.getElementById('lista-alta'),
+        baixa: document.getElementById('lista-baixa'),
         media: document.getElementById('lista-media'),
-        baixa: document.getElementById('lista-baixa')
+        alta: document.getElementById('lista-alta'),
+        troca: document.getElementById('lista-troca')
     };
 
-    // Estado de carregamento
     Object.values(listas).forEach(lista => {
         if(lista) lista.innerHTML = '<p style="color:#64748b; font-size:0.8rem; padding:10px;">Buscando...</p>';
     });
 
     try {
-        // BUSCA COM ORDENAÇÃO CRESCENTE POR DATA/HORA
         const { data: recados, error } = await supabaseClient
             .from('recados_anotacoes')
             .select('*')
@@ -89,10 +86,9 @@ async function atualizarListaRecados() {
 
         if (error) throw error;
 
-        // Limpa colunas para renderização
         Object.values(listas).forEach(lista => { if(lista) lista.innerHTML = ''; });
 
-        const contadores = { alta: 0, media: 0, baixa: 0 };
+        const contadores = { baixa: 0, media: 0, alta: 0, troca: 0 };
 
         if (recados && recados.length > 0) {
             recados.forEach(recado => {
@@ -122,10 +118,10 @@ async function atualizarListaRecados() {
             });
         }
 
-        // Atualiza Badges
-        if(document.getElementById('count-alta')) document.getElementById('count-alta').innerText = contadores.alta;
-        if(document.getElementById('count-media')) document.getElementById('count-media').innerText = contadores.media;
         if(document.getElementById('count-baixa')) document.getElementById('count-baixa').innerText = contadores.baixa;
+        if(document.getElementById('count-media')) document.getElementById('count-media').innerText = contadores.media;
+        if(document.getElementById('count-alta')) document.getElementById('count-alta').innerText = contadores.alta;
+        if(document.getElementById('count-troca')) document.getElementById('count-troca').innerText = contadores.troca;
 
     } catch (error) {
         console.error('Erro ao carregar recados:', error);
@@ -155,7 +151,6 @@ window.soltarRecado = async function(event, novaPrioridade) {
 
         if (error) throw error;
         
-        // Recarrega para manter a ordem crescente correta após a mudança de coluna
         atualizarListaRecados();
     } catch (error) {
         console.error('Erro ao atualizar prioridade:', error);
@@ -185,7 +180,6 @@ window.carregarHistoricoRecados = async function() {
     container.innerHTML = '<p style="color: #94a3b8; grid-column: 1 / -1;">Buscando histórico...</p>';
 
     try {
-        // ORDENAÇÃO CRESCENTE TAMBÉM NO HISTÓRICO
         const { data: historico, error } = await supabaseClient
             .from('recados_anotacoes')
             .select('*')
