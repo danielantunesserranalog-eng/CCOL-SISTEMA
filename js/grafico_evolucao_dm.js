@@ -662,14 +662,216 @@ window.renderizarGraficoEvolucaoDMDiaria = function() {
 };
 
 // =================================================================
+// GRÁFICO 3: DM INDIVIDUAL POR VEÍCULO
+// =================================================================
+window.preencherSelectPlacasDM = function() {
+    const select = document.getElementById('filtroPlacaDMInd');
+    if (!select || !frotasManutencao || frotasManutencao.length === 0) return;
+    
+    // Evita duplicar as opções se já estiverem carregadas
+    if (select.options.length > 1) return;
+
+    // Pega as placas únicas e ordena em ordem alfabética
+    const placas = [...new Set(frotasManutencao.map(f => f.cavalo))].sort();
+    
+    placas.forEach(placa => {
+        const opt = document.createElement('option');
+        opt.value = placa;
+        opt.textContent = placa;
+        select.appendChild(opt);
+    });
+};
+
+window.renderizarDMIndividual = function() {
+    try {
+        const placa = document.getElementById('filtroPlacaDMInd').value;
+        const chartDom = document.getElementById('graficoDmIndividual');
+        if(!chartDom) return;
+
+        if (!placa) {
+            chartDom.innerHTML = '<div style="color:#94a3b8; display:flex; justify-content:center; align-items:center; height:100%; border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px; text-align:center;">Selecione um veículo para visualizar a DM no período global.</div>';
+            if(chartDom.getAttribute('_echarts_instance_')) {
+                echarts.dispose(chartDom);
+            }
+            return;
+        }
+
+        let dataInicio, dataFim;
+        const inpInicio = document.getElementById('dataInicioDMInd').value;
+        const inpFim = document.getElementById('dataFimDMInd').value;
+        
+        const hoje = new Date();
+        hoje.setHours(23, 59, 59, 999);
+
+        // Se houver filtro específico de datas na barra, usa ele. Se não, usa o filtro global (Mês, Semana, etc)
+        if (inpInicio && inpFim) {
+            dataInicio = new Date(inpInicio + 'T00:00:00');
+            dataFim = new Date(inpFim + 'T23:59:59');
+        } else {
+            const globalFilter = window.getDatasFiltroGlobal ? window.getDatasFiltroGlobal() : { inicio: new Date(hoje.getFullYear(), hoje.getMonth(), 1), fim: hoje };
+            dataInicio = globalFilter.inicio;
+            dataFim = globalFilter.fim;
+        }
+
+        const labelsDias = [];
+        const dadosDM = [];
+        let atual = new Date(dataInicio);
+
+        // Filtra todas as OS apenas desse veículo
+        const todasOSCavalo = ordensServico.filter(o => o.placa === placa && o.status !== 'Agendada');
+
+        while (atual <= dataFim) {
+            const inicioDia = new Date(atual.getFullYear(), atual.getMonth(), atual.getDate(), 0, 0, 0);
+            const fimDia = new Date(atual.getFullYear(), atual.getMonth(), atual.getDate(), 23, 59, 59, 999);
+            
+            let msTotalDia = 24 * 60 * 60 * 1000;
+            let fimParaCalculo = fimDia;
+
+            const ehHoje = (atual.toDateString() === new Date().toDateString());
+            if (ehHoje) {
+                const agora = new Date();
+                msTotalDia = agora - inicioDia;
+                fimParaCalculo = agora;
+            }
+
+            if (msTotalDia > 0) {
+                let msManutencaoDia = 0;
+                
+                todasOSCavalo.forEach(os => {
+                    let osInicioStr = os.data_abertura;
+                    if (!osInicioStr) return;
+                    if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
+                    const osInicio = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
+                    
+                    let osFim = new Date(); 
+                    if (os.data_conclusao) {
+                        let osFimStr = os.data_conclusao;
+                        if (!osFimStr.includes('T')) osFimStr += 'T00:00:00';
+                        osFim = new Date(osFimStr.replace('Z', '').replace('+00:00', ''));
+                    }
+
+                    const overlapInicio = osInicio > inicioDia ? osInicio : inicioDia;
+                    const overlapFim = osFim < fimParaCalculo ? osFim : fimParaCalculo;
+
+                    if (overlapInicio < overlapFim) {
+                        msManutencaoDia += (overlapFim - overlapInicio);
+                    }
+                });
+
+                if (msManutencaoDia > msTotalDia) msManutencaoDia = msTotalDia;
+                
+                let dispNoDiaMs = msTotalDia - msManutencaoDia;
+                if (dispNoDiaMs < 0) dispNoDiaMs = 0;
+
+                let percentDM = (dispNoDiaMs / msTotalDia) * 100;
+                
+                const diaStr = String(atual.getDate()).padStart(2, '0') + '/' + String(atual.getMonth() + 1).padStart(2, '0');
+                labelsDias.push(diaStr);
+                dadosDM.push(percentDM.toFixed(2));
+            }
+            atual.setDate(atual.getDate() + 1);
+        }
+
+        if (typeof echarts === 'undefined') return;
+
+        let myChart = echarts.getInstanceByDom(chartDom);
+        if (!myChart) {
+            chartDom.innerHTML = ''; 
+            myChart = echarts.init(chartDom);
+        }
+
+        const option = {
+            backgroundColor: 'transparent',
+            tooltip: { trigger: 'axis', formatter: '{b} <br/> DM: <b>{c}%</b>' },
+            grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+            xAxis: {
+                type: 'category',
+                boundaryGap: false,
+                data: labelsDias,
+                axisLabel: { color: '#ffffff', fontWeight: 'bold' }
+            },
+            yAxis: {
+                type: 'value',
+                min: 0,
+                max: 100,
+                axisLabel: { formatter: '{value}%', color: '#ffffff', fontWeight: 'bold' },
+                splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }
+            },
+            series: [{
+                name: 'DM ' + placa,
+                type: 'line',
+                data: dadosDM,
+                smooth: true,
+                symbol: 'circle',
+                symbolSize: 8,
+                label: { show: true, position: 'top', formatter: '{c}%', color: '#a855f7', fontSize: 13, fontWeight: 'bold' },
+                itemStyle: { color: '#a855f7' }, 
+                lineStyle: { width: 4 },
+                areaStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: 'rgba(168, 85, 247, 0.4)' },
+                        { offset: 1, color: 'rgba(168, 85, 247, 0)' }
+                    ])
+                }
+            }]
+        };
+
+        myChart.setOption(option);
+        window.removeEventListener('resize', myChart.resize);
+        window.addEventListener('resize', () => myChart.resize());
+    } catch(e) {
+        console.error("Erro ao renderizar DM Individual:", e);
+    }
+};
+
+window.exportarDMIndividualExcel = function() {
+    const placa = document.getElementById('filtroPlacaDMInd').value;
+    if (!placa) {
+        alert('Selecione um veículo primeiro no filtro para exportar.');
+        return;
+    }
+    
+    // Pega a instância do gráfico para extrair os dados atuais plotados
+    const chartDom = document.getElementById('graficoDmIndividual');
+    const myChart = echarts.getInstanceByDom(chartDom);
+    
+    if (!myChart) {
+        alert('Nenhum dado disponível no gráfico para exportar.');
+        return;
+    }
+
+    const option = myChart.getOption();
+    const dias = option.xAxis[0].data;
+    const valores = option.series[0].data;
+
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "Veiculo,Data,DM (%)\n";
+
+    for (let i = 0; i < dias.length; i++) {
+        csvContent += `${placa},${dias[i]},${valores[i]}\n`;
+    }
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `DM_${placa}_${new Date().getTime()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+// =================================================================
 // INICIALIZAÇÃO E ATUALIZAÇÃO AUTOMÁTICA DOS GRÁFICOS
 // =================================================================
 
-// 1. Intervalo para Inicialização "De Cara"
-// Verifica se os dados já chegaram antes de marcar o gráfico como renderizado
 setInterval(() => {
-    // Se as frotas ainda não carregaram do banco, aguarda o próximo ciclo para não travar a renderização
+    // Se as frotas ainda não carregaram do banco, aguarda o próximo ciclo
     if (typeof frotasManutencao === 'undefined' || frotasManutencao.length === 0) return;
+
+    // Popula o select de Placas do gráfico individual assim que as frotas estiverem disponíveis
+    if (typeof window.preencherSelectPlacasDM === 'function') {
+        window.preencherSelectPlacasDM();
+    }
 
     const chartDomDiaria = document.getElementById('graficoEvolucaoDMDiaria');
     if (chartDomDiaria && chartDomDiaria.offsetWidth > 0 && !chartDomDiaria.getAttribute('data-rendered')) {
@@ -696,8 +898,7 @@ setInterval(() => {
     }
 }, 1000);
 
-// 2. Intervalo para Atualização de acordo com o "Passar da Hora"
-// Roda a cada 60 segundos (60000 ms) para incluir as novas horas no gráfico de barras e linha automaticamente
+// Roda a cada 60 segundos para atualizar as informações de horários nos gráficos
 setInterval(() => {
     const chartDomBarras = document.getElementById('graficoStatusFrotaHorario');
     if (chartDomBarras && chartDomBarras.offsetWidth > 0 && typeof window.renderizarGraficoStatusFrotaHorario === 'function') {
