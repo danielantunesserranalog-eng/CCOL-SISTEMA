@@ -661,7 +661,16 @@ window.renderizarGraficoEvolucaoDMDiaria = function() {
     }
 };
 
+// =================================================================
+// INICIALIZAÇÃO E ATUALIZAÇÃO AUTOMÁTICA DOS GRÁFICOS
+// =================================================================
+
+// 1. Intervalo para Inicialização "De Cara"
+// Verifica se os dados já chegaram antes de marcar o gráfico como renderizado
 setInterval(() => {
+    // Se as frotas ainda não carregaram do banco, aguarda o próximo ciclo para não travar a renderização
+    if (typeof frotasManutencao === 'undefined' || frotasManutencao.length === 0) return;
+
     const chartDomDiaria = document.getElementById('graficoEvolucaoDMDiaria');
     if (chartDomDiaria && chartDomDiaria.offsetWidth > 0 && !chartDomDiaria.getAttribute('data-rendered')) {
         chartDomDiaria.setAttribute('data-rendered', 'true');
@@ -670,7 +679,6 @@ setInterval(() => {
         }
     }
     
-    // Inicia o grafico de barras da data especifica tambem
     const chartDomBarras = document.getElementById('graficoStatusFrotaHorario');
     if (chartDomBarras && chartDomBarras.offsetWidth > 0 && !chartDomBarras.getAttribute('data-rendered')) {
         chartDomBarras.setAttribute('data-rendered', 'true');
@@ -678,4 +686,26 @@ setInterval(() => {
             window.renderizarGraficoStatusFrotaHorario();
         }
     }
+
+    const chartDomLinha = document.getElementById('graficoEvolucaoDM');
+    if (chartDomLinha && chartDomLinha.offsetWidth > 0 && !chartDomLinha.getAttribute('data-rendered')) {
+        chartDomLinha.setAttribute('data-rendered', 'true');
+        if (typeof window.renderizarGraficoEvolucaoDM === 'function') {
+            window.renderizarGraficoEvolucaoDM();
+        }
+    }
 }, 1000);
+
+// 2. Intervalo para Atualização de acordo com o "Passar da Hora"
+// Roda a cada 60 segundos (60000 ms) para incluir as novas horas no gráfico de barras e linha automaticamente
+setInterval(() => {
+    const chartDomBarras = document.getElementById('graficoStatusFrotaHorario');
+    if (chartDomBarras && chartDomBarras.offsetWidth > 0 && typeof window.renderizarGraficoStatusFrotaHorario === 'function') {
+        window.renderizarGraficoStatusFrotaHorario();
+    }
+
+    const chartDomLinha = document.getElementById('graficoEvolucaoDM');
+    if (chartDomLinha && chartDomLinha.offsetWidth > 0 && typeof window.renderizarGraficoEvolucaoDM === 'function') {
+        window.renderizarGraficoEvolucaoDM();
+    }
+}, 60000);
