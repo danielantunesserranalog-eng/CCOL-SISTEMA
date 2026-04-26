@@ -1,5 +1,5 @@
 // =================================================================
-// FUNÇÕES DO FILTRO GLOBAL 
+// FUNÇÕES DO FILTRO GLOBAL E KPIS
 // =================================================================
 window.getDatasFiltroGlobal = function() {
     const selectFiltro = document.getElementById('filtroGlobalPeriodo');
@@ -7,7 +7,9 @@ window.getDatasFiltroGlobal = function() {
     const hoje = new Date();
     let inicio = new Date(hoje);
     inicio.setHours(0,0,0,0);
-    hoje.setHours(23,59,59,999);
+    
+    let fim = new Date();
+    fim.setHours(23,59,59,999);
 
     if (filtro === 'dia_atual') {
         // inicio já é hoje às 00:00
@@ -19,10 +21,152 @@ window.getDatasFiltroGlobal = function() {
         let d = parseInt(filtro) || 30;
         inicio.setDate(inicio.getDate() - d + 1);
     }
-    return { inicio: inicio, fim: hoje, valorBruto: filtro };
+    return { inicio: inicio, fim: fim, valorBruto: filtro };
+};
+
+window.atualizarKPIsGlobais = function() {
+    try {
+        if (!ordensServico) return;
+        const datas = window.getDatasFiltroGlobal();
+        const inicio = datas.inicio;
+        const fim = datas.fim;
+
+        // 1. KPIs de Ordens de Serviço (Contagem e Tempo)
+        let totalOS = 0;
+        let abertasOS = 0;
+        let concluidasOS = 0;
+        let msTotalTempo = 0;
+        let osComTempo = 0;
+
+        ordensServico.forEach(os => {
+            if (os.status === 'Agendada') return;
+
+            let osInicioStr = os.data_abertura;
+            if (!osInicioStr) return;
+            if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
+            const dtAbertura = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
+
+            let dtConclusao = new Date();
+            if (os.data_conclusao) {
+                let osFimStr = os.data_conclusao;
+                if (!osFimStr.includes('T')) osFimStr += 'T00:00:00';
+                dtConclusao = new Date(osFimStr.replace('Z', '').replace('+00:00', ''));
+            }
+
+            // Verifica se a OS ocorreu (ou estava aberta) dentro do período filtrado
+            if (dtAbertura <= fim && dtConclusao >= inicio) {
+                totalOS++;
+                if (os.status === 'Concluída' || os.status === 'Resolvido') {
+                    concluidasOS++;
+                    if (dtAbertura && os.data_conclusao) { // Só conta tempo médio se realmente tem data fim registrada
+                        msTotalTempo += (dtConclusao - dtAbertura);
+                        osComTempo++;
+                    }
+                } else {
+                    abertasOS++;
+                }
+            }
+        });
+
+        let taxaConclusao = totalOS > 0 ? ((concluidasOS / totalOS) * 100).toFixed(1) : 0;
+        let tempoMedioStr = '0h 0m';
+        if (osComTempo > 0) {
+            let mediaMs = msTotalTempo / osComTempo;
+            let mediaHoras = Math.floor(mediaMs / (1000 * 60 * 60));
+            let mediaMinutos = Math.floor((mediaMs % (1000 * 60 * 60)) / (1000 * 60));
+            tempoMedioStr = `${mediaHoras}h ${mediaMinutos}m`;
+        }
+
+        const elKpiTotal = document.getElementById('kpiTotalOS');
+        const elKpiAbertas = document.getElementById('kpiAbertasOS');
+        const elKpiConcluidas = document.getElementById('kpiConcluidasOS');
+        const elKpiTaxa = document.getElementById('kpiTaxaOS');
+        const elKpiTempo = document.getElementById('kpiTempoMedioOS');
+
+        if(elKpiTotal) elKpiTotal.innerText = totalOS;
+        if(elKpiAbertas) elKpiAbertas.innerText = abertasOS;
+        if(elKpiConcluidas) elKpiConcluidas.innerText = concluidasOS;
+        if(elKpiTaxa) elKpiTaxa.innerText = taxaConclusao + '%';
+        if(elKpiTempo) elKpiTempo.innerText = tempoMedioStr;
+
+        // 2. KPIs de Médias do Período (DM, Ativos, Manutenção, SOS)
+        if (!frotasManutencao || frotasManutencao.length === 0) return;
+        
+        const totalFrota = frotasManutencao.length;
+        
+        // Ajusta o tempo total do período. Se o filtro acabar no futuro (ex: hoje às 23:59), calcula só até o 'agora' para a média ser real
+        let fimParaCalculo = fim > new Date() ? new Date() : fim;
+        let msTotalPeriodo = fimParaCalculo - inicio;
+        if (msTotalPeriodo <= 0) msTotalPeriodo = 1;
+
+        let msManutencaoComum = 0;
+        let msSOS = 0;
+
+        frotasManutencao.forEach(frota => {
+            const todasOSCavalo = ordensServico.filter(o => o.placa === frota.cavalo && o.status !== 'Agendada');
+            
+            todasOSCavalo.forEach(os => {
+                let osInicioStr = os.data_abertura;
+                if (!osInicioStr) return;
+                if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
+                const osInicio = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
+                
+                let osFim = new Date(); 
+                if (os.data_conclusao) {
+                    let osFimStr = os.data_conclusao;
+                    if (!osFimStr.includes('T')) osFimStr += 'T00:00:00';
+                    osFim = new Date(osFimStr.replace('Z', '').replace('+00:00', ''));
+                }
+
+                const overlapInicio = osInicio > inicio ? osInicio : inicio;
+                const overlapFim = osFim < fimParaCalculo ? osFim : fimParaCalculo;
+
+                if (overlapInicio < overlapFim) {
+                    const tempoParado = overlapFim - overlapInicio;
+                    const tipoOS = (os.tipo || os.tipo_manutencao || '').toUpperCase();
+                    const descOS = (os.descricao || '').toUpperCase();
+                    const prioridadeOS = (os.prioridade || '').toUpperCase();
+
+                    if (
+                        tipoOS.includes('S.O.S') || tipoOS.includes('SOS') || tipoOS.includes('SOCORRO') ||
+                        descOS.includes('S.O.S') || descOS.includes('SOS') || descOS.includes('SOCORRO') ||
+                        prioridadeOS.includes('EMERGÊNCIA')
+                    ) {
+                        msSOS += tempoParado;
+                    } else {
+                        msManutencaoComum += tempoParado;
+                    }
+                }
+            });
+        });
+
+        const totalMsDisponivelPeriodo = totalFrota * msTotalPeriodo;
+        let msManutTotal = msManutencaoComum + msSOS;
+        let dispNoPeriodoMs = totalMsDisponivelPeriodo - msManutTotal;
+        if (dispNoPeriodoMs < 0) dispNoPeriodoMs = 0;
+
+        const mediaAtivosReal = Math.round(dispNoPeriodoMs / msTotalPeriodo);
+        const mediaManutReal = Math.round(msManutencaoComum / msTotalPeriodo);
+        const mediaSOSReal = Math.round(msSOS / msTotalPeriodo);
+        const percentDMReal = totalMsDisponivelPeriodo > 0 ? (dispNoPeriodoMs / totalMsDisponivelPeriodo) * 100 : 100;
+
+        const elAvgDM = document.getElementById('avgDM');
+        const elAvgAtivos = document.getElementById('avgAtivos');
+        const elAvgManut = document.getElementById('avgManut');
+        const elAvgSOS = document.getElementById('avgSOS');
+        
+        if(elAvgDM) elAvgDM.innerText = percentDMReal.toFixed(1) + '%';
+        if(elAvgAtivos) elAvgAtivos.innerText = mediaAtivosReal;
+        if(elAvgManut) elAvgManut.innerText = mediaManutReal;
+        if(elAvgSOS) elAvgSOS.innerText = mediaSOSReal;
+
+    } catch(e) {
+        console.error("Erro ao atualizar KPIs Globais:", e);
+    }
 };
 
 window.dispararFiltrosGlobais = function() {
+    try { if(typeof atualizarKPIsGlobais === 'function') atualizarKPIsGlobais(); } catch(e){}
     try { if(typeof renderizarGraficoEvolucaoDM === 'function') renderizarGraficoEvolucaoDM(); } catch(e){}
     try { if(typeof renderizarGraficoStatusFrotaHorario === 'function') renderizarGraficoStatusFrotaHorario(); } catch(e){}
     try { if(typeof renderizarGraficoEvolucaoDMDiaria === 'function') renderizarGraficoEvolucaoDMDiaria(); } catch(e){}
@@ -62,7 +206,6 @@ window.renderizarGraficoEvolucaoDM = function() {
             horaLimite = agora.getHours();
         }
 
-        // Parte 1: Calcular os pontos do gráfico de linha (hora a hora)
         for (let i = 0; i <= horaLimite; i++) {
             const inicioHora = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate(), i, 0, 0, 0);
             const fimHora = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate(), i, 59, 59, 999);
@@ -104,89 +247,6 @@ window.renderizarGraficoEvolucaoDM = function() {
             let percentDM = (dispNestaHora / totalMsDisponivelPorHora) * 100;
             labelsX.push(`${String(i).padStart(2,'0')}:00`);
             dadosLinhaDM.push(percentDM.toFixed(2));
-        }
-
-        // Parte 2: Calcular a Média exata do dia (em milissegundos) para os KPIs do topo
-        let msTotalDiaCalc = 24 * 60 * 60 * 1000;
-        let inicioDiaCalc = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate(), 0, 0, 0, 0);
-        let fimParaCalculoTotal = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate(), 23, 59, 59, 999);
-
-        if (ehHoje) {
-            msTotalDiaCalc = agora - inicioDiaCalc;
-            fimParaCalculoTotal = agora;
-        }
-
-        if (msTotalDiaCalc > 0) {
-            let msManutencaoComumDia = 0;
-            let msSOSDia = 0;
-
-            frotasManutencao.forEach(frota => {
-                let manutComumCavalo = 0;
-                let sosCavalo = 0;
-                const todasOSCavalo = ordensServico.filter(o => o.placa === frota.cavalo && o.status !== 'Agendada');
-                
-                todasOSCavalo.forEach(os => {
-                    let osInicioStr = os.data_abertura;
-                    if (!osInicioStr) return;
-                    if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
-                    const osInicio = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
-                    
-                    let osFim = agora; 
-                    if (os.data_conclusao) {
-                        let osFimStr = os.data_conclusao;
-                        if (!osFimStr.includes('T')) osFimStr += 'T00:00:00';
-                        osFim = new Date(osFimStr.replace('Z', '').replace('+00:00', ''));
-                    }
-
-                    const overlapInicio = osInicio > inicioDiaCalc ? osInicio : inicioDiaCalc;
-                    const overlapFim = osFim < fimParaCalculoTotal ? osFim : fimParaCalculoTotal;
-
-                    if (overlapInicio < overlapFim) {
-                        const tipoOS = (os.tipo || os.tipo_manutencao || '').toUpperCase();
-                        const descOS = (os.descricao || '').toUpperCase();
-                        const prioridadeOS = (os.prioridade || '').toUpperCase();
-
-                        if (
-                            tipoOS.includes('S.O.S') || tipoOS.includes('SOS') || tipoOS.includes('SOCORRO') ||
-                            descOS.includes('S.O.S') || descOS.includes('SOS') || descOS.includes('SOCORRO') ||
-                            prioridadeOS.includes('EMERGÊNCIA')
-                        ) {
-                            sosCavalo += (overlapFim - overlapInicio);
-                        } else {
-                            manutComumCavalo += (overlapFim - overlapInicio);
-                        }
-                    }
-                });
-                
-                if (manutComumCavalo + sosCavalo > msTotalDiaCalc) {
-                    let proporcao = msTotalDiaCalc / (manutComumCavalo + sosCavalo);
-                    manutComumCavalo *= proporcao;
-                    sosCavalo *= proporcao;
-                }
-
-                msManutencaoComumDia += manutComumCavalo;
-                msSOSDia += sosCavalo;
-            });
-
-            const totalMsDisponivelDia = totalFrota * msTotalDiaCalc;
-            let msManutTotal = msManutencaoComumDia + msSOSDia;
-            let dispNoDiaMs = totalMsDisponivelDia - msManutTotal;
-            if (dispNoDiaMs < 0) dispNoDiaMs = 0;
-
-            const mediaAtivosReal = Math.round(dispNoDiaMs / msTotalDiaCalc);
-            const mediaManutReal = Math.round(msManutencaoComumDia / msTotalDiaCalc);
-            const mediaSOSReal = Math.round(msSOSDia / msTotalDiaCalc);
-            const percentDMReal = (dispNoDiaMs / totalMsDisponivelDia) * 100;
-
-            const elAvgDM = document.getElementById('avgDM');
-            const elAvgAtivos = document.getElementById('avgAtivos');
-            const elAvgManut = document.getElementById('avgManut');
-            const elAvgSOS = document.getElementById('avgSOS');
-            
-            if(elAvgDM) elAvgDM.innerText = percentDMReal.toFixed(1) + '%';
-            if(elAvgAtivos) elAvgAtivos.innerText = mediaAtivosReal;
-            if(elAvgManut) elAvgManut.innerText = mediaManutReal;
-            if(elAvgSOS) elAvgSOS.innerText = mediaSOSReal;
         }
 
         if (typeof echarts === 'undefined') return;
@@ -340,7 +400,7 @@ window.renderizarGraficoStatusFrotaHorario = function() {
             dadosBarraSOS.push(qtdEmSOS);
         }
 
-        // Parte 2: Calcular a Média exata do dia selecionado (para os KPIs internos baterem com a evolução diária)
+        // Parte 2: Calcular a Média exata do dia selecionado (apenas para o painel de dentro do card Horário)
         let msTotalDiaCalc = 24 * 60 * 60 * 1000;
         let inicioDiaCalc = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate(), 0, 0, 0, 0);
         let fimParaCalculoTotal = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate(), 23, 59, 59, 999);
@@ -668,10 +728,8 @@ window.preencherSelectPlacasDM = function() {
     const select = document.getElementById('filtroPlacaDMInd');
     if (!select || !frotasManutencao || frotasManutencao.length === 0) return;
     
-    // Evita duplicar as opções se já estiverem carregadas
     if (select.options.length > 1) return;
 
-    // Pega as placas únicas e ordena em ordem alfabética
     const placas = [...new Set(frotasManutencao.map(f => f.cavalo))].sort();
     
     placas.forEach(placa => {
@@ -703,7 +761,6 @@ window.renderizarDMIndividual = function() {
         const hoje = new Date();
         hoje.setHours(23, 59, 59, 999);
 
-        // Se houver filtro específico de datas na barra, usa ele. Se não, usa o filtro global (Mês, Semana, etc)
         if (inpInicio && inpFim) {
             dataInicio = new Date(inpInicio + 'T00:00:00');
             dataFim = new Date(inpFim + 'T23:59:59');
@@ -717,7 +774,6 @@ window.renderizarDMIndividual = function() {
         const dadosDM = [];
         let atual = new Date(dataInicio);
 
-        // Filtra todas as OS apenas desse veículo
         const todasOSCavalo = ordensServico.filter(o => o.placa === placa && o.status !== 'Agendada');
 
         while (atual <= dataFim) {
@@ -831,7 +887,6 @@ window.exportarDMIndividualExcel = function() {
         return;
     }
     
-    // Pega a instância do gráfico para extrair os dados atuais plotados
     const chartDom = document.getElementById('graficoDmIndividual');
     const myChart = echarts.getInstanceByDom(chartDom);
     
@@ -865,14 +920,13 @@ window.exportarDMIndividualExcel = function() {
 // =================================================================
 
 setInterval(() => {
-    // Se as frotas ainda não carregaram do banco, aguarda o próximo ciclo
     if (typeof frotasManutencao === 'undefined' || frotasManutencao.length === 0) return;
 
-    // Popula o select de Placas do gráfico individual assim que as frotas estiverem disponíveis
     if (typeof window.preencherSelectPlacasDM === 'function') {
         window.preencherSelectPlacasDM();
     }
 
+    // Marca os painéis como renderizados e chama a montagem pela 1ª vez
     const chartDomDiaria = document.getElementById('graficoEvolucaoDMDiaria');
     if (chartDomDiaria && chartDomDiaria.offsetWidth > 0 && !chartDomDiaria.getAttribute('data-rendered')) {
         chartDomDiaria.setAttribute('data-rendered', 'true');
@@ -896,10 +950,22 @@ setInterval(() => {
             window.renderizarGraficoEvolucaoDM();
         }
     }
+    
+    const elKpi = document.getElementById('kpiTotalOS');
+    if (elKpi && !elKpi.getAttribute('data-rendered')) {
+        elKpi.setAttribute('data-rendered', 'true');
+        if (typeof window.atualizarKPIsGlobais === 'function') {
+            window.atualizarKPIsGlobais();
+        }
+    }
 }, 1000);
 
-// Roda a cada 60 segundos para atualizar as informações de horários nos gráficos
 setInterval(() => {
+    // Atualiza apenas o gráfico horário (linha), as barras diárias da data escolhida e recalcula KPIs para as horas que avançaram
+    if (typeof window.atualizarKPIsGlobais === 'function') {
+        window.atualizarKPIsGlobais();
+    }
+
     const chartDomBarras = document.getElementById('graficoStatusFrotaHorario');
     if (chartDomBarras && chartDomBarras.offsetWidth > 0 && typeof window.renderizarGraficoStatusFrotaHorario === 'function') {
         window.renderizarGraficoStatusFrotaHorario();
