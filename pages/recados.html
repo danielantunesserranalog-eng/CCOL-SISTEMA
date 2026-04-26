@@ -1,88 +1,138 @@
 <div class="recados-dashboard">
-    <div class="recados-header">
-        <h2>📝 Mural de Recados e Anotações</h2>
-        <p>Agende tarefas rápidas, retornos de rádio e mantenha o controle do turno.</p>
+    <div class="recados-header-kanban">
+        <div class="header-titulos">
+            <h2>📝 Mural de Recados Kanban</h2>
+            <p>Gerencie anotações arrastando os cards e controle o histórico.</p>
+        </div>
+        <div class="kanban-tabs">
+            <button id="btn-tab-quadro" class="tab-btn active" onclick="alternarAbaRecados('quadro')">📋 Quadro Trello</button>
+            <button id="btn-tab-historico" class="tab-btn" onclick="alternarAbaRecados('historico')">🕰️ Histórico</button>
+        </div>
     </div>
 
-    <div class="recados-grid">
-        <div class="recados-form-panel">
-            <h3>Novo Recado</h3>
-            <form id="form-recado">
-                <div class="form-group-dark" style="margin-bottom: 12px;">
-                    <label for="titulo-recado" style="display: block; margin-bottom: 5px; color: #cbd5e1; font-size: 0.9rem;">Título da Tarefa</label>
-                    <input type="text" id="titulo-recado" class="dark-input" placeholder="Ex: Ligar para motorista..." required>
+    <div class="recados-form-top">
+        <form id="form-recado">
+            <div class="form-row">
+                <input type="text" id="titulo-recado" class="dark-input" placeholder="Título da tarefa..." required>
+                <input type="text" id="desc-recado" class="dark-input" placeholder="Detalhes rápidos..." required>
+                <select id="prioridade-recado" class="dark-input" required>
+                    <option value="alta">🔴 Alta Prioridade</option>
+                    <option value="media" selected>🟡 Média Prioridade</option>
+                    <option value="baixa">🔵 Baixa Prioridade</option>
+                </select>
+                <input type="datetime-local" id="data-recado" class="dark-input" required>
+                <button type="submit" class="btn-primary-green">➕ Adicionar</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="view-quadro" class="kanban-board">
+        
+        <div class="kanban-column">
+            <div class="kanban-column-header header-alta">
+                <span>🔴 Alta Prioridade</span>
+                <span class="badge-contador" id="count-alta">0</span>
+            </div>
+            <div class="kanban-dropzone" id="lista-alta" ondrop="soltarRecado(event, 'alta')" ondragover="permitirSoltar(event)">
                 </div>
-                
-                <div class="form-group-dark" style="margin-bottom: 12px;">
-                    <label for="desc-recado" style="display: block; margin-bottom: 5px; color: #cbd5e1; font-size: 0.9rem;">Descrição detalhada</label>
-                    <textarea id="desc-recado" class="dark-input" placeholder="Detalhes da anotação..." rows="3" required></textarea>
-                </div>
-                
-                <div class="form-group-dark" style="margin-bottom: 20px;">
-                    <label for="data-recado" style="display: block; margin-bottom: 5px; color: #cbd5e1; font-size: 0.9rem;">Agendar para:</label>
-                    <input type="datetime-local" id="data-recado" class="dark-input" required>
-                </div>
-                
-                <button type="submit" class="btn-primary-green w-100">
-                    ➕ Agendar Recado
-                </button>
-            </form>
         </div>
 
-        <div class="recados-list-panel">
-            <h3>Tarefas Pendentes</h3>
-            <div id="lista-recados" class="recados-list-container">
+        <div class="kanban-column">
+            <div class="kanban-column-header header-media">
+                <span>🟡 Média Prioridade</span>
+                <span class="badge-contador" id="count-media">0</span>
+            </div>
+            <div class="kanban-dropzone" id="lista-media" ondrop="soltarRecado(event, 'media')" ondragover="permitirSoltar(event)">
                 </div>
         </div>
+
+        <div class="kanban-column">
+            <div class="kanban-column-header header-baixa">
+                <span>🔵 Baixa Prioridade</span>
+                <span class="badge-contador" id="count-baixa">0</span>
+            </div>
+            <div class="kanban-dropzone" id="lista-baixa" ondrop="soltarRecado(event, 'baixa')" ondragover="permitirSoltar(event)">
+                </div>
+        </div>
+
+    </div>
+
+    <div id="view-historico" class="historico-panel" style="display: none;">
+        <div class="historico-header">
+            <h3>Tarefas Concluídas</h3>
+            <button class="btn-outline-red" onclick="limparHistoricoRecados()">🗑️ Limpar Histórico</button>
+        </div>
+        <div class="historico-grid" id="lista-historico">
+            </div>
     </div>
 </div>
 
 <style>
-    /* Estilos Modernos Dark Mode para os Recados */
+    /* Estilos Modernos Dark Mode - Padrão CCOL Kanban */
     .recados-dashboard {
         padding: 20px;
         color: #f1f5f9;
-        max-width: 1200px;
+        max-width: 1400px;
         margin: 0 auto;
         animation: fadeIn 0.3s ease-in-out;
     }
 
-    .recados-header {
+    .recados-header-kanban {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
         margin-bottom: 20px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         padding-bottom: 15px;
     }
 
-    .recados-header h2 { margin: 0; color: #38bdf8; font-size: 1.6rem; }
-    .recados-header p { margin: 5px 0 0 0; color: #94a3b8; font-size: 0.95rem; }
+    .header-titulos h2 { margin: 0; color: #38bdf8; font-size: 1.6rem; }
+    .header-titulos p { margin: 5px 0 0 0; color: #94a3b8; font-size: 0.95rem; }
 
-    .recados-grid {
-        display: grid;
-        grid-template-columns: 1fr 2fr; /* Formulário menor, Lista maior */
-        gap: 20px;
+    /* Abas */
+    .kanban-tabs {
+        display: flex;
+        gap: 10px;
+        background: rgba(15, 23, 42, 0.6);
+        padding: 5px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
-    @media (max-width: 768px) {
-        .recados-grid { grid-template-columns: 1fr; }
+    .tab-btn {
+        background: transparent;
+        border: none;
+        color: #94a3b8;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
     }
 
-    .recados-form-panel, .recados-list-panel {
-        background: rgba(30, 41, 59, 0.6); /* Fundo escuro do painel */
+    .tab-btn.active { background: #38bdf8; color: #0f172a; }
+    .tab-btn:hover:not(.active) { color: #f8fafc; background: rgba(255,255,255,0.05); }
+
+    /* Formulário no Topo */
+    .recados-form-top {
+        background: rgba(30, 41, 59, 0.8);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 8px;
-        padding: 20px;
+        padding: 15px;
+        margin-bottom: 25px;
     }
 
-    .recados-form-panel h3, .recados-list-panel h3 {
-        margin-top: 0; margin-bottom: 20px;
-        font-size: 1.1rem; color: #f8fafc;
-        border-left: 3px solid #10b981;
-        padding-left: 10px;
+    .form-row {
+        display: flex;
+        gap: 15px;
+        align-items: center;
     }
 
-    /* Inputs padronizados com o seu painel */
+    .form-row > * { flex: 1; }
+    .form-row button { flex: 0.5; height: 42px; font-weight: bold; }
+
+    /* Inputs Padrão */
     .dark-input {
-        width: 100%;
         padding: 10px;
         background: rgba(15, 23, 42, 0.8);
         border: 1px solid rgba(255, 255, 255, 0.2);
@@ -90,74 +140,130 @@
         color: #fff;
         font-family: inherit;
         box-sizing: border-box;
+        height: 42px;
     }
 
-    .dark-input:focus {
-        outline: none;
-        border-color: #10b981; /* Verde CCOL */
-        box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+    .dark-input:focus { outline: none; border-color: #10b981; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2); }
+
+    /* Estrutura do Board Kanban */
+    .kanban-board {
+        display: flex;
+        gap: 20px;
+        overflow-x: auto;
+        padding-bottom: 10px;
+        min-height: 500px;
     }
 
-    .w-100 { width: 100%; padding: 12px; font-weight: bold; font-size: 1rem;}
-
-    .recados-list-container {
+    .kanban-column {
+        flex: 1;
+        min-width: 320px;
+        background: rgba(30, 41, 59, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
         display: flex;
         flex-direction: column;
-        gap: 15px;
-        max-height: 60vh;
-        overflow-y: auto;
-        padding-right: 5px;
     }
 
-    /* Scrollbar estilizada */
-    .recados-list-container::-webkit-scrollbar { width: 6px; }
-    .recados-list-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
-
-    /* Card do Recado */
-    .card-recado-modern {
-        background: rgba(15, 23, 42, 0.9);
-        border-left: 4px solid #f59e0b; /* Borda laranja para chamar atenção */
-        border-radius: 6px;
+    .kanban-column-header {
         padding: 15px;
+        font-weight: bold;
+        font-size: 1.1rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        transition: transform 0.2s;
+        border-bottom: 2px solid;
+        border-radius: 8px 8px 0 0;
+        background: rgba(15, 23, 42, 0.6);
     }
 
-    .card-recado-modern:hover {
-        transform: translateX(4px);
-        border-left-color: #10b981; /* Fica verde ao passar o mouse */
+    .header-alta { border-bottom-color: #ef4444; color: #fca5a5; }
+    .header-media { border-bottom-color: #f59e0b; color: #fcd34d; }
+    .header-baixa { border-bottom-color: #3b82f6; color: #93c5fd; }
+
+    .badge-contador {
+        background: rgba(255,255,255,0.1);
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.85rem;
     }
 
-    .recado-info h4 { margin: 0 0 5px 0; color: #f8fafc; font-size: 1.1rem; }
-    .recado-info p { margin: 0 0 10px 0; color: #94a3b8; font-size: 0.9rem; line-height: 1.4; }
-
-    .recado-meta {
-        display: inline-block;
-        background: rgba(255,255,255,0.05);
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 0.8rem;
-        color: #cbd5e1;
+    /* Área de Drop do Kanban */
+    .kanban-dropzone {
+        flex: 1;
+        padding: 15px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 200px;
+        overflow-y: auto;
     }
 
-    /* Botão de Concluir vazado (Outline) */
-    .btn-concluir-modern {
+    .kanban-dropzone::-webkit-scrollbar { width: 4px; }
+    .kanban-dropzone::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+    /* Cards Estilo Trello */
+    .card-kanban {
+        background: rgba(15, 23, 42, 0.95);
+        border-radius: 6px;
+        padding: 15px;
+        border: 1px solid rgba(255,255,255,0.1);
+        cursor: grab;
+        transition: transform 0.2s, box-shadow 0.2s;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .card-kanban:active { cursor: grabbing; opacity: 0.8; transform: scale(0.98); }
+    .card-kanban:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.3); border-color: rgba(255,255,255,0.2); }
+
+    /* Bordas laterais para identificar status mesmo movendo */
+    .card-alta { border-left: 4px solid #ef4444; }
+    .card-media { border-left: 4px solid #f59e0b; }
+    .card-baixa { border-left: 4px solid #3b82f6; }
+
+    .card-title { font-size: 1.05rem; font-weight: 600; color: #f8fafc; margin: 0; }
+    .card-desc { font-size: 0.85rem; color: #94a3b8; margin: 0; line-height: 1.4; }
+    
+    .card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 5px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .card-meta { font-size: 0.75rem; color: #cbd5e1; background: rgba(255,255,255,0.05); padding: 4px 6px; border-radius: 4px; }
+
+    .btn-concluir-mini {
         background: transparent;
         color: #10b981;
         border: 1px solid #10b981;
-        padding: 8px 15px;
-        border-radius: 6px;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 0.8rem;
         cursor: pointer;
-        font-weight: 600;
         transition: all 0.2s;
-        margin-left: 15px;
     }
+    .btn-concluir-mini:hover { background: #10b981; color: #0f172a; }
 
-    .btn-concluir-modern:hover {
-        background: #10b981;
-        color: #0f172a;
+    /* Estilos Histórico */
+    .historico-panel { background: rgba(30, 41, 59, 0.4); border-radius: 8px; padding: 20px; border: 1px solid rgba(255,255,255,0.05); }
+    .historico-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .historico-header h3 { margin: 0; color: #10b981; }
+    .historico-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
+
+    .btn-outline-red {
+        background: transparent; border: 1px solid #ef4444; color: #ef4444; padding: 8px 15px;
+        border-radius: 6px; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-outline-red:hover { background: #ef4444; color: #fff; }
+
+    /* Responsividade form top */
+    @media (max-width: 1024px) {
+        .form-row { flex-direction: column; }
+        .form-row > * { width: 100%; }
     }
     
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
