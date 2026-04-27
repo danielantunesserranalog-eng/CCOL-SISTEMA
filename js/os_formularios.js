@@ -460,7 +460,6 @@ async function imprimirOS(osId) {
         </tr>`;
     }
 
-    // ALTERAÇÃO AQUI: Adicionado a coluna de compartimentos na lista de Peças/Materiais
     let linhasPecas = '';
     for(let i=0; i<5; i++) {
         linhasPecas += `
@@ -474,10 +473,14 @@ async function imprimirOS(osId) {
         </tr>`;
     }
 
+    // Captura o diretório base (root) do sistema atual para que a imagem seja achada na janela de impressão.
+    const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
         <html>
         <head>
+            <base href="${baseUrl}">
             <title>OS ${os.placa} - #${numeroOSFormatado}</title>
             <style>
                 @page { size: landscape; margin: 10mm; }
@@ -492,7 +495,8 @@ async function imprimirOS(osId) {
                 }
                 
                 .header-container { display: flex; border: 2px solid #000; margin-bottom: 5px; }
-                .header-left { padding: 10px; border-right: 2px solid #000; display: flex; align-items: center; font-weight: bold; font-size: 18px; }
+                .header-left { padding: 10px; border-right: 2px solid #000; display: flex; align-items: center; justify-content: center; width: 140px; }
+                .header-left img { max-height: 45px; max-width: 100%; object-fit: contain; }
                 .header-center { flex: 1; text-align: center; padding: 10px; }
                 .header-center h1 { margin: 0; font-size: 16px; text-transform: uppercase; }
                 .header-center h2 { margin: 2px 0 0 0; font-size: 12px; font-weight: normal; }
@@ -514,7 +518,9 @@ async function imprimirOS(osId) {
         </head>
         <body>
             <div class="header-container">
-                <div class="header-left">SERRANA LOG</div>
+                <div class="header-left">
+                    <img src="assets/logoverde.png" alt="Serrana Log">
+                </div>
                 <div class="header-center">
                     <h1>ORDEM DE SERVIÇO DE MANUTENÇÃO E FROTAS</h1>
                     <h2>CCOL - Centro de Controle Operacional Logístico</h2>
@@ -537,6 +543,10 @@ async function imprimirOS(osId) {
                     <td><strong>Conclusão:</strong> ${dataConclusaoFormatada}</td>
                     <td><strong>Prioridade:</strong> ${os.prioridade}</td>
                     <td><strong>Tipo:</strong> ${os.tipo}</td>
+                </tr>
+                <tr>
+                    <td><strong>Hodômetro (Km):</strong> ${os.hodometro || '-'}</td>
+                    <td colspan="3"></td>
                 </tr>
             </table>
 
@@ -602,7 +612,8 @@ async function imprimirOS(osId) {
             </div>
             
             <script>
-                window.onload = function() { window.print(); }
+                // Aumentando um pouco o timeout para dar tempo da imagem carregar no canvas
+                window.onload = function() { setTimeout(() => { window.print(); }, 250); }
             </script>
         </body>
         </html>
