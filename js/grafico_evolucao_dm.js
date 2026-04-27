@@ -578,7 +578,6 @@ window.renderizarGraficoEvolucaoDMDiaria = function() {
 
         const labelsDias = [];
         const dadosDMDiaria = [];
-        const totalFrota = frotasManutencao.length;
 
         let atual = new Date(dataInicio);
 
@@ -597,10 +596,48 @@ window.renderizarGraficoEvolucaoDMDiaria = function() {
             }
 
             if (msTotalDia > 0) {
-                const totalMsDisponivelDia = totalFrota * msTotalDia;
+                let qtdFrotaDia = 0;
+                let frotasValidas = [];
+
+                // Verifica sinistros do dia para reduzir o total dinâmico da frota
+                frotasManutencao.forEach(frota => {
+                    const todasOSCavalo = ordensServico.filter(o => o.placa === frota.cavalo && o.status !== 'Agendada');
+                    let emSinistro = false;
+                    
+                    todasOSCavalo.forEach(os => {
+                        let osInicioStr = os.data_abertura;
+                        if (!osInicioStr) return;
+                        if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
+                        const osInicio = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
+                        
+                        let osFim = new Date(); 
+                        if (os.data_conclusao) {
+                            let osFimStr = os.data_conclusao;
+                            if (!osFimStr.includes('T')) osFimStr += 'T00:00:00';
+                            osFim = new Date(osFimStr.replace('Z', '').replace('+00:00', ''));
+                        }
+
+                        const tipoOS = (os.tipo || os.tipo_manutencao || '').toUpperCase();
+                        const descOS = (os.descricao || '').toUpperCase();
+                        const isSinistro = tipoOS.includes('SINISTRO') || descOS.includes('SINISTRO');
+
+                        // Se é sinistro e estava ativo (aberto e não concluído) durante o decorrer deste dia
+                        if (isSinistro && osInicio <= fimDia && osFim >= inicioDia) {
+                            emSinistro = true;
+                        }
+                    });
+
+                    // Só contabiliza a frota no total se não estiver em sinistro neste dia
+                    if (!emSinistro) {
+                        qtdFrotaDia++;
+                        frotasValidas.push(frota);
+                    }
+                });
+
+                const totalMsDisponivelDia = qtdFrotaDia * msTotalDia;
                 let msManutencaoDia = 0;
 
-                frotasManutencao.forEach(frota => {
+                frotasValidas.forEach(frota => {
                     let manutencaoCavalo = 0;
                     const todasOSCavalo = ordensServico.filter(o => o.placa === frota.cavalo && o.status !== 'Agendada');
                     
@@ -632,8 +669,8 @@ window.renderizarGraficoEvolucaoDMDiaria = function() {
                 let dispNoDiaMs = totalMsDisponivelDia - msManutencaoDia;
                 if (dispNoDiaMs < 0) dispNoDiaMs = 0;
 
-                let percentDM = (dispNoDiaMs / totalMsDisponivelDia) * 100;
-                let mediaCavalosDisp = Math.round(dispNoDiaMs / msTotalDia);
+                let percentDM = totalMsDisponivelDia > 0 ? (dispNoDiaMs / totalMsDisponivelDia) * 100 : 100;
+                let mediaCavalosDisp = msTotalDia > 0 ? Math.round(dispNoDiaMs / msTotalDia) : 0;
 
                 const diaStr = String(atual.getDate()).padStart(2, '0') + '/' + String(atual.getMonth() + 1).padStart(2, '0');
                 labelsDias.push(diaStr);
@@ -641,7 +678,7 @@ window.renderizarGraficoEvolucaoDMDiaria = function() {
                 dadosDMDiaria.push({
                     value: percentDM.toFixed(2),
                     disp: mediaCavalosDisp,
-                    total: totalFrota
+                    total: qtdFrotaDia // Total agora reflete a diminuição por sinistro
                 });
             }
             
