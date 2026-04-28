@@ -41,6 +41,11 @@ window.renderizarMenu = function() {
 
     if (meusMenus.includes('os')) navHtml += `<button class="nav-item" onclick="navegarPara('os', this)"><i class="fas fa-tools"></i> Ordem de Serviço</button>`;
     
+    // NOVO MENU: FROTA PEQUENA (Adicionado)
+    if (meusMenus.includes('os_pequena') || isAdmin) {
+        navHtml += `<button class="nav-item" onclick="navegarPara('os_pequena', this)"><i class="fas fa-car"></i> Frota Pequena</button>`;
+    }
+
     // RELATÓRIO GERENCIAL
     if (meusMenus.includes('relatorio_gerencial') || isAdmin) {
         navHtml += `<button class="nav-item" onclick="navegarPara('relatorio_gerencial', this)" style="color: var(--ccol-green-bright); font-weight: bold;"><i class="fas fa-chart-pie"></i> Relatório Gerencial</button>`;
@@ -139,6 +144,10 @@ window.navegarPara = async function(pagina, elementoClicado) {
         }
 
         if (pagina === 'os' && typeof window.alternarTelaOS === 'function') window.alternarTelaOS('lista');
+        
+        // ROTA PARA INICIAR A TELA DA FROTA PEQUENA
+        if (pagina === 'os_pequena' && typeof window.alternarTelaOSPequena === 'function') window.alternarTelaOSPequena('lista');
+
         if (pagina === 'recados' && typeof window.carregarRecados === 'function') window.carregarRecados();
         
         if (pagina === 'treinamento' && typeof window.renderizarPaginaTreinamento === 'function') {
