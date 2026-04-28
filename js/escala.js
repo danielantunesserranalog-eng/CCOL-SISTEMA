@@ -152,7 +152,7 @@ window.renderizarEscala = function() {
 
         if (motoristasDoConjunto.length === 0) return;
 
-        let numeroDisplay = conj.isSemFrota ? 'SEM FROTA / RESERVAS' : `TRINCA ${String(conj.id).padStart(2, '0')}`;
+        let numeroDisplay = conj.isSemFrota ? 'SEM FROTA / RESERVAS' : `CONJUNTO ${String(conj.id).padStart(2, '0')}`;
 
         const grupoDia = motoristasDoConjunto.filter(m => ['A', 'B', 'C'].includes(getEq(m)))
             .sort((a, b) => pesoEquipe(getEq(a)) - pesoEquipe(getEq(b)) || a.nome.localeCompare(b.nome));
@@ -394,7 +394,7 @@ window.renderizarIndicadorTrocaTurno = function() {
     });
 
     if (Object.keys(shiftCounts).length === 0) {
-        container.innerHTML = '<div style="color:#94a3b8; font-weight:bold; padding: 10px;">Nenhum turno configurado ou trinca cadastrada.</div>';
+        container.innerHTML = '<div style="color:#94a3b8; font-weight:bold; padding: 10px;">Nenhum turno configurado ou conjunto cadastrado.</div>';
         return;
     }
 
@@ -462,7 +462,7 @@ window.renderizarIndicadorTrocaTurno = function() {
 
     if (totalCaminhoesAtivos > 0) {
         finalHtml += `<div style="width: 100%; text-align: right; margin-top: 5px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 10px;">
-            <span style="font-size: 0.8rem; color: #94a3b8; font-weight: 700;">Total da Frota Operante na Trinca: <span style="color: #cbd5e1;">${totalCaminhoesAtivos} Cavalos únicos</span></span>
+            <span style="font-size: 0.8rem; color: #94a3b8; font-weight: 700;">Total da Frota Operante no Conjunto: <span style="color: #cbd5e1;">${totalCaminhoesAtivos} Cavalos únicos</span></span>
         </div>`;
     }
 
@@ -504,7 +504,7 @@ function renderizarAlocacao() {
         let eq = getEq(m);
 
         if (currentConjunto !== lastConjunto) {
-            const tituloConjunto = m.conjuntoId ? `TRINCA ${String(m.conjuntoId).padStart(2, '0')}` : `RESERVAS / SEM TRINCA`;
+            const tituloConjunto = m.conjuntoId ? `CONJUNTO ${String(m.conjuntoId).padStart(2, '0')}` : `RESERVAS / SEM CONJUNTO`;
             const btnReset = m.conjuntoId ? `<button onclick="resetarCicloConjunto(${m.conjuntoId})" style="float: right; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #ef4444; padding: 4px 12px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-weight: bold; transition: 0.2s;">ZERAR CICLO</button>` : '';
             
             html += `
@@ -548,7 +548,7 @@ function renderizarAlocacao() {
         
         let conjuntoSelect = `<select class="select-aloc-conjunto select-turno" data-id="${m.id}" ${isBlocked ? 'disabled' : ''} style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 6px;">
             <option value="">Não Alocado</option>
-            ${isBlocked ? '' : conjuntos.map(c => `<option value="${c.id}" ${String(m.conjuntoId) === String(c.id) ? 'selected' : ''}>Trinca ${String(c.id).padStart(2, '0')}</option>`).join('')}
+            ${isBlocked ? '' : conjuntos.map(c => `<option value="${c.id}" ${String(m.conjuntoId) === String(c.id) ? 'selected' : ''}>Conjunto ${String(c.id).padStart(2, '0')}</option>`).join('')}
         </select>`;
         
         let botaoManual = '';
@@ -631,7 +631,7 @@ async function updateAlocacao(e) {
 
 window.resetarCicloConjunto = async function(conjuntoId) {
     if(currentUser.role !== 'Admin') { alert('Acesso Negado: Apenas Administradores podem zerar o ciclo.'); return; }
-    if (!confirm(`Deseja ZERAR as datas e as edições manuais da escala da Trinca ${conjuntoId}?`)) return;
+    if (!confirm(`Deseja ZERAR as datas e as edições manuais da escala do Conjunto ${conjuntoId}?`)) return;
 
     let promisesExclusao = [];
 
@@ -644,12 +644,12 @@ window.resetarCicloConjunto = async function(conjuntoId) {
     });
 
     await Promise.all(promisesExclusao);
-    await db.addLog('Reset de Ciclo', `Datas âncora e escalas manuais removidas para a Trinca ${conjuntoId}.`);
+    await db.addLog('Reset de Ciclo', `Datas âncora e escalas manuais removidas para o Conjunto ${conjuntoId}.`);
 
     salvarBackupLocal();
     renderizarAlocacao();
     window.renderizarEscala();
-    alert(`O ciclo e a escala da Trinca ${conjuntoId} foram completamente zerados!`);
+    alert(`O ciclo e a escala do Conjunto ${conjuntoId} foram completamente zerados!`);
 }
 
 window.abrirModalEscalaManual = function(id) {
@@ -838,7 +838,7 @@ window.imprimirRelatorioEscalaSemanal = function() {
             return tHtml;
         };
 
-        html += `<div class="trinca-box"><div class="trinca-num">TRINCA ${String(conj.id).padStart(2, '0')}</div>`;
+        html += `<div class="trinca-box"><div class="trinca-num">CONJUNTO ${String(conj.id).padStart(2, '0')}</div>`;
         html += `<table><thead><tr><th style="width:9%;">HORÁRIO</th><th style="width:11%;">FROTA/PLACA</th><th style="width:5%;">EQ</th><th style="width:11%;">POSIÇÃO</th><th style="text-align:left;">COLABORADOR</th>${window.currentDatas.map(d => `<th style="width:8%;">${d.diaTexto}<br>${d.diaNum}</th>`).join('')}</tr></thead><tbody>`;
         html += renderTable(gDia, 'TURNO DO DIA (EQUIPAS A, B, C)', 'dia-bg');
         html += renderTable(gNoite, 'TURNO DA NOITE (EQUIPAS D, E, F)', 'noite-bg');
@@ -1001,7 +1001,7 @@ window.gerarRelatorioImpressao = function() {
         if (lista.length === 0) return '<p style="text-align:center;">Nenhum registro para exibir.</p>';
 
         let tHtml = `<div class="section-title">${titulo} (${lista.length} registros)</div>`;
-        tHtml += `<table><thead><tr><th style="width: 12%">HORÁRIO</th><th style="width: 10%">TRINCA</th><th style="width: 40%">MOTORISTA</th><th style="width: 10%">EQUIPA</th><th style="width: 28%">STATUS / CAMINHÃO</th></tr></thead><tbody>`;
+        tHtml += `<table><thead><tr><th style="width: 12%">HORÁRIO</th><th style="width: 10%">CONJUNTO</th><th style="width: 40%">MOTORISTA</th><th style="width: 10%">EQUIPA</th><th style="width: 28%">STATUS / CAMINHÃO</th></tr></thead><tbody>`;
         
         lista.forEach(l => {
             const isVazio = l.nome === ''; 

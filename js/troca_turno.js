@@ -228,7 +228,7 @@ window.carregarTrocasDoDia = async function() {
         const cLista = (typeof conjuntos !== 'undefined') ? conjuntos : (window.conjuntos || []);
         
         if (cLista.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:20px; color:#f1c40f;">Nenhum Conjunto (Trinca) encontrado na memória do sistema.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:20px; color:#f1c40f;">Nenhum Conjunto encontrado na memória do sistema.</td></tr>`;
             return;
         }
 
@@ -340,8 +340,8 @@ window.carregarTrocasDoDia = async function() {
             html += `
                 <tr id="tr_${domId}" style="background: ${currentBgColor}; border-bottom: ${baseBorder}; transition: background 0.3s ease;" data-original-bg-color="${baseBgColor}">
                     <td style="font-weight: bold; color: var(--ccol-blue-bright);">
-                        TRINCA ${String(conjId).padStart(2,'0')} 
-                        <br><span class="badge-go" style="margin-top:4px;">GO ${go}</span>
+                        CONJUNTO ${String(conjId).padStart(2,'0')} 
+                        <br><span class="badge-go" style="margin-top:4px;">Frota ${go}</span>
                     </td>
                     <td style="font-weight: bold; color: #fff; font-size:1.1rem;">${placaNorm}</td>
                     <td style="text-align: center;">${badgeClass}</td>
