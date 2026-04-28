@@ -172,7 +172,7 @@ window.renderizarEscala = function() {
         html += `<thead>
                     <tr style="background-color: rgba(30, 41, 59, 0.9); color: #94a3b8; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px;">
                         <th style="padding: 12px 8px; border: 1px solid rgba(255,255,255,0.05); width: 12%;">Horário</th>
-                        <th style="padding: 12px 8px; border: 1px solid rgba(255,255,255,0.05); width: 10%;">GO/Placa</th>
+                        <th style="padding: 12px 8px; border: 1px solid rgba(255,255,255,0.05); width: 10%;">FROTA/Placa</th>
                         <th style="padding: 12px 8px; border: 1px solid rgba(255,255,255,0.05); width: 6%;">Equipa</th>
                         <th style="padding: 12px 8px; border: 1px solid rgba(255,255,255,0.05); width: 10%;">Posição</th>
                         <th style="padding: 12px 15px; border: 1px solid rgba(255,255,255,0.05); text-align: left; width: 22%;">Colaborador</th>
@@ -195,8 +195,8 @@ window.renderizarEscala = function() {
                 if (conj.caminhoes && conj.caminhoes.length > 0) {
                     let cam1 = conj.caminhoes[0];
                     let cam2 = conj.caminhoes.length > 1 ? conj.caminhoes[1] : cam1;
-                    let go1 = (typeof cam1 === 'string' || !cam1.go) ? '-' : cam1.go;
-                    let go2 = (typeof cam2 === 'string' || !cam2.go) ? '-' : cam2.go;
+                    let go1 = (typeof cam1 === 'string' || (!cam1.go && !cam1.frota)) ? '-' : (cam1.frota || cam1.go);
+                    let go2 = (typeof cam2 === 'string' || (!cam2.go && !cam2.frota)) ? '-' : (cam2.frota || cam2.go);
                     if (eq === 'A' || eq === 'D') goStr = go1;
                     else if (eq === 'B' || eq === 'E') goStr = go2;
                     else if (eq === 'C' || eq === 'F') goStr = (go1 !== '-' && go2 !== '-' && go1 !== go2) ? `${go1} / ${go2}` : (go1 !== '-' ? go1 : go2);
@@ -819,7 +819,7 @@ window.imprimirRelatorioEscalaSemanal = function() {
                 if (conj.caminhoes && conj.caminhoes.length > 0) {
                     let cam1 = conj.caminhoes[0];
                     let cam2 = conj.caminhoes.length > 1 ? conj.caminhoes[1] : cam1;
-                    let go1 = cam1.go || '-', go2 = cam2.go || '-';
+                    let go1 = cam1.frota || cam1.go || '-', go2 = cam2.frota || cam2.go || '-';
                     if (eq === 'A' || eq === 'D') { goStr = go1; posStr = 'FROTA 1'; }
                     else if (eq === 'B' || eq === 'E') { goStr = go2; posStr = 'FROTA 2'; }
                     else { goStr = (go1!=='-' && go2!=='-' && go1!==go2)?`${go1}/${go2}`:go1; posStr = 'FOLGUISTA'; }
@@ -839,7 +839,7 @@ window.imprimirRelatorioEscalaSemanal = function() {
         };
 
         html += `<div class="trinca-box"><div class="trinca-num">TRINCA ${String(conj.id).padStart(2, '0')}</div>`;
-        html += `<table><thead><tr><th style="width:9%;">HORÁRIO</th><th style="width:11%;">GO/PLACA</th><th style="width:5%;">EQ</th><th style="width:11%;">POSIÇÃO</th><th style="text-align:left;">COLABORADOR</th>${window.currentDatas.map(d => `<th style="width:8%;">${d.diaTexto}<br>${d.diaNum}</th>`).join('')}</tr></thead><tbody>`;
+        html += `<table><thead><tr><th style="width:9%;">HORÁRIO</th><th style="width:11%;">FROTA/PLACA</th><th style="width:5%;">EQ</th><th style="width:11%;">POSIÇÃO</th><th style="text-align:left;">COLABORADOR</th>${window.currentDatas.map(d => `<th style="width:8%;">${d.diaTexto}<br>${d.diaNum}</th>`).join('')}</tr></thead><tbody>`;
         html += renderTable(gDia, 'TURNO DO DIA (EQUIPAS A, B, C)', 'dia-bg');
         html += renderTable(gNoite, 'TURNO DA NOITE (EQUIPAS D, E, F)', 'noite-bg');
         html += `</tbody></table></div>`;
@@ -860,7 +860,7 @@ window.exportarEscalaMensalExcel = function() {
     const mes = dataBase.getMonth(); 
     const diasNoMes = new Date(ano, mes + 1, 0).getDate(); 
 
-    let csvContent = "\uFEFFHorário;GO/Placa;Equipa;Posição;Colaborador";
+    let csvContent = "\uFEFFHorário;FROTA/Placa;Equipa;Posição;Colaborador";
     for (let dia = 1; dia <= diasNoMes; dia++) csvContent += `;${dia.toString().padStart(2, '0')}/${(mes + 1).toString().padStart(2, '0')}`;
     csvContent += "\n";
 
