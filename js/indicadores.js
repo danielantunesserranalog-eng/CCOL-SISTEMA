@@ -70,43 +70,53 @@ window.atualizarFrentesDeTrabalho = function() {
 async function atualizarPonteiros() {
     let totalPlacasCadastradas = 0;
     let totalManutencao = 0;
+    let totalSinistrado = 0;
 
     try {
-        const { data: conjuntosData, error } = await supabaseClient.from('conjuntos').select('caminhoes');
-        if (!error && conjuntosData) {
-            conjuntosData.forEach(conj => {
-                if (conj.caminhoes && Array.isArray(conj.caminhoes)) {
-                    totalPlacasCadastradas += conj.caminhoes.length;
-                } else if (typeof conj.caminhoes === 'string') {
-                    try {
-                        const arr = JSON.parse(conj.caminhoes);
-                        if (Array.isArray(arr)) totalPlacasCadastradas += arr.length;
-                    } catch(e) {}
-                }
-            });
+        const { data: frotaData, error } = await supabaseClient.from('frotas_manutencao').select('cavalo');
+        if (!error && frotaData) {
+            totalPlacasCadastradas = frotaData.length;
         }
     } catch (e) { console.error("Erro Placas:", e); }
 
     try {
         const { data: osData, error: osError } = await supabaseClient
             .from('ordens_servico')
-            .select('status');
+            .select('placa, status');
             
         if (!osError && osData) {
-            totalManutencao = osData.filter(os => 
-                os.status === 'Aguardando Oficina' || os.status === 'Em Manutenção'
-            ).length;
+            const placasUnicasManutencao = new Set();
+            const placasUnicasSinistro = new Set();
+
+            osData.forEach(os => {
+                if (os.status === 'Sinistrado') {
+                    placasUnicasSinistro.add(os.placa);
+                } else if (os.status === 'Aguardando Oficina' || os.status === 'Em Manutenção') {
+                    placasUnicasManutencao.add(os.placa);
+                }
+            });
+
+            // Remove o sinistrado da contagem de manutenção para evitar duplicidades
+            placasUnicasSinistro.forEach(placa => {
+                placasUnicasManutencao.delete(placa);
+            });
+
+            totalSinistrado = placasUnicasSinistro.size;
+            totalManutencao = placasUnicasManutencao.size;
         }
     } catch (e) { console.error("Erro O.S.:", e); }
 
-    let frotaDisponivel = totalPlacasCadastradas - totalManutencao;
+    let frotaValidaTotal = totalPlacasCadastradas - totalSinistrado;
+    if(frotaValidaTotal < 0) frotaValidaTotal = 0;
+
+    let frotaDisponivel = frotaValidaTotal - totalManutencao;
     if(frotaDisponivel < 0) frotaDisponivel = 0;
 
     const elGaugeFill = document.getElementById('gauge-fill-frota');
     const elPonteiro = document.getElementById('gauge-ponteiro-frota'); 
 
-    if (elGaugeFill && totalPlacasCadastradas > 0) {
-        const perc = (frotaDisponivel / totalPlacasCadastradas) * 100;
+    if (elGaugeFill && frotaValidaTotal > 0) {
+        const perc = (frotaDisponivel / frotaValidaTotal) * 100;
         
         const fillRotation = -225 + (1.8 * perc);
         elGaugeFill.style.transform = `rotate(${fillRotation}deg)`;
@@ -125,7 +135,7 @@ async function atualizarPonteiros() {
     const elManut = document.getElementById('texto-manut-total');
 
     if(elFrotaDisp) elFrotaDisp.textContent = frotaDisponivel;
-    if(elFrotaTotal) elFrotaTotal.textContent = totalPlacasCadastradas;
+    if(elFrotaTotal) elFrotaTotal.textContent = frotaValidaTotal;
     if(elManut) elManut.textContent = totalManutencao;
 }
 

@@ -36,43 +36,53 @@ window.atualizarRelogioSerrana = function() {
 async function atualizarPonteirosSerrana() {
     let totalPlacasCadastradas = 0;
     let totalManutencao = 0;
+    let totalSinistrado = 0;
 
     try {
-        const { data: conjuntosData, error } = await supabaseClient.from('conjuntos').select('caminhoes');
-        if (!error && conjuntosData) {
-            conjuntosData.forEach(conj => {
-                if (conj.caminhoes && Array.isArray(conj.caminhoes)) {
-                    totalPlacasCadastradas += conj.caminhoes.length;
-                } else if (typeof conj.caminhoes === 'string') {
-                    try {
-                        const arr = JSON.parse(conj.caminhoes);
-                        if (Array.isArray(arr)) totalPlacasCadastradas += arr.length;
-                    } catch(e) {}
-                }
-            });
+        const { data: frotaData, error } = await supabaseClient.from('frotas_manutencao').select('cavalo');
+        if (!error && frotaData) {
+            totalPlacasCadastradas = frotaData.length;
         }
     } catch (e) { console.error("Erro Placas Serrana:", e); }
 
     try {
         const { data: osData, error: osError } = await supabaseClient
             .from('ordens_servico')
-            .select('status');
+            .select('placa, status');
             
         if (!osError && osData) {
-            totalManutencao = osData.filter(os => 
-                os.status === 'Aguardando Oficina' || os.status === 'Em Manutenção'
-            ).length;
+            const placasUnicasManutencao = new Set();
+            const placasUnicasSinistro = new Set();
+
+            osData.forEach(os => {
+                if (os.status === 'Sinistrado') {
+                    placasUnicasSinistro.add(os.placa);
+                } else if (os.status === 'Aguardando Oficina' || os.status === 'Em Manutenção') {
+                    placasUnicasManutencao.add(os.placa);
+                }
+            });
+
+            // Remove o sinistrado da contagem de manutenção
+            placasUnicasSinistro.forEach(placa => {
+                placasUnicasManutencao.delete(placa);
+            });
+
+            totalSinistrado = placasUnicasSinistro.size;
+            totalManutencao = placasUnicasManutencao.size;
         }
     } catch (e) { console.error("Erro O.S. Serrana:", e); }
 
-    let frotaDisponivel = totalPlacasCadastradas - totalManutencao;
+    let frotaValidaTotal = totalPlacasCadastradas - totalSinistrado;
+    if(frotaValidaTotal < 0) frotaValidaTotal = 0;
+
+    let frotaDisponivel = frotaValidaTotal - totalManutencao;
     if(frotaDisponivel < 0) frotaDisponivel = 0;
 
     const elGaugeFill = document.getElementById('gauge-fill-frota');
     const elPonteiro = document.getElementById('gauge-ponteiro-frota'); 
 
-    if (elGaugeFill && totalPlacasCadastradas > 0) {
-        const perc = (frotaDisponivel / totalPlacasCadastradas) * 100;
+    if (elGaugeFill && frotaValidaTotal > 0) {
+        const perc = (frotaDisponivel / frotaValidaTotal) * 100;
         const fillRotation = -225 + (1.8 * perc);
         elGaugeFill.style.transform = `rotate(${fillRotation}deg)`;
 
@@ -90,7 +100,7 @@ async function atualizarPonteirosSerrana() {
     const elManut = document.getElementById('texto-manut-total');
 
     if(elFrotaDisp) elFrotaDisp.textContent = frotaDisponivel;
-    if(elFrotaTotal) elFrotaTotal.textContent = totalPlacasCadastradas;
+    if(elFrotaTotal) elFrotaTotal.textContent = frotaValidaTotal;
     if(elManut) elManut.textContent = totalManutencao;
 }
 
@@ -261,19 +271,10 @@ async function renderizarGraficoEvolucaoDmSerrana() {
     if (!chartDom) return;
 
     try {
-        const { data: conjuntosData } = await supabaseClient.from('conjuntos').select('caminhoes');
+        const { data: frotaData } = await supabaseClient.from('frotas_manutencao').select('cavalo');
         let frotas = [];
-        if (conjuntosData) {
-            conjuntosData.forEach(conj => {
-                if (conj.caminhoes && Array.isArray(conj.caminhoes)) {
-                    frotas.push(...conj.caminhoes);
-                } else if (typeof conj.caminhoes === 'string') {
-                    try {
-                        const arr = JSON.parse(conj.caminhoes);
-                        if (Array.isArray(arr)) frotas.push(...arr);
-                    } catch(e) {}
-                }
-            });
+        if (frotaData) {
+            frotas = frotaData.map(f => f.cavalo).filter(Boolean);
         }
         
         const totalFrotas = [...new Set(frotas)].length; 
@@ -286,14 +287,23 @@ async function renderizarGraficoEvolucaoDmSerrana() {
         const { data: osData } = await supabaseClient.from('ordens_servico').select('placa, data_abertura, data_conclusao, status').neq('status', 'Agendada');
         let ordensServico = osData || [];
 
+        const limpaPlaca = p => String(p || 'DESCONHECIDO').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+        
+        // Isola os sinistrados para descontar da frota e do calculo
+        const placasSinistradas = new Set(
+            ordensServico.filter(os => os.status === 'Sinistrado').map(os => limpaPlaca(os.placa))
+        );
+
+        let totalFrotasValidas = totalFrotas - placasSinistradas.size;
+        if(totalFrotasValidas < 0) totalFrotasValidas = 0;
+
         const agora = new Date();
         const categoriasHoras = [];
         const dadosDM = [];
         const msPorHora = 60 * 60 * 1000; 
         
-        const totalMsDisponivelPorHora = totalFrotas * msPorHora; 
+        const totalMsDisponivelPorHora = totalFrotasValidas * msPorHora; 
         
-        const limpaPlaca = p => String(p || 'DESCONHECIDO').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
         const placasEmOS = [...new Set(ordensServico.map(os => limpaPlaca(os.placa)))];
 
         for (let h = 0; h < 24; h++) {
@@ -303,6 +313,9 @@ async function renderizarGraficoEvolucaoDmSerrana() {
             let msManutencaoNestaHora = 0;
 
             placasEmOS.forEach(placaOS => {
+                // Se o caminhão está sinistrado, ele já não conta mais para a frota total disponível. Ignora o cálculo de parada.
+                if (placasSinistradas.has(placaOS)) return;
+
                 let tempoParadoDoCavalo = 0;
                 const osDesteCavalo = ordensServico.filter(o => limpaPlaca(o.placa) === placaOS);
                 
