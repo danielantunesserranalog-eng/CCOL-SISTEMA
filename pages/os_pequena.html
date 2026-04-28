@@ -3,7 +3,7 @@
     <div class="button-group" style="margin-left: auto;">
         <button class="btn-primary-blue" onclick="alternarTelaOSPequena('lista')">Acompanhamento (Abertas)</button>
         <button class="btn-secondary-dark" onclick="alternarTelaOSPequena('historico')">Histórico (Todas)</button>
-        <button class="btn-primary-green" onclick="alternarTelaOSPequena('nova'); carregarSelectCavalosOSPequena(); carregarMotoristasSelectOSPequena();">Abrir Nova O.S.</button>
+        <button class="btn-primary-green" onclick="alternarTelaOSPequena('nova'); carregarSelectCavalosOSPequena();">Abrir Nova O.S.</button>
         <button class="btn-secondary-dark" onclick="alternarTelaOSPequena('frota')">Cadastro Frota (Carros)</button>
     </div>
 </div>
@@ -88,9 +88,7 @@
         </div>
         <div class="form-group-dark">
             <label>Motorista / Responsável</label>
-            <select id="osPeqMotorista" class="dark-select">
-                <option value="">Selecione o motorista...</option>
-            </select>
+            <input type="text" id="osPeqMotorista" placeholder="Digite o nome do motorista..." style="text-transform: uppercase;">
         </div>
         <div class="form-group-dark">
             <label>Data e Hora da Abertura</label>

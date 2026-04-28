@@ -48,6 +48,7 @@ async function alternarTelaOSPequena(tela) {
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
         document.getElementById('osPeqDataAbertura').value = now.toISOString().slice(0,16);
+        document.getElementById('osPeqMotorista').value = ''; // Limpa o campo do motorista
     } else if (tela === 'frota') {
         document.getElementById('telaFrotaOSPequena').style.display = 'block';
         renderizarTabelaFrotaPequena();
@@ -125,7 +126,7 @@ function renderizarTabelaHistoricoOSPequena() {
 // Nova O.S.
 async function salvarNovaOSPequena() {
     const placa = document.getElementById('osPeqPlaca').value;
-    const motorista = document.getElementById('osPeqMotorista').value;
+    const motorista = document.getElementById('osPeqMotorista').value.toUpperCase();
     const data_abertura = document.getElementById('osPeqDataAbertura').value;
     const hodometro = document.getElementById('osPeqHodometro').value;
     const prioridade = document.getElementById('osPeqPrioridade').value;
@@ -285,20 +286,6 @@ function carregarFiltrosSelectOSPequena() {
     placasUnicas.sort().forEach(placa => {
         selectPlaca.innerHTML += `<option value="${placa}">${placa}</option>`;
     });
-}
-
-async function carregarMotoristasSelectOSPequena() {
-    const select = document.getElementById('osPeqMotorista');
-    if(!select) return;
-    try {
-        const { data } = await supabaseClient.from('motoristas').select('nome').order('nome', { ascending: true });
-        select.innerHTML = '<option value="">Selecione o motorista...</option>';
-        if(data) {
-            data.forEach(m => {
-                select.innerHTML += `<option value="${m.nome}">${m.nome}</option>`;
-            });
-        }
-    } catch(e) { console.error("Erro ao puxar motoristas", e); }
 }
 
 function formatarDataHoraBrasilPeq(dataString) {
