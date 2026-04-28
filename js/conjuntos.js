@@ -14,10 +14,11 @@ window.renderizarConjuntos = function() {
         if(c.caminhoes) {
             c.caminhoes.forEach((cam, index) => {
                 const placa = typeof cam === 'string' ? cam : cam.placa;
-                const go = typeof cam === 'string' ? '' : cam.go;
+                // Lê 'frota' (nova versão) ou 'go' (antiga versão para compatibilidade)
+                const frota = typeof cam === 'string' ? '' : (cam.frota || cam.go); 
                 caminhoesHtml += `
                     <div class="caminhao-item">
-                        <span>🚛 <strong>${placa}</strong> ${go ? `| GO: ${go}` : ''}</span>
+                        <span>🚛 <strong>${placa}</strong> ${frota ? `| FROTA: ${frota}` : ''}</span>
                         <button class="btn-remove-caminhao" onclick="removerCaminhao(${c.id}, ${index})" title="Remover Caminhão">X</button>
                     </div>
                 `;
@@ -36,8 +37,8 @@ window.renderizarConjuntos = function() {
                 </div>
                 <div class="add-caminhao">
                     <div style="display:flex; gap:5px;">
-                        <input type="text" id="addCamPlaca_${c.id}" placeholder="Placa" style="width: 60%;" style="text-transform:uppercase;">
-                        <input type="text" id="addCamGo_${c.id}" placeholder="GO" style="width: 40%;">
+                        <input type="text" id="addCamPlaca_${c.id}" placeholder="Placa" style="width: 60%; text-transform:uppercase;">
+                        <input type="text" id="addCamFrota_${c.id}" placeholder="FROTA" style="width: 40%;">
                     </div>
                     <button class="btn-add-caminhao" onclick="adicionarCaminhaoAoConjunto(${c.id})">➕ Adicionar Placa</button>
                 </div>
@@ -50,17 +51,17 @@ window.renderizarConjuntos = function() {
 window.adicionarConjunto = async function() {
     const idInput = document.getElementById('conjuntoId').value;
     const c1Placa = document.getElementById('caminhao1Placa').value.toUpperCase();
-    const c1Go = document.getElementById('caminhao1Go').value;
+    const c1Frota = document.getElementById('caminhao1Frota').value;
     const c2Placa = document.getElementById('caminhao2Placa').value.toUpperCase();
-    const c2Go = document.getElementById('caminhao2Go').value;
+    const c2Frota = document.getElementById('caminhao2Frota').value;
 
     if (!idInput) { alert('Informe o ID do Conjunto!'); return; }
     const idNum = parseInt(idInput);
     if (conjuntos.find(c => c.id === idNum)) { alert('Este Conjunto já existe!'); return; }
 
     let caminhoesArr = [];
-    if(c1Placa) caminhoesArr.push({ placa: c1Placa, go: c1Go });
-    if(c2Placa) caminhoesArr.push({ placa: c2Placa, go: c2Go });
+    if(c1Placa) caminhoesArr.push({ placa: c1Placa, frota: c1Frota });
+    if(c2Placa) caminhoesArr.push({ placa: c2Placa, frota: c2Frota });
 
     const novoConjunto = { id: idNum, caminhoes: caminhoesArr };
     conjuntos.push(novoConjunto);
@@ -69,9 +70,9 @@ window.adicionarConjunto = async function() {
 
     document.getElementById('conjuntoId').value = '';
     document.getElementById('caminhao1Placa').value = '';
-    document.getElementById('caminhao1Go').value = '';
+    document.getElementById('caminhao1Frota').value = '';
     document.getElementById('caminhao2Placa').value = '';
-    document.getElementById('caminhao2Go').value = '';
+    document.getElementById('caminhao2Frota').value = '';
 
     renderizarConjuntos();
     if(typeof renderizarAlocacao === 'function') renderizarAlocacao();
@@ -115,14 +116,14 @@ window.removerCaminhao = async function(conjId, index) {
 
 window.adicionarCaminhaoAoConjunto = async function(conjId) {
     const placa = document.getElementById(`addCamPlaca_${conjId}`).value.toUpperCase();
-    const go = document.getElementById(`addCamGo_${conjId}`).value;
+    const frota = document.getElementById(`addCamFrota_${conjId}`).value;
     if(!placa) { alert('Informe a placa do caminhão.'); return; }
 
     const c = conjuntos.find(x => x.id === conjId);
     if(!c) return;
 
     if(!c.caminhoes) c.caminhoes = [];
-    c.caminhoes.push({ placa, go });
+    c.caminhoes.push({ placa, frota });
     await db.updateConjunto(conjId, c.caminhoes);
     
     salvarBackupLocal();
