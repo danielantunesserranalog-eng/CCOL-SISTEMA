@@ -48,7 +48,7 @@ async function alternarTelaOSPequena(tela) {
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
         document.getElementById('osPeqDataAbertura').value = now.toISOString().slice(0,16);
-        document.getElementById('osPeqMotorista').value = ''; // Limpa o campo do motorista
+        document.getElementById('osPeqMotorista').value = ''; 
     } else if (tela === 'frota') {
         document.getElementById('telaFrotaOSPequena').style.display = 'block';
         renderizarTabelaFrotaPequena();
@@ -76,8 +76,11 @@ function renderizarTabelaOSPequena() {
             <td>${os.tipo_servico}</td>
             <td><span style="background: #f59e0b; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem;">Em Andamento</span></td>
             <td>
-                <button class="btn-primary-green" onclick="abrirModalConclusaoOSPequena('${os.id}')" style="padding: 5px 10px; font-size: 0.8rem;">Concluir</button>
-                <button class="btn-danger-outline" onclick="excluirOSPequena('${os.id}')" style="padding: 5px 10px; font-size: 0.8rem;">Excluir</button>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-start; align-items: center;">
+                    <button class="btn-primary-green" onclick="abrirModalConclusaoOSPequena('${os.id}')" style="padding: 5px 10px; font-size: 0.8rem;">Concluir</button>
+                    <button class="btn-danger-outline" onclick="excluirOSPequena('${os.id}')" style="padding: 5px 10px; font-size: 0.8rem;">Excluir</button>
+                    <button class="btn-secondary-dark" onclick="imprimirOSPequena('${os.id}')" title="Imprimir O.S." style="padding: 5px 10px; font-size: 0.8rem;">🖨️</button>
+                </div>
             </td>
         `;
         tbody.appendChild(tr);
@@ -117,6 +120,12 @@ function renderizarTabelaHistoricoOSPequena() {
                 ${os.status === 'Aberta' 
                     ? '<span style="color: #f59e0b; font-weight: bold;">Aberta</span>' 
                     : '<span style="color: var(--ccol-green-bright); font-weight: bold;">Concluída</span>'}
+            </td>
+            <td>
+                <div style="display: flex; gap: 5px; justify-content: flex-start;">
+                    <button class="btn-secondary-dark" onclick="imprimirOSPequena('${os.id}')" title="Imprimir O.S." style="padding: 4px 8px; font-size: 0.8rem; border-radius: 4px;">🖨️</button>
+                    <button class="btn-danger-outline" onclick="excluirOSPequena('${os.id}')" title="Excluir" style="padding: 4px 8px; font-size: 0.8rem; border-radius: 4px;">🗑️</button>
+                </div>
             </td>
         `;
         tbody.appendChild(tr);
@@ -293,4 +302,193 @@ function formatarDataHoraBrasilPeq(dataString) {
     const partes = dataString.split('T');
     const data = partes[0].split('-').reverse().join('/');
     return partes[1] ? `${data} ${partes[1].substring(0, 5)}` : data;
+}
+
+// =========================================================================
+// IMPRESSÃO DE O.S. (FROTA PEQUENA)
+// =========================================================================
+function imprimirOSPequena(osId) {
+    const os = ordensServicoPequena.find(o => o.id === osId);
+    if (!os) return;
+    
+    const frota = frotasPequenas.find(f => f.placa === os.placa) || {};
+    
+    let infoAbertoPor = 'Não Informado';
+    try {
+        if (typeof currentUser !== 'undefined' && currentUser && currentUser.username) {
+            infoAbertoPor = currentUser.username;
+        } else {
+            const sessaoSalva = localStorage.getItem('ccol_user_session');
+            if (sessaoSalva) {
+                const userObj = JSON.parse(sessaoSalva);
+                if (userObj && userObj.username) infoAbertoPor = userObj.username;
+            }
+        }
+    } catch(e) {}
+    
+    const numeroOSFormatado = String(os.numero_os).padStart(4, '0');
+
+    let dataAberturaFormatada = formatarDataHoraBrasilPeq(os.data_abertura);
+    let dataConclusaoFormatada = os.data_conclusao ? formatarDataHoraBrasilPeq(os.data_conclusao) : 'Em andamento';
+    
+    let linhasServicos = '';
+    for(let i=0; i<5; i++) {
+        linhasServicos += `
+        <tr style="height: 25px;">
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>`;
+    }
+
+    let linhasPecas = '';
+    for(let i=0; i<5; i++) {
+        linhasPecas += `
+        <tr style="height: 25px;">
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>`;
+    }
+
+    const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+        <head>
+            <base href="${baseUrl}">
+            <title>OS ${os.placa} - #${numeroOSFormatado} (Frota Pequena)</title>
+            <style>
+                @page { size: landscape; margin: 10mm; }
+                body { 
+                    font-family: Arial, sans-serif; 
+                    font-size: 11px; 
+                    color: #000; 
+                    margin: 0; 
+                    padding: 0; 
+                    -webkit-print-color-adjust: exact; 
+                    print-color-adjust: exact; 
+                }
+                
+                .header-container { display: flex; border: 2px solid #000; margin-bottom: 5px; }
+                .header-left { padding: 10px; border-right: 2px solid #000; display: flex; align-items: center; justify-content: center; width: 140px; }
+                .header-left img { max-height: 45px; max-width: 100%; object-fit: contain; }
+                .header-center { flex: 1; text-align: center; padding: 10px; }
+                .header-center h1 { margin: 0; font-size: 16px; text-transform: uppercase; }
+                .header-center h2 { margin: 2px 0 0 0; font-size: 12px; font-weight: normal; }
+                .header-right { padding: 10px; border-left: 2px solid #000; text-align: center; display: flex; flex-direction: column; justify-content: center; background: #f0f0f0; }
+                .header-right strong { font-size: 18px; color: red; }
+
+                table { width: 100%; border-collapse: collapse; margin-bottom: 5px; }
+                th, td { border: 1px solid #000; padding: 3px 5px; font-size: 11px; text-align: left; }
+                th { background-color: #f0f0f0; font-weight: bold; text-align: center; }
+                
+                .info-table td { width: 25%; }
+                
+                .section-title { font-weight: bold; background-color: #f0f0f0; border: 1px solid #000; border-bottom: none; padding: 4px; font-size: 11px; text-align: center; text-transform: uppercase; margin-bottom: 0; }
+                .box-content { border: 1px solid #000; padding: 5px; font-size: 11px; min-height: 35px; margin-bottom: 5px; }
+                
+                .assinaturas { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; margin-top: 20px; padding: 0 20px; text-align: center; }
+                .linha-ass { border-top: 1px solid #000; padding-top: 4px; font-weight: bold; font-size: 11px; }
+            </style>
+        </head>
+        <body>
+            <div class="header-container">
+                <div class="header-left">
+                    <img src="assets/logoverde.png" alt="Serrana Log">
+                </div>
+                <div class="header-center">
+                    <h1>ORDEM DE SERVIÇO DE MANUTENÇÃO (FROTA PEQUENA)</h1>
+                    <h2>CCOL - Centro de Controle Operacional Logístico</h2>
+                </div>
+                <div class="header-right">
+                    O.S. Nº<br>
+                    <strong>${numeroOSFormatado}</strong>
+                </div>
+            </div>
+
+            <table class="info-table">
+                <tr>
+                    <td><strong>Veículo (Placa):</strong> ${os.placa || '-'}</td>
+                    <td><strong>Abertura:</strong> ${dataAberturaFormatada}</td>
+                    <td><strong>Status:</strong> ${os.status}</td>
+                    <td><strong>Emitido por :</strong> <span style="font-size: 13px; font-weight: bold;">${infoAbertoPor}</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Motorista:</strong> ${os.motorista || '-'}</td>
+                    <td><strong>Conclusão:</strong> ${dataConclusaoFormatada}</td>
+                    <td><strong>Prioridade:</strong> ${os.prioridade || '-'}</td>
+                    <td><strong>Tipo:</strong> ${os.tipo_servico || '-'}</td>
+                </tr>
+                <tr>
+                    <td><strong>Hodômetro (Km):</strong> ${os.hodometro || '-'}</td>
+                    <td colspan="3"></td>
+                </tr>
+            </table>
+
+            <table style="margin-bottom: 5px;">
+                <tr>
+                    <td style="background-color: #f0f0f0; font-weight: bold; width: 20%; text-align: center;">Detalhes do Veículo</td>
+                    <td style="width: 26%;"><strong>Marca/Modelo:</strong> ${frota.marca_modelo || '-'}</td>
+                    <td style="width: 26%;"><strong>Cor:</strong> ${frota.cor || '-'}</td>
+                    <td style="width: 28%;"><strong>Observações O.S:</strong> ${os.observacoes || '-'}</td>
+                </tr>
+            </table>
+
+            <div class="section-title">Diagnóstico Inicial do Condutor / Problema / Detalhes Sinistro</div>
+            <div class="box-content">
+                ${os.problema_relatado ? os.problema_relatado.replace(/\n/g, '<br>') : ''}
+            </div>
+
+            <div class="section-title">Serviços Executados (Preenchimento da Oficina)</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 50%;">Descrição do Serviço</th>
+                        <th style="width: 15%;">Início</th>
+                        <th style="width: 20%;">Mecânico</th>
+                        <th style="width: 15%;">Fim</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${linhasServicos}
+                </tbody>
+            </table>
+
+            <div class="section-title">Materiais e Peças Utilizados (CCOL / Estoque)</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 15%;">Código</th>
+                        <th style="width: 45%;">Descrição da Peça / Material Utilizado</th>
+                        <th style="width: 10%;">Qtd</th>
+                        <th style="width: 15%;">Data/Hora Solicit.</th>
+                        <th style="width: 15%;">Data/Hora Retirada</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${linhasPecas}
+                </tbody>
+            </table>
+
+            <div class="section-title" style="border-bottom: 1px solid #000; margin-bottom: 0;">Observações Gerais / Pendências</div>
+            <div class="box-content" style="border-top: none; min-height: 25px; margin-bottom: 5px;"></div>
+
+            <div class="assinaturas">
+                <div class="linha-ass">Motorista / Responsável</div>
+                <div class="linha-ass">Mecânico / Oficina</div>
+                <div class="linha-ass">CCOL / Gestor</div>
+            </div>
+            
+            <script>
+                window.onload = function() { setTimeout(() => { window.print(); }, 250); }
+            </script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
 }
