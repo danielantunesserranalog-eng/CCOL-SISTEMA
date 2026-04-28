@@ -41,9 +41,9 @@ window.renderizarMenu = function() {
 
     if (meusMenus.includes('os')) navHtml += `<button class="nav-item" onclick="navegarPara('os', this)"><i class="fas fa-tools"></i> Ordem de Serviço</button>`;
     
-    // NOVO MENU: FROTA PEQUENA (Adicionado)
-    if (meusMenus.includes('os_pequena') || isAdmin) {
-        navHtml += `<button class="nav-item" onclick="navegarPara('os_pequena', this)"><i class="fas fa-car"></i> Frota Pequena</button>`;
+    // NOVO MENU: FROTA APOIO (Adicionado)
+    if (meusMenus.includes('os_apoio') || isAdmin) {
+        navHtml += `<button class="nav-item" onclick="navegarPara('os_apoio', this)" style="color: #3498db;"><i class="fas fa-truck-pickup"></i> O.S. Apoio</button>`;
     }
 
     // RELATÓRIO GERENCIAL
@@ -145,8 +145,8 @@ window.navegarPara = async function(pagina, elementoClicado) {
 
         if (pagina === 'os' && typeof window.alternarTelaOS === 'function') window.alternarTelaOS('lista');
         
-        // ROTA PARA INICIAR A TELA DA FROTA PEQUENA
-        if (pagina === 'os_pequena' && typeof window.alternarTelaOSPequena === 'function') window.alternarTelaOSPequena('lista');
+        // ROTA PARA INICIAR A TELA DA FROTA APOIO
+        if (pagina === 'os_apoio' && typeof window.alternarTelaOSApoio === 'function') window.alternarTelaOSApoio('lista');
 
         if (pagina === 'recados' && typeof window.carregarRecados === 'function') window.carregarRecados();
         

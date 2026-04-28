@@ -1,68 +1,65 @@
-// ==================== js/os_pequena.js ====================
-// Módulo Exclusivo para Frota Pequena (Carros)
+// ==================== js/os_apoio.js ====================
+// Módulo de Gestão de Frota de Apoio (Prancha, Comboio, etc)
 
-let ordensServicoPequena = [];
-let frotasPequenas = [];
-let osPequenaSelecionada = null;
+let ordensServicoApoio = [];
+let frotasApoio = [];
+let osApoioSelecionadaParaFim = null;
 
-// Carregar Dados Iniciais
-async function carregarDadosOSPequena() {
+async function carregarDadosOSApoio() {
     try {
         const { data: osData, error: osError } = await supabaseClient
             .from('ordens_servico_pequena')
             .select('*')
             .order('created_at', { ascending: false });
         
-        if (!osError && osData) ordensServicoPequena = osData;
+        if (!osError && osData) ordensServicoApoio = osData;
 
         const { data: frotaData, error: frotaError } = await supabaseClient
             .from('frotas_pequenas')
             .select('*')
             .order('placa', { ascending: true });
             
-        if (!frotaError && frotaData) frotasPequenas = frotaData;
+        if (!frotaError && frotaData) frotasApoio = frotaData;
     } catch (error) {
-        console.error("Erro ao carregar dados Frota Pequena:", error);
+        console.error("Erro ao carregar dados Apoio:", error);
     }
 }
 
-// Navegação entre as telas do menu
-async function alternarTelaOSPequena(tela) {
-    const telas = ['telaListaOSPequena', 'telaHistoricoOSPequena', 'telaNovaOSPequena', 'telaFrotaOSPequena'];
+async function alternarTelaOSApoio(tela) {
+    const telas = ['telaListaOSApoio', 'telaHistoricoOSApoio', 'telaNovaOSApoio', 'telaFrotaOSApoio'];
     telas.forEach(t => {
         const el = document.getElementById(t);
         if(el) el.style.display = 'none';
     });
 
-    await carregarDadosOSPequena();
+    await carregarDadosOSApoio();
 
     if (tela === 'lista') {
-        document.getElementById('telaListaOSPequena').style.display = 'block';
-        renderizarTabelaOSPequena();
+        document.getElementById('telaListaOSApoio').style.display = 'block';
+        renderizarTabelaOSApoio();
     } else if (tela === 'historico') {
-        document.getElementById('telaHistoricoOSPequena').style.display = 'block';
-        carregarFiltrosSelectOSPequena();
-        renderizarTabelaHistoricoOSPequena();
+        document.getElementById('telaHistoricoOSApoio').style.display = 'block';
+        carregarFiltrosSelectApoio();
+        renderizarTabelaHistoricoOSApoio();
     } else if (tela === 'nova') {
-        document.getElementById('telaNovaOSPequena').style.display = 'block';
+        document.getElementById('telaNovaOSApoio').style.display = 'block';
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-        document.getElementById('osPeqDataAbertura').value = now.toISOString().slice(0,16);
-        document.getElementById('osPeqMotorista').value = ''; 
+        document.getElementById('osApoioDataAbertura').value = now.toISOString().slice(0,16);
+        document.getElementById('osApoioMotorista').value = ''; 
     } else if (tela === 'frota') {
-        document.getElementById('telaFrotaOSPequena').style.display = 'block';
-        renderizarTabelaFrotaPequena();
+        document.getElementById('telaFrotaOSApoio').style.display = 'block';
+        renderizarTabelaFrotaApoio();
     }
 }
 
-// Renderizar Acompanhamento (Abertas)
-function renderizarTabelaOSPequena() {
-    const tbody = document.getElementById('tabelaAcompanhamentoOSPequena');
+function renderizarTabelaOSApoio() {
+    const tbody = document.getElementById('tabelaAcompanhamentoOSApoio');
     if (!tbody) return;
     tbody.innerHTML = '';
     
-    const termoBusca = (document.getElementById('searchOSPequena')?.value || '').toLowerCase();
-    const abertas = ordensServicoPequena.filter(os => os.status === 'Aberta');
+    const termoBusca = (document.getElementById('searchOSApoio')?.value || '').toLowerCase();
+    const abertas = ordensServicoApoio.filter(os => os.status === 'Aberta');
 
     abertas.forEach(os => {
         if (termoBusca && !os.placa.toLowerCase().includes(termoBusca) && !os.motorista.toLowerCase().includes(termoBusca)) return;
@@ -70,16 +67,16 @@ function renderizarTabelaOSPequena() {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td style="font-weight: bold; color: var(--ccol-blue-bright);">#${os.numero_os}</td>
-            <td>${formatarDataHoraBrasilPeq(os.data_abertura)}</td>
+            <td>${formatarDataApoio(os.data_abertura)}</td>
             <td style="font-weight: bold;">${os.placa}</td>
             <td>${os.motorista}</td>
             <td>${os.tipo_servico}</td>
-            <td><span style="background: #f59e0b; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem;">Em Andamento</span></td>
+            <td><span style="background: #f59e0b; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem;">Aberta</span></td>
             <td>
                 <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-start; align-items: center;">
-                    <button class="btn-primary-green" onclick="abrirModalConclusaoOSPequena('${os.id}')" style="padding: 5px 10px; font-size: 0.8rem;">Concluir</button>
-                    <button class="btn-danger-outline" onclick="excluirOSPequena('${os.id}')" style="padding: 5px 10px; font-size: 0.8rem;">Excluir</button>
-                    <button class="btn-secondary-dark" onclick="imprimirOSPequena('${os.id}')" title="Imprimir O.S." style="padding: 5px 10px; font-size: 0.8rem;">🖨️</button>
+                    <button class="btn-primary-green" onclick="abrirModalConclusaoOSApoio('${os.id}')" style="padding: 5px 10px; font-size: 0.8rem;">Concluir</button>
+                    <button class="btn-danger-outline" onclick="excluirOSApoio('${os.id}')" style="padding: 5px 10px; font-size: 0.8rem;">Excluir</button>
+                    <button class="btn-secondary-dark" onclick="imprimirOSApoio('${os.id}')" title="Imprimir O.S." style="padding: 5px 10px; font-size: 0.8rem;">🖨️</button>
                 </div>
             </td>
         `;
@@ -87,18 +84,17 @@ function renderizarTabelaOSPequena() {
     });
 }
 
-// Renderizar Histórico (Todas)
-function renderizarTabelaHistoricoOSPequena() {
-    const tbody = document.getElementById('tabelaHistoricoOSPequena');
+function renderizarTabelaHistoricoOSApoio() {
+    const tbody = document.getElementById('tabelaHistoricoOSApoio');
     if (!tbody) return;
     tbody.innerHTML = '';
 
-    const numFilter = document.getElementById('filtroHistOSNumPeq').value;
-    const placaFilter = document.getElementById('filtroHistPlacaPeq').value;
-    const inicioFilter = document.getElementById('filtroHistDataInicioPeq').value;
-    const fimFilter = document.getElementById('filtroHistDataFimPeq').value;
+    const numFilter = document.getElementById('filtroHistOSNumApoio').value;
+    const placaFilter = document.getElementById('filtroHistPlacaApoio').value;
+    const inicioFilter = document.getElementById('filtroHistDataInicioApoio').value;
+    const fimFilter = document.getElementById('filtroHistDataFimApoio').value;
 
-    ordensServicoPequena.forEach(os => {
+    ordensServicoApoio.forEach(os => {
         if (numFilter && os.numero_os.toString() !== numFilter) return;
         if (placaFilter && os.placa !== placaFilter) return;
         
@@ -111,8 +107,8 @@ function renderizarTabelaHistoricoOSPequena() {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td style="font-weight: bold; color: var(--text-primary);">#${os.numero_os}</td>
-            <td>${formatarDataHoraBrasilPeq(os.data_abertura)}</td>
-            <td>${os.data_conclusao ? formatarDataHoraBrasilPeq(os.data_conclusao) : '-'}</td>
+            <td>${formatarDataApoio(os.data_abertura)}</td>
+            <td>${os.data_conclusao ? formatarDataApoio(os.data_conclusao) : '-'}</td>
             <td style="font-weight: bold;">${os.placa}</td>
             <td>${os.motorista}</td>
             <td>${os.tipo_servico}</td>
@@ -123,8 +119,8 @@ function renderizarTabelaHistoricoOSPequena() {
             </td>
             <td>
                 <div style="display: flex; gap: 5px; justify-content: flex-start;">
-                    <button class="btn-secondary-dark" onclick="imprimirOSPequena('${os.id}')" title="Imprimir O.S." style="padding: 4px 8px; font-size: 0.8rem; border-radius: 4px;">🖨️</button>
-                    <button class="btn-danger-outline" onclick="excluirOSPequena('${os.id}')" title="Excluir" style="padding: 4px 8px; font-size: 0.8rem; border-radius: 4px;">🗑️</button>
+                    <button class="btn-secondary-dark" onclick="imprimirOSApoio('${os.id}')" title="Imprimir O.S." style="padding: 4px 8px; font-size: 0.8rem; border-radius: 4px;">🖨️</button>
+                    <button class="btn-danger-outline" onclick="excluirOSApoio('${os.id}')" title="Excluir" style="padding: 4px 8px; font-size: 0.8rem; border-radius: 4px;">🗑️</button>
                 </div>
             </td>
         `;
@@ -132,16 +128,15 @@ function renderizarTabelaHistoricoOSPequena() {
     });
 }
 
-// Nova O.S.
-async function salvarNovaOSPequena() {
-    const placa = document.getElementById('osPeqPlaca').value;
-    const motorista = document.getElementById('osPeqMotorista').value.toUpperCase();
-    const data_abertura = document.getElementById('osPeqDataAbertura').value;
-    const hodometro = document.getElementById('osPeqHodometro').value;
-    const prioridade = document.getElementById('osPeqPrioridade').value;
-    const tipo_servico = document.getElementById('osPeqTipo').value;
-    const problema = document.getElementById('osPeqProblema').value;
-    const obs = document.getElementById('osPeqObservacoes').value;
+async function salvarNovaOSApoio() {
+    const placa = document.getElementById('osApoioPlaca').value;
+    const motorista = document.getElementById('osApoioMotorista').value.toUpperCase();
+    const data_abertura = document.getElementById('osApoioDataAbertura').value;
+    const hodometro = document.getElementById('osApoioHodometro').value;
+    const prioridade = document.getElementById('osApoioPrioridade').value;
+    const tipo_servico = document.getElementById('osApoioTipo').value;
+    const problema = document.getElementById('osApoioProblema').value;
+    const obs = document.getElementById('osApoioObservacoes').value;
 
     if(!placa || !motorista || !data_abertura) {
         alert("Preencha Placa, Motorista e Data de Abertura!");
@@ -162,17 +157,16 @@ async function salvarNovaOSPequena() {
     if(error) {
         alert("Erro ao salvar O.S.: " + error.message);
     } else {
-        alert("O.S. de Frota Pequena aberta com sucesso!");
-        alternarTelaOSPequena('lista');
+        alert("O.S. de Apoio aberta com sucesso!");
+        alternarTelaOSApoio('lista');
     }
 }
 
-// Cadastro Frota Pequena
-async function salvarFrotaPequena() {
-    const id = document.getElementById('osPeqFrotaId').value;
-    const placa = document.getElementById('osPeqFrotaPlaca').value.toUpperCase();
-    const marca_modelo = document.getElementById('osPeqFrotaModelo').value;
-    const cor = document.getElementById('osPeqFrotaCor').value;
+async function salvarFrotaApoio() {
+    const id = document.getElementById('osApoioFrotaId').value;
+    const placa = document.getElementById('osApoioFrotaPlaca').value.toUpperCase();
+    const marca_modelo = document.getElementById('osApoioFrotaModelo').value;
+    const cor = document.getElementById('osApoioFrotaCor').value;
 
     if(!placa) {
         alert("A placa é obrigatória!");
@@ -189,115 +183,114 @@ async function salvarFrotaPequena() {
         if(error) alert("Erro: " + error.message); else alert("Veículo cadastrado!");
     }
 
-    document.getElementById('osPeqFrotaId').value = '';
-    document.getElementById('osPeqFrotaPlaca').value = '';
-    document.getElementById('osPeqFrotaModelo').value = '';
-    document.getElementById('osPeqFrotaCor').value = '';
+    document.getElementById('osApoioFrotaId').value = '';
+    document.getElementById('osApoioFrotaPlaca').value = '';
+    document.getElementById('osApoioFrotaModelo').value = '';
+    document.getElementById('osApoioFrotaCor').value = '';
     
-    await carregarDadosOSPequena();
-    renderizarTabelaFrotaPequena();
+    await carregarDadosOSApoio();
+    renderizarTabelaFrotaApoio();
 }
 
-function renderizarTabelaFrotaPequena() {
-    const tbody = document.getElementById('tabelaFrotaPequena');
+function renderizarTabelaFrotaApoio() {
+    const tbody = document.getElementById('tabelaFrotaApoio');
     if (!tbody) return;
     tbody.innerHTML = '';
 
-    frotasPequenas.forEach(f => {
+    frotasApoio.forEach(f => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td style="font-weight: bold; color: var(--ccol-blue-bright);">${f.placa}</td>
             <td>${f.marca_modelo || '-'}</td>
             <td>${f.cor || '-'}</td>
             <td>
-                <button class="btn-primary-blue" onclick="editarFrotaPequena('${f.id}')" style="padding: 4px 8px; font-size: 0.8rem;">Editar</button>
-                <button class="btn-danger-outline" onclick="excluirFrotaPequena('${f.id}')" style="padding: 4px 8px; font-size: 0.8rem;">Excluir</button>
+                <button class="btn-primary-blue" onclick="editarFrotaApoio('${f.id}')" style="padding: 4px 8px; font-size: 0.8rem;">Editar</button>
+                <button class="btn-danger-outline" onclick="excluirFrotaApoio('${f.id}')" style="padding: 4px 8px; font-size: 0.8rem;">Excluir</button>
             </td>
         `;
         tbody.appendChild(tr);
     });
 }
 
-function editarFrotaPequena(id) {
-    const frota = frotasPequenas.find(f => f.id === id);
+function editarFrotaApoio(id) {
+    const frota = frotasApoio.find(f => f.id === id);
     if(frota) {
-        document.getElementById('osPeqFrotaId').value = frota.id;
-        document.getElementById('osPeqFrotaPlaca').value = frota.placa;
-        document.getElementById('osPeqFrotaModelo').value = frota.marca_modelo;
-        document.getElementById('osPeqFrotaCor').value = frota.cor;
+        document.getElementById('osApoioFrotaId').value = frota.id;
+        document.getElementById('osApoioFrotaPlaca').value = frota.placa;
+        document.getElementById('osApoioFrotaModelo').value = frota.marca_modelo;
+        document.getElementById('osApoioFrotaCor').value = frota.cor;
     }
 }
 
-async function excluirFrotaPequena(id) {
-    if(confirm("Tem certeza que deseja excluir este veículo da Frota Pequena?")) {
+async function excluirFrotaApoio(id) {
+    if(confirm("Tem certeza que deseja excluir este veículo de Apoio?")) {
         await supabaseClient.from('frotas_pequenas').delete().eq('id', id);
-        await carregarDadosOSPequena();
-        renderizarTabelaFrotaPequena();
+        await carregarDadosOSApoio();
+        renderizarTabelaFrotaApoio();
     }
 }
 
-// Conclusão de O.S.
-function abrirModalConclusaoOSPequena(id) {
-    osPequenaSelecionada = id;
+function abrirModalConclusaoOSApoio(id) {
+    osApoioSelecionadaParaFim = id;
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    document.getElementById('horaConclusaoOSPequena').value = now.toISOString().slice(0,16);
-    document.getElementById('modalConclusaoOSPequena').style.display = 'flex';
+    document.getElementById('horaConclusaoOSApoio').value = now.toISOString().slice(0,16);
+    document.getElementById('modalConclusaoOSApoio').style.display = 'flex';
 }
 
-function fecharModalConclusaoOSPequena() {
-    document.getElementById('modalConclusaoOSPequena').style.display = 'none';
-    osPequenaSelecionada = null;
+function fecharModalConclusaoOSApoio() {
+    document.getElementById('modalConclusaoOSApoio').style.display = 'none';
+    osApoioSelecionadaParaFim = null;
 }
 
-async function salvarConclusaoOSPequena() {
-    const dataConclusao = document.getElementById('horaConclusaoOSPequena').value;
-    if(!osPequenaSelecionada || !dataConclusao) return;
+async function salvarConclusaoOSApoio() {
+    const dataConclusao = document.getElementById('horaConclusaoOSApoio').value;
+    if(!osApoioSelecionadaParaFim || !dataConclusao) return;
 
     const { error } = await supabaseClient
         .from('ordens_servico_pequena')
         .update({ status: 'Concluída', data_conclusao: dataConclusao })
-        .eq('id', osPequenaSelecionada);
+        .eq('id', osApoioSelecionadaParaFim);
 
     if(error) {
         alert("Erro ao concluir O.S.: " + error.message);
     } else {
-        fecharModalConclusaoOSPequena();
-        await carregarDadosOSPequena();
-        renderizarTabelaOSPequena();
+        fecharModalConclusaoOSApoio();
+        await carregarDadosOSApoio();
+        renderizarTabelaOSApoio();
     }
 }
 
-async function excluirOSPequena(id) {
+async function excluirOSApoio(id) {
     if(confirm("Deseja deletar esta O.S. permanentemente?")) {
         await supabaseClient.from('ordens_servico_pequena').delete().eq('id', id);
-        await carregarDadosOSPequena();
-        renderizarTabelaOSPequena();
+        await carregarDadosOSApoio();
+        renderizarTabelaOSApoio();
+        renderizarTabelaHistoricoOSApoio();
     }
 }
 
-// Utilitários de Selects e Formatação
-function carregarSelectCavalosOSPequena() {
-    const select = document.getElementById('osPeqPlaca');
+function carregarSelectVeiculosApoio() {
+    const select = document.getElementById('osApoioPlaca');
     if(!select) return;
     select.innerHTML = '<option value="">Selecione o Veículo...</option>';
-    frotasPequenas.forEach(f => {
+    frotasApoio.forEach(f => {
         select.innerHTML += `<option value="${f.placa}">${f.placa} (${f.marca_modelo})</option>`;
     });
 }
 
-function carregarFiltrosSelectOSPequena() {
-    const selectPlaca = document.getElementById('filtroHistPlacaPeq');
+function carregarFiltrosSelectApoio() {
+    const selectPlaca = document.getElementById('filtroHistPlacaApoio');
     if(!selectPlaca) return;
     
     selectPlaca.innerHTML = '<option value="">Todas as Placas</option>';
-    const placasUnicas = [...new Set(ordensServicoPequena.map(os => os.placa))];
+    const placasUnicas = [...new Set(ordensServicoApoio.map(os => os.placa))];
     placasUnicas.sort().forEach(placa => {
         selectPlaca.innerHTML += `<option value="${placa}">${placa}</option>`;
     });
 }
 
-function formatarDataHoraBrasilPeq(dataString) {
+function formatarDataApoio(dataString) {
     if (!dataString) return '-';
     const partes = dataString.split('T');
     const data = partes[0].split('-').reverse().join('/');
@@ -305,13 +298,13 @@ function formatarDataHoraBrasilPeq(dataString) {
 }
 
 // =========================================================================
-// IMPRESSÃO DE O.S. (FROTA PEQUENA)
+// IMPRESSÃO DE O.S. (FROTA APOIO)
 // =========================================================================
-function imprimirOSPequena(osId) {
-    const os = ordensServicoPequena.find(o => o.id === osId);
+function imprimirOSApoio(osId) {
+    const os = ordensServicoApoio.find(o => o.id === osId);
     if (!os) return;
     
-    const frota = frotasPequenas.find(f => f.placa === os.placa) || {};
+    const frota = frotasApoio.find(f => f.placa === os.placa) || {};
     
     let infoAbertoPor = 'Não Informado';
     try {
@@ -328,8 +321,8 @@ function imprimirOSPequena(osId) {
     
     const numeroOSFormatado = String(os.numero_os).padStart(4, '0');
 
-    let dataAberturaFormatada = formatarDataHoraBrasilPeq(os.data_abertura);
-    let dataConclusaoFormatada = os.data_conclusao ? formatarDataHoraBrasilPeq(os.data_conclusao) : 'Em andamento';
+    let dataAberturaFormatada = formatarDataApoio(os.data_abertura);
+    let dataConclusaoFormatada = os.data_conclusao ? formatarDataApoio(os.data_conclusao) : 'Em andamento';
     
     let linhasServicos = '';
     for(let i=0; i<5; i++) {
@@ -361,7 +354,7 @@ function imprimirOSPequena(osId) {
         <html>
         <head>
             <base href="${baseUrl}">
-            <title>OS ${os.placa} - #${numeroOSFormatado} (Frota Pequena)</title>
+            <title>OS ${os.placa} - #${numeroOSFormatado} (Frota Apoio)</title>
             <style>
                 @page { size: landscape; margin: 10mm; }
                 body { 
@@ -402,7 +395,7 @@ function imprimirOSPequena(osId) {
                     <img src="assets/logoverde.png" alt="Serrana Log">
                 </div>
                 <div class="header-center">
-                    <h1>ORDEM DE SERVIÇO DE MANUTENÇÃO (FROTA PEQUENA)</h1>
+                    <h1>ORDEM DE SERVIÇO DE MANUTENÇÃO (FROTA APOIO)</h1>
                     <h2>CCOL - Centro de Controle Operacional Logístico</h2>
                 </div>
                 <div class="header-right">
@@ -419,13 +412,13 @@ function imprimirOSPequena(osId) {
                     <td><strong>Emitido por :</strong> <span style="font-size: 13px; font-weight: bold;">${infoAbertoPor}</span></td>
                 </tr>
                 <tr>
-                    <td><strong>Motorista:</strong> ${os.motorista || '-'}</td>
+                    <td><strong>Motorista/Relator:</strong> ${os.motorista || '-'}</td>
                     <td><strong>Conclusão:</strong> ${dataConclusaoFormatada}</td>
                     <td><strong>Prioridade:</strong> ${os.prioridade || '-'}</td>
                     <td><strong>Tipo:</strong> ${os.tipo_servico || '-'}</td>
                 </tr>
                 <tr>
-                    <td><strong>Hodômetro (Km):</strong> ${os.hodometro || '-'}</td>
+                    <td><strong>Hodômetro/Horímetro:</strong> ${os.hodometro || '-'}</td>
                     <td colspan="3"></td>
                 </tr>
             </table>
@@ -433,8 +426,8 @@ function imprimirOSPequena(osId) {
             <table style="margin-bottom: 5px;">
                 <tr>
                     <td style="background-color: #f0f0f0; font-weight: bold; width: 20%; text-align: center;">Detalhes do Veículo</td>
-                    <td style="width: 26%;"><strong>Marca/Modelo:</strong> ${frota.marca_modelo || '-'}</td>
-                    <td style="width: 26%;"><strong>Cor:</strong> ${frota.cor || '-'}</td>
+                    <td style="width: 26%;"><strong>Marca/Modelo/Tipo:</strong> ${frota.marca_modelo || '-'}</td>
+                    <td style="width: 26%;"><strong>Cor/Prefixo:</strong> ${frota.cor || '-'}</td>
                     <td style="width: 28%;"><strong>Observações O.S:</strong> ${os.observacoes || '-'}</td>
                 </tr>
             </table>
