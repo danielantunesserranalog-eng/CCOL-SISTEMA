@@ -106,10 +106,11 @@ async function atualizarPonteiros() {
         }
     } catch (e) { console.error("Erro O.S.:", e); }
 
-    let frotaValidaTotal = totalPlacasCadastradas - totalSinistrado;
-    if(frotaValidaTotal < 0) frotaValidaTotal = 0;
+    // MODIFICAÇÃO: O total se mantém inalterado independentemente do sinistro
+    let frotaValidaTotal = totalPlacasCadastradas;
 
-    let frotaDisponivel = frotaValidaTotal - totalManutencao;
+    // MODIFICAÇÃO: O sinistrado conta como manutenção para diminuir a disponibilidade
+    let frotaDisponivel = frotaValidaTotal - totalManutencao - totalSinistrado;
     if(frotaDisponivel < 0) frotaDisponivel = 0;
 
     const elGaugeFill = document.getElementById('gauge-fill-frota');
@@ -136,7 +137,9 @@ async function atualizarPonteiros() {
 
     if(elFrotaDisp) elFrotaDisp.textContent = frotaDisponivel;
     if(elFrotaTotal) elFrotaTotal.textContent = frotaValidaTotal;
-    if(elManut) elManut.textContent = totalManutencao;
+    
+    // Mostramos a soma de Manutenção + Sinistrado na caixinha de Em Manutenção
+    if(elManut) elManut.textContent = totalManutencao + totalSinistrado;
 }
 
 async function carregarControladorAtual() {

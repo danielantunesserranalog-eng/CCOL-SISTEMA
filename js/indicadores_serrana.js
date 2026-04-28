@@ -72,10 +72,11 @@ async function atualizarPonteirosSerrana() {
         }
     } catch (e) { console.error("Erro O.S. Serrana:", e); }
 
-    let frotaValidaTotal = totalPlacasCadastradas - totalSinistrado;
-    if(frotaValidaTotal < 0) frotaValidaTotal = 0;
+    // MODIFICAÇÃO: Mantém a frota total igual ao cadastrado
+    let frotaValidaTotal = totalPlacasCadastradas;
 
-    let frotaDisponivel = frotaValidaTotal - totalManutencao;
+    // MODIFICAÇÃO: Diminui a disponibilidade somando manutenção com o sinistrado
+    let frotaDisponivel = frotaValidaTotal - totalManutencao - totalSinistrado;
     if(frotaDisponivel < 0) frotaDisponivel = 0;
 
     const elGaugeFill = document.getElementById('gauge-fill-frota');
@@ -101,7 +102,9 @@ async function atualizarPonteirosSerrana() {
 
     if(elFrotaDisp) elFrotaDisp.textContent = frotaDisponivel;
     if(elFrotaTotal) elFrotaTotal.textContent = frotaValidaTotal;
-    if(elManut) elManut.textContent = totalManutencao;
+    
+    // Mostramos a soma de Manutenção + Sinistrado na contagem
+    if(elManut) elManut.textContent = totalManutencao + totalSinistrado;
 }
 
 // =========================================================================
@@ -289,12 +292,14 @@ async function renderizarGraficoEvolucaoDmSerrana() {
 
         const limpaPlaca = p => String(p || 'DESCONHECIDO').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
         
-        // Isola os sinistrados para descontar da frota e do calculo
+        // Mantemos os sinistrados apenas para controle na hora de iterar,
+        // mas não reduzimos o tamanho da frota global:
         const placasSinistradas = new Set(
             ordensServico.filter(os => os.status === 'Sinistrado').map(os => limpaPlaca(os.placa))
         );
 
-        let totalFrotasValidas = totalFrotas - placasSinistradas.size;
+        // MODIFICAÇÃO: A frota válida continua mantendo todos os veículos
+        let totalFrotasValidas = totalFrotas;
         if(totalFrotasValidas < 0) totalFrotasValidas = 0;
 
         const agora = new Date();
@@ -313,9 +318,9 @@ async function renderizarGraficoEvolucaoDmSerrana() {
             let msManutencaoNestaHora = 0;
 
             placasEmOS.forEach(placaOS => {
-                // Se o caminhão está sinistrado, ele já não conta mais para a frota total disponível. Ignora o cálculo de parada.
-                if (placasSinistradas.has(placaOS)) return;
-
+                // MODIFICAÇÃO: Removido o filtro de ignorar os sinistrados,
+                // eles contabilizam o tempo de parada para baixar o ponteiro/DM
+                
                 let tempoParadoDoCavalo = 0;
                 const osDesteCavalo = ordensServico.filter(o => limpaPlaca(o.placa) === placaOS);
                 

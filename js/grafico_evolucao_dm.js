@@ -599,39 +599,10 @@ window.renderizarGraficoEvolucaoDMDiaria = function() {
                 let qtdFrotaDia = 0;
                 let frotasValidas = [];
 
-                // Verifica sinistros do dia para reduzir o total dinâmico da frota
+                // Todos os veículos contam no total, mesmo os que estão em sinistro
                 frotasManutencao.forEach(frota => {
-                    const todasOSCavalo = ordensServico.filter(o => o.placa === frota.cavalo && o.status !== 'Agendada');
-                    let emSinistro = false;
-                    
-                    todasOSCavalo.forEach(os => {
-                        let osInicioStr = os.data_abertura;
-                        if (!osInicioStr) return;
-                        if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
-                        const osInicio = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
-                        
-                        let osFim = new Date(); 
-                        if (os.data_conclusao) {
-                            let osFimStr = os.data_conclusao;
-                            if (!osFimStr.includes('T')) osFimStr += 'T00:00:00';
-                            osFim = new Date(osFimStr.replace('Z', '').replace('+00:00', ''));
-                        }
-
-                        const tipoOS = (os.tipo || os.tipo_manutencao || '').toUpperCase();
-                        const descOS = (os.descricao || '').toUpperCase();
-                        const isSinistro = tipoOS.includes('SINISTRO') || descOS.includes('SINISTRO');
-
-                        // Se é sinistro e estava ativo (aberto e não concluído) durante o decorrer deste dia
-                        if (isSinistro && osInicio <= fimDia && osFim >= inicioDia) {
-                            emSinistro = true;
-                        }
-                    });
-
-                    // Só contabiliza a frota no total se não estiver em sinistro neste dia
-                    if (!emSinistro) {
-                        qtdFrotaDia++;
-                        frotasValidas.push(frota);
-                    }
+                    qtdFrotaDia++;
+                    frotasValidas.push(frota);
                 });
 
                 const totalMsDisponivelDia = qtdFrotaDia * msTotalDia;
@@ -678,7 +649,7 @@ window.renderizarGraficoEvolucaoDMDiaria = function() {
                 dadosDMDiaria.push({
                     value: percentDM.toFixed(2),
                     disp: mediaCavalosDisp,
-                    total: qtdFrotaDia // Total agora reflete a diminuição por sinistro
+                    total: qtdFrotaDia // Total reflete todos os veículos cadastrados
                 });
             }
             
