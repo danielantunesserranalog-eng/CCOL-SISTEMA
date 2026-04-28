@@ -55,6 +55,7 @@ async function alternarTelaOS(tela) {
         if (typeof renderizarTabelaSinistro === 'function') renderizarTabelaSinistro();
     } else if (tela === 'historico') {
         telaHistorico.style.display = 'block';
+        if (typeof carregarFiltrosSelectHistoricoOS === 'function') carregarFiltrosSelectHistoricoOS();
         if (typeof renderizarTabelaHistoricoOS === 'function') renderizarTabelaHistoricoOS();
     } else if (tela === 'nova') {
         telaNova.style.display = 'block';

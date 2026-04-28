@@ -620,3 +620,35 @@ async function imprimirOS(osId) {
     `);
     printWindow.document.close();
 }
+
+// FUNÇÃO PARA CARREGAR OS FILTROS DO HISTÓRICO EM CASCATA
+async function carregarFiltrosSelectHistoricoOS() {
+    const selectPlaca = document.getElementById('filtroHistPlaca');
+    const selectMotorista = document.getElementById('filtroHistMotorista');
+
+    if (selectPlaca) {
+        try {
+            const { data, error } = await supabaseClient.from('frotas_manutencao').select('cavalo').order('cavalo', { ascending: true });
+            let options = '<option value="">Todas as Placas</option>';
+            if (data) {
+                data.forEach(f => {
+                    if (f.cavalo) options += `<option value="${f.cavalo.trim().toUpperCase()}">${f.cavalo.trim().toUpperCase()}</option>`;
+                });
+            }
+            selectPlaca.innerHTML = options;
+        } catch(e) { console.error("Erro ao carregar placas para filtro", e); }
+    }
+
+    if (selectMotorista) {
+        try {
+            const { data, error } = await supabaseClient.from('motoristas').select('nome').order('nome', { ascending: true });
+            let options = '<option value="">Todos os Motoristas</option>';
+            if (data) {
+                data.forEach(m => {
+                    options += `<option value="${m.nome}">${m.nome}</option>`;
+                });
+            }
+            selectMotorista.innerHTML = options;
+        } catch(e) { console.error("Erro ao carregar motoristas para filtro", e); }
+    }
+}

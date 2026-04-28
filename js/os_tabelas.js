@@ -101,17 +101,17 @@ function renderizarTabelaHistoricoOS() {
     if (!tbody) return;
 
     const num = document.getElementById('filtroHistOSNum')?.value.toLowerCase();
-    const placa = document.getElementById('filtroHistPlaca')?.value.toLowerCase();
-    const motorista = document.getElementById('filtroHistMotorista')?.value.toLowerCase();
+    const placa = document.getElementById('filtroHistPlaca')?.value;
+    const motorista = document.getElementById('filtroHistMotorista')?.value;
     const dataInicio = document.getElementById('filtroHistDataInicio')?.value;
     const dataFim = document.getElementById('filtroHistDataFim')?.value;
-    const tipo = document.getElementById('filtroHistTipo')?.value.toLowerCase();
+    const tipo = document.getElementById('filtroHistTipo')?.value;
 
     let filtradas = ordensServico;
 
     if (num) filtradas = filtradas.filter(o => o.id.toString() === num);
-    if (placa) filtradas = filtradas.filter(o => o.placa && o.placa.toLowerCase().includes(placa));
-    if (motorista) filtradas = filtradas.filter(o => o.motorista && o.motorista.toLowerCase().includes(motorista));
+    if (placa) filtradas = filtradas.filter(o => o.placa && o.placa.toUpperCase() === placa.toUpperCase());
+    if (motorista) filtradas = filtradas.filter(o => o.motorista && o.motorista === motorista);
     
     if (dataInicio || dataFim) {
         filtradas = filtradas.filter(o => {
@@ -124,7 +124,7 @@ function renderizarTabelaHistoricoOS() {
     }
     
     if (tipo) {
-        filtradas = filtradas.filter(o => o.tipo && o.tipo.toLowerCase().includes(tipo));
+        filtradas = filtradas.filter(o => o.tipo && o.tipo === tipo);
     }
 
     tbody.innerHTML = filtradas.map(os => {
