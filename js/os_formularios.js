@@ -120,7 +120,6 @@ async function salvarNovaOS() {
         status: statusInicial
     };
 
-    // CAPTURANDO QUEM ESTÁ ABRINDO A O.S ATRAVÉS DO SISTEMA DE AUTENTICAÇÃO LOCAL
     try {
         if (typeof currentUser !== 'undefined' && currentUser && currentUser.username) {
             pacoteDadosOS.aberto_por = currentUser.username;
@@ -184,23 +183,9 @@ async function salvarNovaOS() {
     }
 }
 
-function editarFrotaManutencao(id) {
-    const frota = frotasManutencao.find(f => f.id === id);
-    if (!frota) return;
-
-    document.getElementById('osFrotaId').value = frota.id;
-    document.getElementById('osFrotaCavalo').value = frota.cavalo || '';
-    document.getElementById('osFrotaCor').value = frota.cor || '';
-    document.getElementById('osFrotaGo').value = frota.go || '';
-    document.getElementById('osFrotaCarreta1').value = frota.carreta1 || '';
-    document.getElementById('osFrotaCarreta2').value = frota.carreta2 || '';
-    document.getElementById('osFrotaCarreta3').value = frota.carreta3 || '';
-    
-    document.getElementById('osFrotaCavalo').focus();
-}
+// === FUNÇÕES DA TELA E MODAL DE EDIÇÃO DE FROTA ===
 
 async function salvarFrotaManutencao() {
-    const id = document.getElementById('osFrotaId').value;
     const cavalo = document.getElementById('osFrotaCavalo').value.trim().toUpperCase();
     const cor = document.getElementById('osFrotaCor').value.trim();
     const go = document.getElementById('osFrotaGo').value.trim().toUpperCase();
@@ -213,30 +198,20 @@ async function salvarFrotaManutencao() {
         return;
     }
 
-    if (id) {
-        const { error } = await supabaseClient
-            .from('frotas_manutencao')
-            .update({ cavalo, cor, go, carreta1, carreta2, carreta3 })
-            .eq('id', id);
-        
-        if (error) { alert("Erro ao atualizar o conjunto."); return; }
-        alert("Vínculo atualizado com sucesso!");
-    } else {
-        const existente = frotasManutencao.find(f => f.cavalo === cavalo);
-        if (existente) {
-            alert("Já existe um conjunto cadastrado para esta placa de cavalo. Use a opção de editar (ícone do lápis).");
-            return;
-        }
-
-        const { error } = await supabaseClient
-            .from('frotas_manutencao')
-            .insert([{ cavalo, cor, go, carreta1, carreta2, carreta3 }]);
-            
-        if (error) { alert("Erro ao inserir o novo conjunto."); return; }
-        alert("Vínculo salvo com sucesso!");
+    const existente = frotasManutencao.find(f => f.cavalo === cavalo);
+    if (existente) {
+        alert("Já existe um conjunto cadastrado para esta placa de cavalo. Use a opção de editar (ícone do lápis) na tabela.");
+        return;
     }
 
-    document.getElementById('osFrotaId').value = '';
+    const { error } = await supabaseClient
+        .from('frotas_manutencao')
+        .insert([{ cavalo, cor, go, carreta1, carreta2, carreta3 }]);
+        
+    if (error) { alert("Erro ao inserir o novo conjunto."); return; }
+    alert("Vínculo salvo com sucesso!");
+
+    // Limpa apenas o formulário de criação
     document.getElementById('osFrotaCavalo').value = '';
     document.getElementById('osFrotaCor').value = '';
     document.getElementById('osFrotaGo').value = '';
@@ -245,14 +220,68 @@ async function salvarFrotaManutencao() {
     document.getElementById('osFrotaCarreta3').value = '';
 
     await carregarDadosOS();
-    renderizarTabelaFrotaManutencao();
+    if(typeof renderizarTabelaFrotaManutencao === 'function') renderizarTabelaFrotaManutencao();
+}
+
+function editarFrotaManutencao(id) {
+    const frota = frotasManutencao.find(f => f.id === id);
+    if (!frota) return;
+
+    // Popula a nova janela Modal no meio da tela
+    document.getElementById('editFrotaId').value = frota.id;
+    document.getElementById('editFrotaCavalo').value = frota.cavalo || '';
+    document.getElementById('editFrotaCor').value = frota.cor || '';
+    document.getElementById('editFrotaGo').value = frota.go || '';
+    document.getElementById('editFrotaCarreta1').value = frota.carreta1 || '';
+    document.getElementById('editFrotaCarreta2').value = frota.carreta2 || '';
+    document.getElementById('editFrotaCarreta3').value = frota.carreta3 || '';
+    
+    document.getElementById('modalEditarFrota').style.display = 'flex';
+}
+
+function fecharModalEditarFrota() {
+    document.getElementById('modalEditarFrota').style.display = 'none';
+}
+
+async function salvarEdicaoFrota() {
+    const id = document.getElementById('editFrotaId').value;
+    const cavalo = document.getElementById('editFrotaCavalo').value.trim().toUpperCase();
+    const cor = document.getElementById('editFrotaCor').value.trim();
+    const go = document.getElementById('editFrotaGo').value.trim().toUpperCase();
+    const carreta1 = document.getElementById('editFrotaCarreta1').value.trim().toUpperCase();
+    const carreta2 = document.getElementById('editFrotaCarreta2').value.trim().toUpperCase();
+    const carreta3 = document.getElementById('editFrotaCarreta3').value.trim().toUpperCase();
+
+    if (!cavalo) {
+        alert("A placa do cavalo é obrigatória.");
+        return;
+    }
+
+    try {
+        const { error } = await supabaseClient
+            .from('frotas_manutencao')
+            .update({ cavalo, cor, go, carreta1, carreta2, carreta3 })
+            .eq('id', id);
+        
+        if (error) throw error;
+        
+        alert("Conjunto atualizado com sucesso!");
+        fecharModalEditarFrota();
+        
+        await carregarDadosOS();
+        if(typeof renderizarTabelaFrotaManutencao === 'function') renderizarTabelaFrotaManutencao();
+
+    } catch(error) {
+        console.error("Erro ao editar conjunto:", error);
+        alert("Ocorreu um erro ao tentar salvar as alterações no banco de dados.");
+    }
 }
 
 async function excluirFrotaManutencao(id) {
     if (confirm("Excluir este conjunto da frota?")) {
         await supabaseClient.from('frotas_manutencao').delete().eq('id', id);
         await carregarDadosOS();
-        renderizarTabelaFrotaManutencao();
+        if(typeof renderizarTabelaFrotaManutencao === 'function') renderizarTabelaFrotaManutencao();
     }
 }
 
@@ -692,7 +721,6 @@ async function confirmarTransferenciaFrota() {
     if (!origem || !destino) return;
 
     try {
-        // 1. O Destino recebe as carretas da Origem
         const { error: errDestino } = await supabaseClient
             .from('frotas_manutencao')
             .update({ 
@@ -705,7 +733,6 @@ async function confirmarTransferenciaFrota() {
 
         if (errDestino) throw errDestino;
 
-        // 2. A Origem recebe as carretas do Destino (Invertendo a operação - Swap)
         const { error: errOrigem } = await supabaseClient
             .from('frotas_manutencao')
             .update({ 
