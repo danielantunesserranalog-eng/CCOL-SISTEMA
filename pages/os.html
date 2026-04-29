@@ -3,7 +3,7 @@
     <div class="button-group" style="margin-left: auto;">
         <button class="btn-primary-blue" onclick="alternarTelaOS('lista')">  Acompanhamento (Abertas)</button>
         <button class="btn-danger-outline" onclick="alternarTelaOS('sinistro')" style="border-color: #ef4444; color: #ef4444;">  Acompanhamento (Sinistros)</button>
-        <button class="btn-secondary-dark" onclick="alternarTelaOS('historico')">  Histórico (Todas)</button>
+        <button class="btn-secondary-dark" onclick="alternarTelaOS('historico'); carregarFiltrosSelectHistoricoOS();">  Histórico (Todas)</button>
         <button class="btn-primary-blue" onclick="alternarTelaOS('painel_tv')" style="background-color: #8b5cf6; border-color: #8b5cf6;">  Modo TV (Tempo Real)</button>
         <button class="btn-primary-green" onclick="alternarTelaOS('nova'); carregarSelectCavalosOS(); carregarMotoristasSelectOS();">  Abrir Nova O.S.</button>
         <button class="btn-secondary-dark" onclick="alternarTelaOS('frota')">  Cadastro Frota (O.S.)</button>
@@ -71,7 +71,8 @@
             <button class="btn-danger-outline" onclick="exportarHistoricoOSPDF()" style="padding: 8px 15px; border-color: #ef4444; color: #ef4444;">  Exportar (PDF)</button>
         </div>
     </div>
-    <div class="form-grid" style="margin-bottom: 15px; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;">
+    
+    <div class="form-grid" style="margin-bottom: 15px; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
         <div class="form-group-dark">
             <label>Nº da O.S.</label>
             <input type="text" id="filtroHistOSNum" placeholder="Ex: 15" oninput="renderizarTabelaHistoricoOS()">
@@ -108,6 +109,13 @@
             </select>
         </div>
         
+        <div class="form-group-dark">
+            <label style="color: var(--ccol-green-bright);">Mês Específico</label>
+            <select id="filtroHistMesAno" class="dark-select" onchange="renderizarTabelaHistoricoOS()" style="border-color: var(--ccol-green-bright);">
+                <option value="">Todos os Meses</option>
+            </select>
+        </div>
+        
         <div class="form-group-dark" style="grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; background: rgba(0,0,0,0.15); padding: 10px; border-radius: 8px; border: 1px dashed rgba(255,255,255,0.1);">
             <div>
                 <label style="color: var(--ccol-blue-bright);">Filtrar de (Data Início):</label>
@@ -122,6 +130,7 @@
             </div>
         </div>
     </div>
+    
     <div class="table-modern-wrapper">
         <table class="data-table-modern">
             <thead>

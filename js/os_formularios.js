@@ -183,8 +183,6 @@ async function salvarNovaOS() {
     }
 }
 
-// === FUNÇÕES DA TELA E MODAL DE EDIÇÃO DE FROTA ===
-
 async function salvarFrotaManutencao() {
     const cavalo = document.getElementById('osFrotaCavalo').value.trim().toUpperCase();
     const cor = document.getElementById('osFrotaCor').value.trim();
@@ -211,7 +209,6 @@ async function salvarFrotaManutencao() {
     if (error) { alert("Erro ao inserir o novo conjunto."); return; }
     alert("Vínculo salvo com sucesso!");
 
-    // Limpa apenas o formulário de criação
     document.getElementById('osFrotaCavalo').value = '';
     document.getElementById('osFrotaCor').value = '';
     document.getElementById('osFrotaGo').value = '';
@@ -227,7 +224,6 @@ function editarFrotaManutencao(id) {
     const frota = frotasManutencao.find(f => f.id === id);
     if (!frota) return;
 
-    // Popula a nova janela Modal no meio da tela
     document.getElementById('editFrotaId').value = frota.id;
     document.getElementById('editFrotaCavalo').value = frota.cavalo || '';
     document.getElementById('editFrotaCor').value = frota.cor || '';
@@ -643,9 +639,11 @@ async function imprimirOS(osId) {
     printWindow.document.close();
 }
 
+// === NOVO: ATUALIZADO PARA INCLUIR A LÓGICA DE GERAR O MÊS/ANO ===
 async function carregarFiltrosSelectHistoricoOS() {
     const selectPlaca = document.getElementById('filtroHistPlaca');
     const selectMotorista = document.getElementById('filtroHistMotorista');
+    const selectMesAno = document.getElementById('filtroHistMesAno');
 
     if (selectPlaca) {
         try {
@@ -672,9 +670,34 @@ async function carregarFiltrosSelectHistoricoOS() {
             selectMotorista.innerHTML = options;
         } catch(e) { console.error("Erro ao carregar motoristas para filtro", e); }
     }
-}
 
-// ==================== FUNÇÕES DO MODAL DE TRANSFERÊNCIA DE FROTA ====================
+    // EXTRAÇÃO AUTOMÁTICA DOS MESES COM BASE NO BANCO DE DADOS
+    if (selectMesAno && typeof ordensServico !== 'undefined') {
+        const mesesSet = new Set();
+        ordensServico.forEach(os => {
+            if (os.data_abertura) {
+                const ym = os.data_abertura.substring(0, 7); // Ex: '2026-04'
+                mesesSet.add(ym);
+            }
+        });
+
+        const mesesArray = Array.from(mesesSet).sort().reverse(); 
+        const nomesMeses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+        
+        const valAtual = selectMesAno.value;
+        let options = '<option value="">Todos os Meses</option>';
+        
+        mesesArray.forEach(ym => {
+            const [ano, mes] = ym.split('-');
+            const nomeMes = nomesMeses[parseInt(mes, 10) - 1];
+            const anoCurto = ano.substring(2);
+            const isSelected = valAtual === ym ? 'selected' : '';
+            options += `<option value="${ym}" ${isSelected}>${nomeMes} / ${anoCurto}</option>`;
+        });
+        
+        selectMesAno.innerHTML = options;
+    }
+}
 
 function abrirModalTransferenciaFrota(idOrigem) {
     const origem = frotasManutencao.find(f => f.id === idOrigem);

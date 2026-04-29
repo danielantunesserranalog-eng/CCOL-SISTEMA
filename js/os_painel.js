@@ -26,7 +26,6 @@ function renderizarRelatorioGerencialOS() {
     let qtdValidas = 0;
     concluidas.forEach(o => {
         if (o.data_abertura && o.data_conclusao) {
-            // CORREÇÃO DE FUSO MATEMÁTICA
             const inicio = new Date(o.data_abertura.replace('Z', '').replace('+00:00', ''));
             const fim = new Date(o.data_conclusao.replace('Z', '').replace('+00:00', ''));
             
@@ -633,11 +632,21 @@ function exportarHistoricoOSExcel() {
     const dataFim = document.getElementById('filtroHistDataFim')?.value;
     const tipo = document.getElementById('filtroHistTipo')?.value;
     
+    // NOVO FILTRO DE MES ANO NO EXCEL
+    const mesAno = document.getElementById('filtroHistMesAno')?.value;
+    
     let filtradas = ordensServico;
     
     if (num) filtradas = filtradas.filter(o => o.id.toString() === num);
     if (placa) filtradas = filtradas.filter(o => o.placa && o.placa.toUpperCase() === placa.toUpperCase());
     if (motorista) filtradas = filtradas.filter(o => o.motorista && o.motorista === motorista);
+    
+    if (mesAno) {
+        filtradas = filtradas.filter(o => {
+            if (!o.data_abertura) return false;
+            return o.data_abertura.substring(0, 7) === mesAno;
+        });
+    }
     
     if (dataInicio || dataFim) {
         filtradas = filtradas.filter(o => {
@@ -705,7 +714,6 @@ function exportarHistoricoOSExcel() {
     document.body.removeChild(link);
 }
 
-// Carregador Dinâmico para as bibliotecas de PDF
 function loadScriptPDF(url) {
     return new Promise((resolve, reject) => {
         if (document.querySelector(`script[src="${url}"]`)) {
@@ -722,7 +730,6 @@ function loadScriptPDF(url) {
 
 async function exportarHistoricoOSPDF() {
     try {
-        // Carrega jsPDF e AutoTable dinamicamente
         await loadScriptPDF('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
         await loadScriptPDF('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js');
     } catch(e) {
@@ -731,9 +738,8 @@ async function exportarHistoricoOSPDF() {
     }
     
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('landscape'); // Usando modo paisagem para caber a tabela com conforto
+    const doc = new jsPDF('landscape');
     
-    // Resgatar os mesmos filtros que estão na tela
     const num = document.getElementById('filtroHistOSNum')?.value.toLowerCase();
     const placa = document.getElementById('filtroHistPlaca')?.value;
     const motorista = document.getElementById('filtroHistMotorista')?.value;
@@ -741,11 +747,21 @@ async function exportarHistoricoOSPDF() {
     const dataFim = document.getElementById('filtroHistDataFim')?.value;
     const tipoFiltro = document.getElementById('filtroHistTipo')?.value;
     
+    // NOVO FILTRO DE MES ANO NO PDF
+    const mesAno = document.getElementById('filtroHistMesAno')?.value;
+    
     let filtradas = ordensServico;
     
     if (num) filtradas = filtradas.filter(o => o.id.toString() === num);
     if (placa) filtradas = filtradas.filter(o => o.placa && o.placa.toUpperCase() === placa.toUpperCase());
     if (motorista) filtradas = filtradas.filter(o => o.motorista && o.motorista === motorista);
+    
+    if (mesAno) {
+        filtradas = filtradas.filter(o => {
+            if (!o.data_abertura) return false;
+            return o.data_abertura.substring(0, 7) === mesAno;
+        });
+    }
     
     if (dataInicio || dataFim) {
         filtradas = filtradas.filter(o => {
@@ -793,14 +809,12 @@ async function exportarHistoricoOSPDF() {
         
         const tipoDesc = os.tipo || 'Não Informado';
         
-        // Acumula os valores para gerar a média depois
         if (!temposPorTipo[tipoDesc]) {
             temposPorTipo[tipoDesc] = { count: 0, totalMs: 0 };
         }
         temposPorTipo[tipoDesc].count++;
         temposPorTipo[tipoDesc].totalMs += tempoMs;
         
-        // O motorista NÃO é incluído no push, apenas os dados do Cavalo e O.S.
         linhasTabela.push([
             `#${os.id}`,
             os.placa || '-',
@@ -812,7 +826,6 @@ async function exportarHistoricoOSPDF() {
         ]);
     });
     
-    // Montar Tabela Resumo com a Média
     let linhasResumo = [];
     for (const [tipo, dados] of Object.entries(temposPorTipo)) {
         if(dados.count > 0) {
@@ -823,19 +836,10 @@ async function exportarHistoricoOSPDF() {
         }
     }
     
-    // ==========================================
-    // NOVA MELHORIA: ORDENAÇÃO ALFABÉTICA (A-Z)
-    // ==========================================
-    
-    // Ordena a tabela de resumo (O Tipo de Serviço fica no índice 0)
+    // ORDENAÇÃO ALFABÉTICA (A-Z)
     linhasResumo.sort((a, b) => a[0].localeCompare(b[0]));
-    
-    // Ordena também a listagem detalhada inteira agrupando por Tipo de Serviço (índice 2)
     linhasTabela.sort((a, b) => a[2].localeCompare(b[2]));
     
-    // ==========================================
-    
-    // Usando o caminho relativo que funciona via servidor local ou web
     const logoUrl = 'assets/logoverde.png';
     const img = new Image();
     
@@ -865,14 +869,12 @@ function gerarDocumentoPDF(doc, logoDataUrl, linhasResumo, linhasTabela) {
     
     if (logoDataUrl) {
         try {
-            // Posiciona no canto superior direito
             doc.addImage(logoDataUrl, 'PNG', pageWidth - 59, 10, 45, 15);
         } catch(e) {
             console.warn("Aviso: Falha ao desenhar a logomarca no PDF.", e);
         }
     }
     
-    // Títulos e Cabeçalhos
     doc.setFontSize(18);
     doc.setTextColor(40);
     doc.text("Relatório Histórico de Ordens de Serviço", 14, 35);
@@ -880,27 +882,24 @@ function gerarDocumentoPDF(doc, logoDataUrl, linhasResumo, linhasTabela) {
     doc.setFontSize(10);
     doc.text(`Data de Emissão: ${new Date().toLocaleString('pt-BR')}`, 14, 42);
     
-    // Tabela 1: Resumo das Médias de Tempo por Tipo
     doc.autoTable({
         startY: 48,
         head: [['Tipo de Serviço', 'Qtd. de O.S.', 'Média de Tempo Parada']],
         body: linhasResumo,
         theme: 'grid',
-        headStyles: { fillColor: [4, 120, 87] }, // Verde Escuro combinando com o sistema
+        headStyles: { fillColor: [4, 120, 87] },
         margin: { top: 10 },
         styles: { fontSize: 10 }
     });
     
-    // Tabela 2: Listagem Completa de O.S. (Sem o Motorista)
     doc.autoTable({
         startY: doc.lastAutoTable.finalY + 15,
         head: [['Nº O.S.', 'Cavalo', 'Tipo de Serviço', 'Status', 'Data Abertura', 'Data Conclusão', 'Tempo Total']],
         body: linhasTabela,
         theme: 'striped',
-        headStyles: { fillColor: [15, 23, 42] }, // Azul Escuro base do sistema
+        headStyles: { fillColor: [15, 23, 42] },
         styles: { fontSize: 9 }
     });
     
-    // Salvar o arquivo
     doc.save(`Relatorio_Historico_OS_${new Date().toISOString().split('T')[0]}.pdf`);
 }

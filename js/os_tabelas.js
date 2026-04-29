@@ -22,13 +22,11 @@ function renderizarTabelaOS() {
         
         const modoIcon = os.status === 'Agendada' ? '📅' : '🚨';
         
-        // CORREÇÃO DE FUSO: Usando a função segura para não perder 3 horas
         const inicioStr = formatarDataHoraBrasil(os.data_abertura);
         const previsaoStr = os.previsao_entrega ? formatarDataHoraBrasil(os.previsao_entrega) : 'Não definida';
 
         let isVencida = false;
         if (os.previsao_entrega && os.status !== 'Agendada') {
-            // CORREÇÃO DE FUSO: Retirando marcador UTC antes da matemática
             const previsao = new Date(os.previsao_entrega.replace('Z', '').replace('+00:00', ''));
             if (new Date() > previsao) isVencida = true;
         }
@@ -72,7 +70,6 @@ function renderizarTabelaSinistro() {
 
     tbody.innerHTML = filtradas.map(os => {
         let corStatus = '#ef4444'; 
-        // CORREÇÃO DE FUSO: Usando função segura
         const inicioStr = formatarDataHoraBrasil(os.data_abertura);
         const previsaoStr = os.previsao_entrega ? formatarDataHoraBrasil(os.previsao_entrega) : 'Indeterminada';
 
@@ -106,12 +103,23 @@ function renderizarTabelaHistoricoOS() {
     const dataInicio = document.getElementById('filtroHistDataInicio')?.value;
     const dataFim = document.getElementById('filtroHistDataFim')?.value;
     const tipo = document.getElementById('filtroHistTipo')?.value;
+    
+    // Filtro Mês/Ano (Novo)
+    const mesAno = document.getElementById('filtroHistMesAno')?.value;
 
     let filtradas = ordensServico;
 
     if (num) filtradas = filtradas.filter(o => o.id.toString() === num);
     if (placa) filtradas = filtradas.filter(o => o.placa && o.placa.toUpperCase() === placa.toUpperCase());
     if (motorista) filtradas = filtradas.filter(o => o.motorista && o.motorista === motorista);
+    
+    // Lógica do Filtro Mês/Ano Ex: '2026-04'
+    if (mesAno) {
+        filtradas = filtradas.filter(o => {
+            if (!o.data_abertura) return false;
+            return o.data_abertura.substring(0, 7) === mesAno;
+        });
+    }
     
     if (dataInicio || dataFim) {
         filtradas = filtradas.filter(o => {
@@ -133,7 +141,6 @@ function renderizarTabelaHistoricoOS() {
         if (os.status === 'Em Manutenção') corStatus = '#3b82f6';
         if (os.status === 'Sinistrado' || os.tipo === 'Sinistro') corStatus = '#ef4444';
 
-        // CORREÇÃO DE FUSO: Usando função segura
         const dataAbertura = formatarDataHoraBrasil(os.data_abertura);
         const dataConclusao = os.data_conclusao ? formatarDataHoraBrasil(os.data_conclusao) : '-';
 
