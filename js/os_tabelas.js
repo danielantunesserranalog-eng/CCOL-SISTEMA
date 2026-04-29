@@ -170,6 +170,7 @@ function renderizarTabelaFrotaManutencao() {
             <td>${f.carreta3 || '-'}</td>
             <td>
                 <div style="display: flex; gap: 10px; align-items: center;">
+                    <button onclick="abrirModalTransferenciaFrota(${f.id})" style="background:transparent; border:none; color:var(--ccol-green-bright); cursor:pointer; font-size: 1.2rem;" title="Transferir Carretas/GO">🔄</button>
                     <button onclick="editarFrotaManutencao(${f.id})" style="background:transparent; border:none; color:var(--ccol-blue-bright); cursor:pointer; font-size: 1.2rem;" title="Editar">✏️</button>
                     <button onclick="excluirFrotaManutencao(${f.id})" style="background:transparent; border:none; color:#ef4444; cursor:pointer; font-size: 1.2rem;" title="Excluir">🗑️</button>
                 </div>

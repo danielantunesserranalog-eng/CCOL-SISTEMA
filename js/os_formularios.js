@@ -125,7 +125,6 @@ async function salvarNovaOS() {
         if (typeof currentUser !== 'undefined' && currentUser && currentUser.username) {
             pacoteDadosOS.aberto_por = currentUser.username;
         } else {
-            // Tenta resgatar da sessão salva no navegador caso o currentUser esteja vazio
             const sessaoSalva = localStorage.getItem('ccol_user_session');
             if (sessaoSalva) {
                 const userObj = JSON.parse(sessaoSalva);
@@ -237,7 +236,6 @@ async function salvarFrotaManutencao() {
         alert("Vínculo salvo com sucesso!");
     }
 
-    // Limpar os campos após salvar
     document.getElementById('osFrotaId').value = '';
     document.getElementById('osFrotaCavalo').value = '';
     document.getElementById('osFrotaCor').value = '';
@@ -264,7 +262,7 @@ function exportarFrotaManutencaoExcel() {
         return;
     }
 
-    let csvContent = "\uFEFF"; // BOM para o Excel ler acentos
+    let csvContent = "\uFEFF"; 
     csvContent += "Cavalo;Cor;GO;Carreta 1;Carreta 2;Carreta 3\n";
 
     frotasManutencao.forEach(f => {
@@ -411,9 +409,6 @@ async function salvarServicoExtra() {
     }
 }
 
-// =========================================================================
-// LAYOUT DE IMPRESSÃO: COMPACTO, PRETO E BRANCO (TABULAR CLÁSSICO)
-// =========================================================================
 async function imprimirOS(osId) {
     const os = ordensServico.find(o => o.id === osId);
     if (!os) return;
@@ -473,7 +468,6 @@ async function imprimirOS(osId) {
         </tr>`;
     }
 
-    // Captura o diretório base (root) do sistema atual para que a imagem seja achada na janela de impressão.
     const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
 
     const printWindow = window.open('', '_blank');
@@ -612,7 +606,6 @@ async function imprimirOS(osId) {
             </div>
             
             <script>
-                // Aumentando um pouco o timeout para dar tempo da imagem carregar no canvas
                 window.onload = function() { setTimeout(() => { window.print(); }, 250); }
             </script>
         </body>
@@ -621,7 +614,6 @@ async function imprimirOS(osId) {
     printWindow.document.close();
 }
 
-// FUNÇÃO PARA CARREGAR OS FILTROS DO HISTÓRICO EM CASCATA
 async function carregarFiltrosSelectHistoricoOS() {
     const selectPlaca = document.getElementById('filtroHistPlaca');
     const selectMotorista = document.getElementById('filtroHistMotorista');
@@ -650,5 +642,90 @@ async function carregarFiltrosSelectHistoricoOS() {
             }
             selectMotorista.innerHTML = options;
         } catch(e) { console.error("Erro ao carregar motoristas para filtro", e); }
+    }
+}
+
+// ==================== FUNÇÕES DO MODAL DE TRANSFERÊNCIA DE FROTA ====================
+
+function abrirModalTransferenciaFrota(idOrigem) {
+    const origem = frotasManutencao.find(f => f.id === idOrigem);
+    if (!origem) return;
+
+    if (!origem.go && !origem.carreta1 && !origem.carreta2 && !origem.carreta3) {
+        alert('Este cavalo não possui Frota ou Carretas vinculadas para transferir.');
+        return;
+    }
+
+    document.getElementById('transfFrotaOrigemId').value = idOrigem;
+    document.getElementById('transfFrotaOrigemText').innerText = origem.cavalo;
+
+    const select = document.getElementById('selectFrotaDestino');
+    select.innerHTML = '<option value="">-- Selecione o Cavalo Destino --</option>';
+    
+    frotasManutencao.forEach(f => {
+        if (f.id !== idOrigem) {
+            select.innerHTML += `<option value="${f.id}">${f.cavalo}</option>`;
+        }
+    });
+
+    document.getElementById('modalTransferenciaFrota').style.display = 'flex';
+}
+
+function fecharModalTransferenciaFrota() {
+    document.getElementById('modalTransferenciaFrota').style.display = 'none';
+    document.getElementById('transfFrotaOrigemId').value = '';
+    document.getElementById('selectFrotaDestino').innerHTML = '';
+}
+
+async function confirmarTransferenciaFrota() {
+    const idOrigem = parseInt(document.getElementById('transfFrotaOrigemId').value);
+    const idDestino = parseInt(document.getElementById('selectFrotaDestino').value);
+
+    if (!idDestino) {
+        alert('Por favor, selecione um Cavalo de destino!');
+        return;
+    }
+
+    const origem = frotasManutencao.find(f => f.id === idOrigem);
+    const destino = frotasManutencao.find(f => f.id === idDestino);
+
+    if (!origem || !destino) return;
+
+    try {
+        // 1. O Destino recebe as carretas da Origem
+        const { error: errDestino } = await supabaseClient
+            .from('frotas_manutencao')
+            .update({ 
+                go: origem.go || '', 
+                carreta1: origem.carreta1 || '', 
+                carreta2: origem.carreta2 || '', 
+                carreta3: origem.carreta3 || '' 
+            })
+            .eq('id', idDestino);
+
+        if (errDestino) throw errDestino;
+
+        // 2. A Origem recebe as carretas do Destino (Invertendo a operação - Swap)
+        const { error: errOrigem } = await supabaseClient
+            .from('frotas_manutencao')
+            .update({ 
+                go: destino.go || '', 
+                carreta1: destino.carreta1 || '', 
+                carreta2: destino.carreta2 || '', 
+                carreta3: destino.carreta3 || '' 
+            })
+            .eq('id', idOrigem);
+
+        if (errOrigem) throw errOrigem;
+
+        alert("Troca de conjuntos realizada com sucesso!");
+        fecharModalTransferenciaFrota();
+        
+        await carregarDadosOS();
+        if(typeof renderizarTabelaFrotaManutencao === 'function') renderizarTabelaFrotaManutencao();
+
+    } catch (error) {
+        console.error("Erro durante a transferência:", error);
+        alert("Ocorreu um erro ao tentar transferir as informações no banco de dados.");
     }
 }

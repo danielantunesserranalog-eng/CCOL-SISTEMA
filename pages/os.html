@@ -401,3 +401,28 @@
         </div>
     </div>
 </div>
+
+<div id="modalTransferenciaFrota" class="modal-overlay" style="display: none;">
+    <div class="custom-modal form-panel-dark">
+        <div class="modal-header">
+            <h3>🔄 Trocar Carretas e GO</h3>
+            <button class="close-modal" onclick="fecharModalTransferenciaFrota()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Cavalo Selecionado: <strong id="transfFrotaOrigemText" style="color: var(--ccol-green-bright);"></strong></p>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 15px;">
+                A frota (GO e Carretas) deste Cavalo será movida para o Cavalo de destino selecionado abaixo. <strong>Se o destino já possuir carretas engatadas, elas serão transferidas automaticamente para este Cavalo (Troca de Conjuntos).</strong>
+            </p>
+            <input type="hidden" id="transfFrotaOrigemId">
+            <div class="form-group-dark">
+                <label>Selecione o Cavalo de Destino:</label>
+                <select id="selectFrotaDestino" class="dark-select" style="width: 100%; padding: 10px; border-radius: 6px; background: rgba(0,0,0,0.2); border: 1px solid var(--border-dim); color: var(--text-primary);">
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer" style="margin-top: 20px;">
+            <button class="btn-secondary-dark" onclick="fecharModalTransferenciaFrota()">Cancelar</button>
+            <button class="btn-primary-blue" onclick="confirmarTransferenciaFrota()">✅ Confirmar Troca</button>
+        </div>
+    </div>
+</div>
