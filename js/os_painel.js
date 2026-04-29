@@ -2,16 +2,39 @@
 // Módulo de Painéis, Indicadores Gerenciais, Gráficos DM, Modo TV e Exportação
 
 function renderizarRelatorioGerencialOS() {
-    const osManutencao = ordensServico.filter(o => o.tipo !== 'Sinistro');
+    // 1. Busca a data do Filtro Global do Painel
+    let filtroData = { inicio: new Date(0), fim: new Date(2100, 1, 1) };
+    if (typeof window.getDatasFiltroGlobal === 'function') {
+        filtroData = window.getDatasFiltroGlobal();
+    }
+
+    // 2. Filtra TODAS as Ordens de Serviço Baseado no Filtro Global
+    const osNoPeriodo = ordensServico.filter(o => {
+        if (!o.data_abertura) return false;
+        let osInicioStr = o.data_abertura;
+        if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
+        const d = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
+        return d >= filtroData.inicio && d <= filtroData.fim;
+    });
+
+    const osManutencao = osNoPeriodo.filter(o => o.tipo !== 'Sinistro');
+    
+    // Se não tiver dado nenhum no período filtrado, zera tudo.
     if (osManutencao.length === 0) {
         if(document.getElementById('kpiTotalOS')) document.getElementById('kpiTotalOS').innerText = '0';
         if(document.getElementById('kpiAbertasOS')) document.getElementById('kpiAbertasOS').innerText = '0';
         if(document.getElementById('kpiConcluidasOS')) document.getElementById('kpiConcluidasOS').innerText = '0';
         if(document.getElementById('kpiTaxaOS')) document.getElementById('kpiTaxaOS').innerText = '0%';
         if(document.getElementById('kpiTempoMedioOS')) document.getElementById('kpiTempoMedioOS').innerText = '0h 0m';
+        if(document.getElementById('rankingCavalosOS')) document.getElementById('rankingCavalosOS').innerHTML = '<p style="color:#94a3b8; text-align:center;">Nenhum dado no período.</p>';
+        if(document.getElementById('graficoTipoOS')) document.getElementById('graficoTipoOS').innerHTML = '<p style="color:#94a3b8; text-align:center;">Nenhum dado no período.</p>';
+        if(document.getElementById('graficoPrioridadeOS')) document.getElementById('graficoPrioridadeOS').innerHTML = '<p style="color:#94a3b8; text-align:center;">Nenhum dado no período.</p>';
+        
         renderizarRelatorioDM();
+        if(typeof window.renderizarGraficoOcorrenciasPorTipo === 'function') window.renderizarGraficoOcorrenciasPorTipo();
         return;
     }
+    
     const total = osManutencao.length;
     const abertas = osManutencao.filter(o => o.status === 'Aguardando Oficina' || o.status === 'Em Manutenção').length;
     const concluidas = osManutencao.filter(o => o.status === 'Concluída');
@@ -114,8 +137,133 @@ function renderizarRelatorioGerencialOS() {
     if(prioEl) prioEl.innerHTML = htmlPrio;
     
     renderizarRelatorioDM();
+
+    // CHAMA A RENDERIZAÇÃO DO NOVO GRÁFICO RESPEITANDO O FILTRO
+    if(typeof window.renderizarGraficoOcorrenciasPorTipo === 'function') {
+        window.renderizarGraficoOcorrenciasPorTipo();
+    }
 }
 
+// ================= FUNÇÃO DO GRÁFICO VERTICAL USANDO ECHARTS =================
+window.renderizarGraficoOcorrenciasPorTipo = function() {
+    const el = document.getElementById('graficoOcorrenciasTipoBarra');
+    if (!el) return;
+
+    let osList = [];
+    if (typeof ordensServico !== 'undefined') osList = ordensServico;
+
+    // Respeitar o filtro global
+    let filtroData = { inicio: new Date(0), fim: new Date(2100, 1, 1) };
+    if (typeof window.getDatasFiltroGlobal === 'function') {
+        filtroData = window.getDatasFiltroGlobal();
+    }
+
+    const filtradas = osList.filter(o => {
+        if (o.tipo === 'Sinistro') return false; 
+        if (!o.data_abertura) return false;
+        let osInicioStr = o.data_abertura;
+        if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
+        const d = new Date(osInicioStr.replace('Z', '').replace('+00:00', ''));
+        return d >= filtroData.inicio && d <= filtroData.fim;
+    });
+
+    const contagem = {};
+    filtradas.forEach(o => {
+        const t = o.tipo || 'Não Informado';
+        contagem[t] = (contagem[t] || 0) + 1;
+    });
+
+    // Ordenar do maior para o menor
+    const sorted = Object.entries(contagem).sort((a,b) => b[1] - a[1]);
+    const categories = sorted.map(i => i[0]);
+    const data = sorted.map(i => i[1]);
+
+    if (categories.length === 0) {
+        el.innerHTML = '<div style="color:#94a3b8; display:flex; justify-content:center; align-items:center; height:100%;">Nenhuma O.S registrada no período selecionado.</div>';
+        return;
+    }
+
+    // Utilizando a ECharts em vez do ApexCharts
+    if (typeof echarts !== 'undefined') {
+        el.innerHTML = ''; // Limpa o "Carregando gráfico..."
+        
+        if (window.chartOcorrenciasTipo) {
+            window.chartOcorrenciasTipo.dispose();
+        }
+        
+        window.chartOcorrenciasTipo = echarts.init(el);
+        
+        const option = {
+            backgroundColor: 'transparent',
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'shadow' }
+            },
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '25%', // Espaço extra para o texto inclinado
+                top: '15%',    // Espaço extra para os números no topo
+                containLabel: true
+            },
+            xAxis: {
+                type: 'category',
+                data: categories,
+                axisLabel: {
+                    color: '#94a3b8',
+                    rotate: 35, // Inclinação dos nomes
+                    interval: 0,
+                    fontSize: 10,
+                    fontWeight: 'bold'
+                },
+                axisLine: {
+                    lineStyle: { color: 'rgba(255,255,255,0.1)' }
+                }
+            },
+            yAxis: {
+                type: 'value',
+                axisLabel: { color: '#94a3b8' },
+                splitLine: {
+                    lineStyle: { color: 'rgba(255,255,255,0.05)', type: 'dashed' }
+                }
+            },
+            series: [{
+                name: 'Ocorrências',
+                type: 'bar',
+                data: data,
+                barWidth: '40%',
+                label: {
+                    show: true,
+                    position: 'top', // Número acima da barra
+                    color: '#fff',
+                    fontWeight: 'bold',
+                    fontSize: 14,
+                    distance: 5
+                },
+                itemStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: '#0ea5e9' },
+                        { offset: 1, color: '#3b82f6' }
+                    ]),
+                    borderRadius: [6, 6, 0, 0] // Borda superior arredondada
+                }
+            }]
+        };
+        
+        window.chartOcorrenciasTipo.setOption(option);
+        
+        window.addEventListener('resize', () => {
+            if (window.chartOcorrenciasTipo) {
+                window.chartOcorrenciasTipo.resize();
+            }
+        });
+        
+    } else {
+        el.innerHTML = '<div style="color:#ef4444; text-align:center;">Erro: Biblioteca de gráficos ECharts não carregada.</div>';
+    }
+};
+
+// ---------------- RESTANTE DO CÓDIGO ----------------
 function renderizarDisponibilidadeMecanica() {
     const tbody = document.getElementById('tabelaDisponibilidade');
     if (!tbody) return;
@@ -442,7 +590,6 @@ function exportarRelatorioDMExcel() {
     document.body.removeChild(link);
 }
 
-// ---------------- FUNÇÕES DO PAINEL TV CORRIGIDAS ----------------
 function entrarModoTV() {
     const telaTV = document.getElementById('telaPainelTV');
     if (!telaTV) return;
@@ -623,7 +770,6 @@ function atualizarRelogioTV() {
     elData.innerText = agora.toLocaleDateString('pt-BR', opcoesData).toUpperCase();
 }
 
-// ---------------- EXPORTAÇÕES (EXCEL E PDF) ----------------
 function exportarHistoricoOSExcel() {
     const num = document.getElementById('filtroHistOSNum')?.value.toLowerCase();
     const placa = document.getElementById('filtroHistPlaca')?.value;
@@ -631,8 +777,6 @@ function exportarHistoricoOSExcel() {
     const dataInicio = document.getElementById('filtroHistDataInicio')?.value;
     const dataFim = document.getElementById('filtroHistDataFim')?.value;
     const tipo = document.getElementById('filtroHistTipo')?.value;
-    
-    // NOVO FILTRO DE MES ANO NO EXCEL
     const mesAno = document.getElementById('filtroHistMesAno')?.value;
     
     let filtradas = ordensServico;
@@ -746,8 +890,6 @@ async function exportarHistoricoOSPDF() {
     const dataInicio = document.getElementById('filtroHistDataInicio')?.value;
     const dataFim = document.getElementById('filtroHistDataFim')?.value;
     const tipoFiltro = document.getElementById('filtroHistTipo')?.value;
-    
-    // NOVO FILTRO DE MES ANO NO PDF
     const mesAno = document.getElementById('filtroHistMesAno')?.value;
     
     let filtradas = ordensServico;
@@ -836,7 +978,6 @@ async function exportarHistoricoOSPDF() {
         }
     }
     
-    // ORDENAÇÃO ALFABÉTICA (A-Z)
     linhasResumo.sort((a, b) => a[0].localeCompare(b[0]));
     linhasTabela.sort((a, b) => a[2].localeCompare(b[2]));
     

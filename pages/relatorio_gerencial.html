@@ -27,10 +27,12 @@
     };
 
     window.dispararFiltrosGlobais = function() {
+        // Agora todos os KPIs e Rankings também vão obedecer ao filtro de data
+        if(typeof renderizarRelatorioGerencialOS === 'function') renderizarRelatorioGerencialOS();
+        
         if(typeof renderizarGraficoEvolucaoDM === 'function') renderizarGraficoEvolucaoDM();
         if(typeof renderizarGraficoStatusFrotaHorario === 'function') renderizarGraficoStatusFrotaHorario();
         if(typeof renderizarGraficoEvolucaoDMDiaria === 'function') renderizarGraficoEvolucaoDMDiaria();
-        
         if(typeof renderizarDMIndividual === 'function') renderizarDMIndividual();
         
         const hiddenFiltroTabela = document.getElementById('filtroPeriodoDM');
@@ -227,6 +229,19 @@
     </div>
 </div>
 
+<div class="content-panel" style="grid-column: 1 / -1; margin-bottom: 20px; border: 1px solid #0ea5e9; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); border-radius: 16px; overflow: hidden; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);">
+    <div class="panel-header" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+        <h3 style="color: #0ea5e9; margin: 0; display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-chart-bar"></i> 📊 Análise de Ocorrências por Tipo de Serviço
+        </h3>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button class="btn-secondary-dark" onclick="exportarGraficoPNG('graficoOcorrenciasTipoBarra', 'Ocorrencias_Por_Tipo')" style="border-radius: 6px; background: #334155; padding: 6px 14px; font-size: 0.85rem; height: 34px; font-weight: 600;">📸 Exportar PNG</button>
+        </div>
+    </div>
+    <div style="width: 100%; height: 380px; padding: 20px;" id="graficoOcorrenciasTipoBarra">
+        <div style="color:#94a3b8; display:flex; justify-content:center; align-items:center; height:100%;">Carregando gráfico...</div>
+    </div>
+</div>
 <div class="content-panel" style="grid-column: 1 / -1; margin-bottom: 20px; border: 1px solid var(--ccol-green-bright);">
     <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px;">
         <h3 style="color: var(--ccol-green-bright); margin: 0;">📊 Disponibilidade Mecânica (DM) por Cavalo</h3>
