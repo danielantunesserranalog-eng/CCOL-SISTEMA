@@ -448,15 +448,14 @@ function entrarModoTV() {
     const telaTV = document.getElementById('telaPainelTV');
     if (!telaTV) return;
     
-    // Em vez de dar display none no app inteiro, joga a TV em tela cheia por cima
     telaTV.style.display = 'block';
     telaTV.style.position = 'fixed';
     telaTV.style.top = '0';
     telaTV.style.left = '0';
     telaTV.style.width = '100vw';
     telaTV.style.height = '100vh';
-    telaTV.style.zIndex = '99999'; // Fica por cima de absolutamente tudo
-    telaTV.style.overflowY = 'auto'; // Permite rolagem se tiver muitos cards
+    telaTV.style.zIndex = '99999';
+    telaTV.style.overflowY = 'auto'; 
     
     if (document.documentElement.requestFullscreen) {
         document.documentElement.requestFullscreen().catch(err => console.warn("Fullscreen falhou:", err));
@@ -483,7 +482,7 @@ function sairModoTV() {
     const telaTV = document.getElementById('telaPainelTV');
     if (telaTV) {
         telaTV.style.display = 'none';
-        telaTV.style.position = ''; // reseta os estilos de sobreposição
+        telaTV.style.position = ''; 
         telaTV.style.zIndex = '';
     }
     
@@ -532,20 +531,17 @@ function renderizarCardsTV() {
         else if (os.prioridade === 'Alta') corPrioridade = '#f97316';
         else if (os.prioridade === 'Baixa') corPrioridade = '#10b981';
         
-        // CORREÇÃO DE FUSO PARA O PAINEL DE TV: O relógio e o Tempo de Pátio
         let diffHrs = 0;
         let diffMin = 0;
         let entradaHoraStr = '--:--';
         
         if (os.data_abertura) {
-            // Removendo os marcadores de fuso horário UTC (Z e +00)
             const inicio = new Date(os.data_abertura.replace('Z', '').replace('+00:00', ''));
             const diffMs = agora - inicio;
             if(diffMs > 0) {
                 diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
                 diffMin = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
             }
-            // Gerando o texto da hora local corretamente
             entradaHoraStr = inicio.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
         }
         
@@ -564,7 +560,6 @@ function renderizarCardsTV() {
         let campoPrevisao = os.previsao_entrega || os.previsao;
         
         if (campoPrevisao) {
-            // CORREÇÃO DE FUSO PARA A PREVISÃO NA TV
             const dataPrevisao = new Date(campoPrevisao.replace('Z', '').replace('+00:00', ''));
             if (agora > dataPrevisao) {
                 avisoPrevisao = `<div style="background: #7f1d1d; color: #fca5a5; padding: 5px; text-align: center; font-weight: bold; border-radius: 4px; margin-top: 10px; font-size: 0.9rem;">  PREVISÃO VENCIDA</div>`;
@@ -828,6 +823,18 @@ async function exportarHistoricoOSPDF() {
         }
     }
     
+    // ==========================================
+    // NOVA MELHORIA: ORDENAÇÃO ALFABÉTICA (A-Z)
+    // ==========================================
+    
+    // Ordena a tabela de resumo (O Tipo de Serviço fica no índice 0)
+    linhasResumo.sort((a, b) => a[0].localeCompare(b[0]));
+    
+    // Ordena também a listagem detalhada inteira agrupando por Tipo de Serviço (índice 2)
+    linhasTabela.sort((a, b) => a[2].localeCompare(b[2]));
+    
+    // ==========================================
+    
     // Usando o caminho relativo que funciona via servidor local ou web
     const logoUrl = 'assets/logoverde.png';
     const img = new Image();
@@ -842,8 +849,6 @@ async function exportarHistoricoOSPDF() {
             const dataUrl = canvas.toDataURL('image/png');
             gerarDocumentoPDF(doc, dataUrl, linhasResumo, linhasTabela);
         } catch(e) {
-            // Em caso de erro de Tainted Canvas (acessando direto do HD via file://)
-            // Tenta inserir a imagem de forma direta como fallback
             console.warn("Aviso de segurança ao ler imagem local. Tentando fallback.");
             gerarDocumentoPDF(doc, img, linhasResumo, linhasTabela);
         }
