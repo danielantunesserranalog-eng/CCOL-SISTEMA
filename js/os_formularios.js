@@ -1,5 +1,5 @@
 // ==================== js/os_formularios.js ====================
-// Módulo de Formulários, Modais e Ações (Salvar, Editar, Excluir, Imprimir)
+// Módulo de Formulários, Modais, Ações (Salvar, Editar, Excluir, Imprimir) e Filtros
 
 function togglePneuFields() {
     const tipo = document.getElementById('osTipo').value;
@@ -305,7 +305,7 @@ async function excluirOS(id) {
     if(confirm("Excluir esta O.S.?")) {
         await supabaseClient.from('ordens_servico').delete().eq('id', id);
         await carregarDadosOS();
-        renderizarTabelaHistoricoOS();
+        if(typeof renderizarTabelaHistoricoOS === 'function') renderizarTabelaHistoricoOS();
     }
 }
 
@@ -851,6 +851,119 @@ window.imprimirTodasOSFiltradas = async function() {
             ${conteudoImpressao}
             <script>
                 window.onload = function() { setTimeout(() => { window.print(); }, 500); }
+            </script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+};
+
+
+// =========================================================================
+// FUNÇÕES DE EXPORTAÇÃO E CARREGAMENTO DE FILTROS RESTAURADAS
+// =========================================================================
+
+window.carregarFiltrosSelectHistoricoOS = function() {
+    const selectPlaca = document.getElementById('filtroHistPlaca');
+    const selectMotorista = document.getElementById('filtroHistMotorista');
+    const selectMesAno = document.getElementById('filtroHistMesAno');
+
+    if (selectPlaca && typeof ordensServico !== 'undefined') {
+        let optionsPlaca = '<option value="">Todas as Placas</option>';
+        const placasUnicas = [...new Set(ordensServico.map(os => os.placa))].filter(Boolean).sort();
+        placasUnicas.forEach(p => optionsPlaca += `<option value="${p}">${p}</option>`);
+        selectPlaca.innerHTML = optionsPlaca;
+    }
+
+    if (selectMotorista && typeof ordensServico !== 'undefined') {
+        let optionsMot = '<option value="">Todos os Motoristas</option>';
+        const motUnicos = [...new Set(ordensServico.map(os => os.motorista))].filter(Boolean).sort();
+        motUnicos.forEach(m => optionsMot += `<option value="${m}">${m}</option>`);
+        selectMotorista.innerHTML = optionsMot;
+    }
+
+    if (selectMesAno && typeof ordensServico !== 'undefined') {
+        let optionsMes = '<option value="">Todos os Meses</option>';
+        const mesesUnicos = new Set();
+        ordensServico.forEach(os => {
+            if (os.data_abertura) {
+                const d = new Date(os.data_abertura);
+                if(!isNaN(d)) {
+                    const mesAno = `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+                    mesesUnicos.add(mesAno);
+                }
+            }
+        });
+        [...mesesUnicos].sort((a,b) => {
+            const [mA, yA] = a.split('/');
+            const [mB, yB] = b.split('/');
+            return yB - yA || mB - mA;
+        }).forEach(ma => optionsMes += `<option value="${ma}">${ma}</option>`);
+        selectMesAno.innerHTML = optionsMes;
+    }
+};
+
+window.setFiltroMesAtualOS = function() {
+    const agora = new Date();
+    const primeiroDia = new Date(agora.getFullYear(), agora.getMonth(), 1);
+    const ultimoDia = new Date(agora.getFullYear(), agora.getMonth() + 1, 0);
+
+    const formatarData = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+    const inputInicio = document.getElementById('filtroHistDataInicio');
+    const inputFim = document.getElementById('filtroHistDataFim');
+    
+    if (inputInicio) inputInicio.value = formatarData(primeiroDia);
+    if (inputFim) inputFim.value = formatarData(ultimoDia);
+
+    if (typeof renderizarTabelaHistoricoOS === 'function') {
+        renderizarTabelaHistoricoOS();
+    }
+};
+
+window.exportarHistoricoOSExcel = function() {
+    const table = document.querySelector('#telaHistoricoOS .data-table-modern');
+    if (!table) {
+        alert("Nenhuma tabela encontrada para exportar.");
+        return;
+    }
+    let csvContent = "\uFEFF"; // Para garantir a acentuação correta no Excel
+    const rows = table.querySelectorAll('tr');
+    for (let i = 0; i < rows.length; i++) {
+        let row = [], cols = rows[i].querySelectorAll('td, th');
+        for (let j = 0; j < cols.length - 1; j++) { // Ignora a última coluna (Ações)
+            row.push('"' + cols[j].innerText.replace(/"/g, '""') + '"');
+        }
+        csvContent += row.join(';') + "\n";
+    }
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `Historico_OS_${new Date().getTime()}.csv`;
+    link.click();
+};
+
+window.exportarHistoricoOSPDF = function() {
+    const table = document.querySelector('#telaHistoricoOS .data-table-modern');
+    if (!table) return;
+    
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Histórico de O.S.</title>
+            <style>
+                body { font-family: Arial, sans-serif; font-size: 12px; }
+                table { width: 100%; border-collapse: collapse; }
+                th, td { border: 1px solid #000; padding: 5px; text-align: left; }
+                th { background-color: #f0f0f0; }
+            </style>
+        </head>
+        <body>
+            <h2>Histórico de Ordens de Serviço</h2>
+            ${table.outerHTML}
+            <script>
+                window.onload = function() { window.print(); }
             </script>
         </body>
         </html>
