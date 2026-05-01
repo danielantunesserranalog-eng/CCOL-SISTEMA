@@ -3,8 +3,8 @@ window.carregarDadosDashboardSerrana = async function() {
     carregarControladorAtualSerrana();
     carregarFrentesTvSerrana();
     carregarOcorrenciasTvSerrana();
-    carregarFrotasParadasSerrana(); 
-    
+    carregarFrotasParadasSerrana();
+      
     // Pequeno atraso para garantir que a tela HTML carregou as larguras corretas do gráfico
     setTimeout(() => {
         renderizarGraficoEvolucaoDmSerrana();
@@ -12,9 +12,9 @@ window.carregarDadosDashboardSerrana = async function() {
     
     // Atualização em Tempo Real (A cada 60s)
     setInterval(() => {
-        carregarOcorrenciasTvSerrana(); 
+        carregarOcorrenciasTvSerrana();
         carregarFrotasParadasSerrana();
-        renderizarGraficoEvolucaoDmSerrana(); 
+        renderizarGraficoEvolucaoDmSerrana();
     }, 60000); 
 }
 
@@ -34,16 +34,20 @@ window.atualizarRelogioSerrana = function() {
 }
 
 async function atualizarPonteirosSerrana() {
-    let totalPlacasCadastradas = 0;
-    let totalManutencao = 0;
-    let totalSinistrado = 0;
-
+    let totalCavalos = 0;
+    let listaDeCavalos = [];
+    
     try {
         const { data: frotaData, error } = await supabaseClient.from('frotas_manutencao').select('cavalo');
         if (!error && frotaData) {
-            totalPlacasCadastradas = frotaData.length;
+            listaDeCavalos = frotaData.map(f => f.cavalo.trim().toUpperCase());
+            totalCavalos = listaDeCavalos.length;
         }
     } catch (e) { console.error("Erro Placas Serrana:", e); }
+
+    let contadorEmManutencaoGlobal = 0;
+    let cavalosEmManutencao = 0;
+    let cavalosSinistrados = 0;
 
     try {
         const { data: osData, error: osError } = await supabaseClient
@@ -51,42 +55,41 @@ async function atualizarPonteirosSerrana() {
             .select('placa, status');
             
         if (!osError && osData) {
-            const placasUnicasManutencao = new Set();
-            const placasUnicasSinistro = new Set();
+            const placasUnicasGeral = new Set();
+            const setCavalosManut = new Set();
+            const setCavalosSinistro = new Set();
 
             osData.forEach(os => {
+                const placaLimpa = os.placa.trim().toUpperCase();
+                
                 if (os.status === 'Sinistrado') {
-                    placasUnicasSinistro.add(os.placa);
+                    placasUnicasGeral.add(placaLimpa);
+                    if (listaDeCavalos.includes(placaLimpa)) setCavalosSinistro.add(placaLimpa);
+                    
                 } else if (os.status === 'Aguardando Oficina' || os.status === 'Em Manutenção') {
-                    placasUnicasManutencao.add(os.placa);
+                    placasUnicasGeral.add(placaLimpa);
+                    if (listaDeCavalos.includes(placaLimpa)) setCavalosManut.add(placaLimpa);
                 }
             });
 
-            // Remove o sinistrado da contagem de manutenção
-            placasUnicasSinistro.forEach(placa => {
-                placasUnicasManutencao.delete(placa);
-            });
-
-            totalSinistrado = placasUnicasSinistro.size;
-            totalManutencao = placasUnicasManutencao.size;
+            setCavalosSinistro.forEach(placa => { setCavalosManut.delete(placa); });
+            
+            contadorEmManutencaoGlobal = placasUnicasGeral.size;
+            cavalosEmManutencao = setCavalosManut.size;
+            cavalosSinistrados = setCavalosSinistro.size;
         }
     } catch (e) { console.error("Erro O.S. Serrana:", e); }
 
-    // MODIFICAÇÃO: Mantém a frota total igual ao cadastrado
-    let frotaValidaTotal = totalPlacasCadastradas;
-
-    // MODIFICAÇÃO: Diminui a disponibilidade somando manutenção com o sinistrado
-    let frotaDisponivel = frotaValidaTotal - totalManutencao - totalSinistrado;
+    let frotaDisponivel = totalCavalos - cavalosEmManutencao - cavalosSinistrados;
     if(frotaDisponivel < 0) frotaDisponivel = 0;
 
     const elGaugeFill = document.getElementById('gauge-fill-frota');
-    const elPonteiro = document.getElementById('gauge-ponteiro-frota'); 
+    const elPonteiro = document.getElementById('gauge-ponteiro-frota');
 
-    if (elGaugeFill && frotaValidaTotal > 0) {
-        const perc = (frotaDisponivel / frotaValidaTotal) * 100;
+    if (elGaugeFill && totalCavalos > 0) {
+        const perc = (frotaDisponivel / totalCavalos) * 100;
         const fillRotation = -225 + (1.8 * perc);
         elGaugeFill.style.transform = `rotate(${fillRotation}deg)`;
-
         if (elPonteiro) {
             const ponteiroRotation = -90 + (1.8 * perc);
             elPonteiro.style.transform = `translateX(-50%) rotate(${ponteiroRotation}deg)`;
@@ -101,10 +104,8 @@ async function atualizarPonteirosSerrana() {
     const elManut = document.getElementById('texto-manut-total');
 
     if(elFrotaDisp) elFrotaDisp.textContent = frotaDisponivel;
-    if(elFrotaTotal) elFrotaTotal.textContent = frotaValidaTotal;
-    
-    // Mostramos a soma de Manutenção + Sinistrado na contagem
-    if(elManut) elManut.textContent = totalManutencao + totalSinistrado;
+    if(elFrotaTotal) elFrotaTotal.textContent = totalCavalos;
+    if(elManut) elManut.textContent = contadorEmManutencaoGlobal;
 }
 
 // =========================================================================
@@ -113,13 +114,12 @@ async function atualizarPonteirosSerrana() {
 async function carregarFrotasParadasSerrana() {
     const container = document.getElementById('lista-frotas-paradas');
     if(!container) return;
-
     try {
         const { data: osData } = await supabaseClient
             .from('ordens_servico')
             .select('placa, problema, status, tipo, data_abertura')
             .in('status', ['Aguardando Oficina', 'Em Manutenção', 'Sinistrado']);
-        
+            
         let html = '';
         const agora = new Date();
         
@@ -128,7 +128,6 @@ async function carregarFrotasParadasSerrana() {
             let frotasProcessadas = osData.map(os => {
                 let diffMs = 0;
                 let textoTempo = 'N/I';
-
                 if (os.data_abertura) {
                     let osInicioStr = String(os.data_abertura);
                     if (!osInicioStr.includes('T')) osInicioStr += 'T00:00:00';
@@ -200,6 +199,7 @@ async function carregarFrotasParadasSerrana() {
                 </div>
                 `;
             });
+
         } else {
             html = `
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; opacity: 0.5;">
@@ -209,6 +209,7 @@ async function carregarFrotasParadasSerrana() {
         }
         
         container.innerHTML = html;
+
     } catch(e) {
         console.error("Erro Frotas Paradas:", e);
     }
@@ -305,10 +306,10 @@ async function renderizarGraficoEvolucaoDmSerrana() {
         const agora = new Date();
         const categoriasHoras = [];
         const dadosDM = [];
-        const msPorHora = 60 * 60 * 1000; 
-        
-        const totalMsDisponivelPorHora = totalFrotasValidas * msPorHora; 
-        
+
+        const msPorHora = 60 * 60 * 1000;          
+        const totalMsDisponivelPorHora = totalFrotasValidas * msPorHora;          
+
         const placasEmOS = [...new Set(ordensServico.map(os => limpaPlaca(os.placa)))];
 
         for (let h = 0; h < 24; h++) {
@@ -433,7 +434,7 @@ async function renderizarGraficoEvolucaoDmSerrana() {
         };
 
         myChart.setOption(option);
-        
+
     } catch(e) {
         console.error("Erro Crítico DM Serrana:", e);
     }
@@ -464,10 +465,12 @@ window.addFrenteDashSerrana = async function() {
     document.getElementById('novaFrenteInput').value = '';
     carregarFrentesTvSerrana();
 }
+
 window.removerFrenteDashSerrana = async function(id) {
     await supabaseClient.from('frentes_trabalho').update({ status: 'Inativa' }).eq('id', id);
     carregarFrentesTvSerrana();
 }
+
 window.addOcorrenciaDashSerrana = async function() {
     const tipo = document.getElementById('novaOcorrenciaTipo').value;
     const desc = document.getElementById('novaOcorrenciaDesc').value;
@@ -476,6 +479,7 @@ window.addOcorrenciaDashSerrana = async function() {
     document.getElementById('novaOcorrenciaDesc').value = '';
     carregarOcorrenciasTvSerrana();
 }
+
 window.removerOcorrenciaDashSerrana = async function(id) {
     await supabaseClient.from('dashboard_ocorrencias').update({ status: 'Resolvido' }).eq('id', id);
     carregarOcorrenciasTvSerrana();
@@ -498,7 +502,7 @@ window.exportarDashboardPNGSerrana = function() {
         const link = document.createElement('a');
         link.download = `CCOL_SERRANA_${new Date().getTime()}.png`;
         link.href = canvas.toDataURL('image/png'); 
-        link.click(); 
+        link.click();
         
         botaoPrint.style.display = 'flex';
         if(botaoFlutuante) botaoFlutuante.style.display = 'block';

@@ -1,7 +1,7 @@
 // ==================== js/os_formularios.js ====================
-// Módulo de Formulários, Modais, Ações (Salvar, Editar, Excluir, Imprimir) e Filtros
+// Módulo de Formulários, Modais, Ações (Salvar, Editar, Excluir, Filtros e Transferência)
 
-function togglePneuFields() {
+window.togglePneuFields = function() {
     const tipo = document.getElementById('osTipo').value;
     const camposPneu = document.getElementById('camposPneu');
     if (tipo === 'Borracharia (PNEU)') {
@@ -12,9 +12,9 @@ function togglePneuFields() {
         document.getElementById('osPneuServico').value = '';
         document.getElementById('osPneuMotivo').value = '';
     }
-}
+};
 
-function mudarModoEntrada() {
+window.mudarModoEntrada = function() {
     const modo = document.getElementById('osModoEntrada').value;
     const label = document.getElementById('labelDataAbertura');
     const input = document.getElementById('osDataAbertura');
@@ -28,9 +28,9 @@ function mudarModoEntrada() {
         label.innerText = 'Agendar para (Data e Hora Futura)';
         input.value = '';
     }
-}
+};
 
-async function carregarMotoristasSelectOS() {
+window.carregarMotoristasSelectOS = async function() {
     const select = document.getElementById('osMotorista');
     if (!select) return;
     try {
@@ -40,6 +40,7 @@ async function carregarMotoristasSelectOS() {
             .order('nome', { ascending: true });
             
         if (error) throw error;
+
         let options = '<option value="">Selecione o motorista...</option>';
         if (data) {
             data.forEach(m => {
@@ -50,39 +51,76 @@ async function carregarMotoristasSelectOS() {
     } catch (error) {
         console.error("Erro ao carregar motoristas para OS:", error);
     }
-}
+};
 
-async function carregarSelectCavalosOS() {
-    const select = document.getElementById('osPlaca');
-    if (!select) return;
+window.mudarTipoReferenciaOS = function() {
+    const tipoRef = document.getElementById('osTipoReferencia').value;
+    const selectPlaca = document.getElementById('osPlaca');
+    const labelPlaca = document.getElementById('labelOsPlaca');
+    const wrapperMotorista = document.getElementById('wrapperMotorista');
+    const wrapperHodometro = document.getElementById('wrapperHodometro');
     
-    try {
-        const { data, error } = await supabaseClient
-            .from('frotas_manutencao')
-            .select('cavalo')
-            .order('cavalo', { ascending: true });
-        if (error) throw error;
-        let options = '<option value="">Selecione o Conjunto...</option>';
-        if (data && data.length > 0) {
-            data.forEach(f => {
-                if (f.cavalo) {
-                    options += `<option value="${f.cavalo.trim().toUpperCase()}">${f.cavalo.trim().toUpperCase()}</option>`;
-                }
-            });
-        } else {
-            options = '<option value="">Nenhum conjunto cadastrado...</option>';
-        }
-        
-        select.innerHTML = options;
-    } catch(e) {
-        console.error("Erro ao carregar placas da frota na O.S:", e);
-        select.innerHTML = '<option value="">Erro ao carregar placas</option>';
+    if (!selectPlaca) return;
+    
+    selectPlaca.innerHTML = '<option value="">Selecione...</option>';
+    
+    if (!frotasManutencao || frotasManutencao.length === 0) {
+        selectPlaca.innerHTML = '<option value="">Nenhum cadastro encontrado...</option>';
+        return;
     }
-}
 
-async function salvarNovaOS() {
+    if (tipoRef === 'cavalo') {
+        labelPlaca.innerText = 'Selecione o Cavalo (Conjunto Completo)';
+        if(wrapperMotorista) wrapperMotorista.style.display = 'block';
+        if(wrapperHodometro) wrapperHodometro.style.display = 'block';
+        
+        frotasManutencao.forEach(f => {
+            if (f.cavalo) {
+                const texto = `${f.cavalo.trim().toUpperCase()} ${f.go ? ' - ' + f.go : ''}`;
+                selectPlaca.innerHTML += `<option value="${f.cavalo.trim().toUpperCase()}">${texto}</option>`;
+            }
+        });
+    } else if (tipoRef === 'go') {
+        labelPlaca.innerText = 'Selecione apenas o GO (Sem Cavalo)';
+        if(wrapperMotorista) wrapperMotorista.style.display = 'none';
+        if(wrapperHodometro) wrapperHodometro.style.display = 'none';
+        
+        const osMotorista = document.getElementById('osMotorista');
+        const osHodometro = document.getElementById('osHodometro');
+        if (osMotorista) osMotorista.value = '';
+        if (osHodometro) osHodometro.value = '';
+        
+        const gosUnicos = [];
+        frotasManutencao.forEach(f => {
+            if (f.go && f.go.trim() !== '') {
+                if (!gosUnicos.find(item => item.go.trim().toUpperCase() === f.go.trim().toUpperCase())) {
+                    gosUnicos.push(f);
+                }
+            }
+        });
+
+        if (gosUnicos.length === 0) {
+            selectPlaca.innerHTML = '<option value="">Nenhum GO cadastrado...</option>';
+        } else {
+            gosUnicos.forEach(f => {
+                let carretas = [f.carreta1, f.carreta2, f.carreta3].filter(c => c && c.trim() !== '').join(' / ');
+                let textoExibicao = `${f.go.trim().toUpperCase()} ${carretas ? '(' + carretas + ')' : ''}`;
+                selectPlaca.innerHTML += `<option value="${f.go.trim().toUpperCase()}">${textoExibicao}</option>`;
+            });
+        }
+    }
+};
+
+window.carregarSelectCavalosOS = async function() {
+    if (typeof window.mudarTipoReferenciaOS === 'function') {
+        window.mudarTipoReferenciaOS();
+    }
+};
+
+window.salvarNovaOS = async function() {
+    const tipoRef = document.getElementById('osTipoReferencia').value;
     const placa = document.getElementById('osPlaca').value.trim().toUpperCase();
-    const motorista = document.getElementById('osMotorista').value;
+    let motorista = document.getElementById('osMotorista').value;
     const modoEntrada = document.getElementById('osModoEntrada').value;
     let data_abertura = document.getElementById('osDataAbertura').value;
     const hodometro = document.getElementById('osHodometro').value.trim();
@@ -92,7 +130,7 @@ async function salvarNovaOS() {
     const observacoes = document.getElementById('osObservacoes').value.trim();
 
     if (!placa || !data_abertura || !tipo) {
-        alert("Preencha ao menos Placa, Data de Abertura e Tipo de Serviço.");
+        alert("Preencha ao menos a Placa (Cavalo ou GO), Data de Abertura e Tipo de Serviço.");
         return;
     }
 
@@ -107,6 +145,10 @@ async function salvarNovaOS() {
     let statusInicial = 'Aguardando Oficina';
     if (modoEntrada === 'agendada') statusInicial = 'Agendada';
     else if (tipo === 'Sinistro') statusInicial = 'Sinistrado';
+
+    if (tipoRef === 'go' && !motorista) {
+        motorista = 'N/A (APENAS GO)'; 
+    }
 
     let pacoteDadosOS = {
         placa: placa,
@@ -142,6 +184,19 @@ async function salvarNovaOS() {
     }
 
     let problemaFinal = problema;
+    
+    if (tipoRef === 'go') {
+        const frotaObj = frotasManutencao.find(f => f.go && f.go.trim().toUpperCase() === placa);
+        if (frotaObj) {
+            let carretas = [frotaObj.carreta1, frotaObj.carreta2, frotaObj.carreta3].filter(c => c && c.trim() !== '').join(' / ');
+            if (carretas) {
+                problemaFinal = `[MANUTENÇÃO APENAS DO GO] Carretas atreladas: ${carretas}\n${problemaFinal}`;
+            } else {
+                problemaFinal = `[MANUTENÇÃO APENAS DO GO]\n${problemaFinal}`;
+            }
+        }
+    }
+    
     let pneuPosicao = '';
     let pneuServico = '';
     let pneuMotivo = '';
@@ -154,13 +209,14 @@ async function salvarNovaOS() {
         const textoPneu = `[PNEU] Posição: ${pneuPosicao || 'N/I'} | Serviço: ${pneuServico || 'N/I'} | Motivo: ${pneuMotivo || 'N/I'}`;
         problemaFinal = problemaFinal ? textoPneu + "\n" + problemaFinal : textoPneu;
     }
+
     if (problemaFinal) pacoteDadosOS.problema = problemaFinal;
 
     try {
         const { error } = await supabaseClient.from('ordens_servico').insert([pacoteDadosOS]);
         if (error) {
             console.error("ERRO SUPABASE DETALHADO:", error);
-            alert("A Base de Dados recusou a gravação. Verifique os dados.");
+            alert(`Erro na gravação (400).\nDetalhes do Supabase: ${error.message}\nSe disser "Foreign key constraint", vá ao painel e retire a restrição da coluna "placa".`);
             return;
         }
         
@@ -174,9 +230,9 @@ async function salvarNovaOS() {
         console.error("Erro ao tentar salvar O.S:", error);
         alert("Falha na conexão ao tentar salvar a Ordem de Serviço.");
     }
-}
+};
 
-async function salvarFrotaManutencao() {
+window.salvarFrotaManutencao = async function() {
     const cavalo = document.getElementById('osFrotaCavalo').value.trim().toUpperCase();
     const cor = document.getElementById('osFrotaCor').value.trim();
     const go = document.getElementById('osFrotaGo').value.trim().toUpperCase();
@@ -211,9 +267,9 @@ async function salvarFrotaManutencao() {
 
     await carregarDadosOS();
     if(typeof renderizarTabelaFrotaManutencao === 'function') renderizarTabelaFrotaManutencao();
-}
+};
 
-function editarFrotaManutencao(id) {
+window.editarFrotaManutencao = function(id) {
     const frota = frotasManutencao.find(f => f.id === id);
     if (!frota) return;
 
@@ -226,13 +282,13 @@ function editarFrotaManutencao(id) {
     document.getElementById('editFrotaCarreta3').value = frota.carreta3 || '';
     
     document.getElementById('modalEditarFrota').style.display = 'flex';
-}
+};
 
-function fecharModalEditarFrota() {
+window.fecharModalEditarFrota = function() {
     document.getElementById('modalEditarFrota').style.display = 'none';
-}
+};
 
-async function salvarEdicaoFrota() {
+window.salvarEdicaoFrota = async function() {
     const id = document.getElementById('editFrotaId').value;
     const cavalo = document.getElementById('editFrotaCavalo').value.trim().toUpperCase();
     const cor = document.getElementById('editFrotaCor').value.trim();
@@ -263,23 +319,86 @@ async function salvarEdicaoFrota() {
         console.error("Erro ao editar conjunto:", error);
         alert("Ocorreu um erro ao tentar salvar as alterações no banco de dados.");
     }
-}
+};
 
-async function excluirFrotaManutencao(id) {
+window.excluirFrotaManutencao = async function(id) {
     if (confirm("Excluir este conjunto da frota?")) {
         await supabaseClient.from('frotas_manutencao').delete().eq('id', id);
         await carregarDadosOS();
         if(typeof renderizarTabelaFrotaManutencao === 'function') renderizarTabelaFrotaManutencao();
     }
-}
+};
 
-function exportarFrotaManutencaoExcel() {
+window.abrirModalTransferenciaFrota = function(idOriginal) {
+    const frotaOrigem = frotasManutencao.find(f => f.id === idOriginal);
+    if (!frotaOrigem) return;
+    document.getElementById('transfFrotaOrigemId').value = frotaOrigem.id;
+    document.getElementById('transfFrotaOrigemText').innerText = frotaOrigem.cavalo;
+
+    const selectDestino = document.getElementById('selectFrotaDestino');
+    selectDestino.innerHTML = '<option value="">Selecione o Cavalo de Destino...</option>';
+    frotasManutencao.forEach(f => {
+        if (f.id !== frotaOrigem.id) {
+            selectDestino.innerHTML += `<option value="${f.id}">${f.cavalo}</option>`;
+        }
+    });
+    document.getElementById('modalTransferenciaFrota').style.display = 'flex';
+};
+
+window.fecharModalTransferenciaFrota = function() {
+    document.getElementById('modalTransferenciaFrota').style.display = 'none';
+};
+
+window.confirmarTransferenciaFrota = async function() {
+    const idOrigem = document.getElementById('transfFrotaOrigemId').value;
+    const idDestino = document.getElementById('selectFrotaDestino').value;
+
+    if (!idDestino) {
+        alert("Selecione um Cavalo de destino.");
+        return;
+    }
+
+    const frotaOrigem = frotasManutencao.find(f => String(f.id) === String(idOrigem));
+    const frotaDestino = frotasManutencao.find(f => String(f.id) === String(idDestino));
+
+    if (!frotaOrigem || !frotaDestino) return;
+
+    try {
+        const origGo = frotaOrigem.go;
+        const origC1 = frotaOrigem.carreta1;
+        const origC2 = frotaOrigem.carreta2;
+        const origC3 = frotaOrigem.carreta3;
+
+        const destGo = frotaDestino.go;
+        const destC1 = frotaDestino.carreta1;
+        const destC2 = frotaDestino.carreta2;
+        const destC3 = frotaDestino.carreta3;
+
+        await supabaseClient.from('frotas_manutencao').update({
+            go: destGo, carreta1: destC1, carreta2: destC2, carreta3: destC3
+        }).eq('id', frotaOrigem.id);
+
+        await supabaseClient.from('frotas_manutencao').update({
+            go: origGo, carreta1: origC1, carreta2: origC2, carreta3: origC3
+        }).eq('id', frotaDestino.id);
+
+        alert("Transferência de composição realizada com sucesso!");
+        fecharModalTransferenciaFrota();
+        await carregarDadosOS();
+        if(typeof renderizarTabelaFrotaManutencao === 'function') renderizarTabelaFrotaManutencao();
+    } catch (e) {
+        console.error("Erro na transferência:", e);
+        alert("Erro ao transferir frota.");
+    }
+};
+
+window.exportarFrotaManutencaoExcel = function() {
     if (frotasManutencao.length === 0) {
         alert("Não há dados de frota para exportar.");
         return;
     }
     let csvContent = "\uFEFF"; 
-    csvContent += "Cavalo;Cor;Frota;Carreta 1;Carreta 2;Carreta 3\n";
+    csvContent += "Cavalo;Cor;GO;Carreta 1;Carreta 2;Carreta 3\n";
     frotasManutencao.forEach(f => {
         let linha = [
             f.cavalo || '',
@@ -299,35 +418,33 @@ function exportarFrotaManutencaoExcel() {
     link.download = "Cadastro_Frotas_OS.csv";
     link.click();
     URL.revokeObjectURL(url);
-}
+};
 
-async function excluirOS(id) {
+window.excluirOS = async function(id) {
     if(confirm("Excluir esta O.S.?")) {
         await supabaseClient.from('ordens_servico').delete().eq('id', id);
         await carregarDadosOS();
         if(typeof renderizarTabelaHistoricoOS === 'function') renderizarTabelaHistoricoOS();
     }
-}
+};
 
-function abrirModalConclusaoOS(id) {
+window.abrirModalConclusaoOS = function(id) {
     osSelecionadaParaConclusao = id;
     const modal = document.getElementById('modalConclusaoOS');
     const inputHora = document.getElementById('horaConclusaoOS');
-
     const agora = new Date();
     const fusoAjuste = new Date(agora.getTime() - (agora.getTimezoneOffset() * 60000));
     if (inputHora) inputHora.value = fusoAjuste.toISOString().slice(0, 16);
-
     if (modal) modal.style.display = 'flex';
-}
+};
 
-function fecharModalConclusaoOS() {
+window.fecharModalConclusaoOS = function() {
     osSelecionadaParaConclusao = null;
     const modal = document.getElementById('modalConclusaoOS');
     if (modal) modal.style.display = 'none';
-}
+};
 
-async function salvarConclusaoOS() {
+window.salvarConclusaoOS = async function() {
     if (!osSelecionadaParaConclusao) return;
     const inputHora = document.getElementById('horaConclusaoOS').value;
     
@@ -358,27 +475,27 @@ async function salvarConclusaoOS() {
         console.error("Erro ao concluir OS:", error);
         alert("Erro ao concluir a O.S.");
     }
-}
+};
 
-function abrirModalServicoExtra(id) {
+window.abrirModalServicoExtra = function(id) {
     osSelecionadaParaServicoExtra = id;
     const modal = document.getElementById('modalServicoExtra');
     const inputDesc = document.getElementById('extraServicoDescricao');
     const inputPrev = document.getElementById('extraServicoPrevisao');
-
+    
     if (inputDesc) inputDesc.value = '';
     if (inputPrev) inputPrev.value = '';
-
+    
     if (modal) modal.style.display = 'flex';
-}
+};
 
-function fecharModalServicoExtra() {
+window.fecharModalServicoExtra = function() {
     osSelecionadaParaServicoExtra = null;
     const modal = document.getElementById('modalServicoExtra');
     if (modal) modal.style.display = 'none';
-}
+};
 
-async function salvarServicoExtra() {
+window.salvarServicoExtra = async function() {
     if (!osSelecionadaParaServicoExtra) return;
     
     const descricao = document.getElementById('extraServicoDescricao').value.trim();
@@ -420,448 +537,7 @@ async function salvarServicoExtra() {
         console.error("Erro ao adicionar serviço extra:", error);
         alert("Erro ao salvar serviço extra.");
     }
-}
-
-async function imprimirOS(osId) {
-    const os = ordensServico.find(o => o.id === osId);
-    if (!os) return;
-    
-    const frota = frotasManutencao.find(f => f.cavalo === os.placa) || {};
-    const infoAbertoPor = os.aberto_por || os.usuario || 'Não Informado';
-    
-    const numeroOSFormatado = String(os.id).padStart(4, '0');
-    let dataAberturaFormatada = os.data_abertura;
-    let dataConclusaoFormatada = os.data_conclusao || 'Em andamento';
-    
-    try {
-        if(typeof formatarDataHoraBrasil === 'function') {
-            dataAberturaFormatada = formatarDataHoraBrasil(os.data_abertura);
-            if(os.data_conclusao) dataConclusaoFormatada = formatarDataHoraBrasil(os.data_conclusao);
-        } else if (os.data_abertura) {
-            dataAberturaFormatada = new Date(os.data_abertura).toLocaleString('pt-BR');
-            if(os.data_conclusao) dataConclusaoFormatada = new Date(os.data_conclusao).toLocaleString('pt-BR');
-        }
-    } catch(e) {}
-    
-    let painelBorracharia = '';
-    if (os.tipo === 'Borracharia (PNEU)') {
-        painelBorracharia = `
-            <div class="box-content" style="margin-top: 5px;">
-                <strong>🛠️ DETALHES DE BORRACHARIA:</strong>
-                Posição: <b>${os.pneu_posicao || '-'}</b> &nbsp;|&nbsp; Serviço: <b>${os.pneu_servico || '-'}</b> &nbsp;|&nbsp; Motivo: <b>${os.pneu_motivo || '-'}</b>
-            </div>
-        `;
-    }
-
-    let linhasServicos = '';
-    for(let i=0; i<5; i++) {
-        linhasServicos += `
-        <tr style="height: 25px;">
-            <td></td>
-            <td></td>
-            <td style="text-align:center; font-size:10px; font-weight:bold;">1 (&nbsp;&nbsp;)&nbsp;&nbsp;2 (&nbsp;&nbsp;)&nbsp;&nbsp;3 (&nbsp;&nbsp;)</td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-        </tr>`;
-    }
-
-    let linhasPecas = '';
-    for(let i=0; i<5; i++) {
-        linhasPecas += `
-        <tr style="height: 25px;">
-            <td></td>
-            <td></td>
-            <td style="text-align:center; font-size:10px; font-weight:bold;">1 (&nbsp;&nbsp;)&nbsp;&nbsp;2 (&nbsp;&nbsp;)&nbsp;&nbsp;3 (&nbsp;&nbsp;)</td>
-            <td></td>
-            <td></td>
-            <td></td>
-        </tr>`;
-    }
-
-    const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <html>
-        <head>
-            <base href="${baseUrl}">
-            <title>OS ${os.placa} - #${numeroOSFormatado}</title>
-            <style>
-                @page { size: landscape; margin: 10mm; }
-                body { 
-                    font-family: Arial, sans-serif; 
-                    font-size: 11px; 
-                    color: #000; 
-                    margin: 0; 
-                    padding: 0; 
-                    -webkit-print-color-adjust: exact; 
-                    print-color-adjust: exact; 
-                }
-                
-                .header-container { display: flex; border: 2px solid #000; margin-bottom: 5px; }
-                .header-left { padding: 10px; border-right: 2px solid #000; display: flex; align-items: center; justify-content: center; width: 140px; }
-                .header-left img { max-height: 45px; max-width: 100%; object-fit: contain; }
-                .header-center { flex: 1; text-align: center; padding: 10px; }
-                .header-center h1 { margin: 0; font-size: 16px; text-transform: uppercase; }
-                .header-center h2 { margin: 2px 0 0 0; font-size: 12px; font-weight: normal; }
-                .header-right { padding: 10px; border-left: 2px solid #000; text-align: center; display: flex; flex-direction: column; justify-content: center; background: #f0f0f0; }
-                .header-right strong { font-size: 18px; color: red; }
-                
-                table { width: 100%; border-collapse: collapse; margin-bottom: 5px; }
-                th, td { border: 1px solid #000; padding: 3px 5px; font-size: 11px; text-align: left; }
-                th { background-color: #f0f0f0; font-weight: bold; text-align: center; }
-                
-                .info-table td { width: 25%; }
-                
-                .section-title { font-weight: bold; background-color: #f0f0f0; border: 1px solid #000; border-bottom: none; padding: 4px; font-size: 11px; text-align: center; text-transform: uppercase; margin-bottom: 0; }
-                .box-content { border: 1px solid #000; padding: 5px; font-size: 11px; min-height: 35px; margin-bottom: 5px; }
-                
-                .assinaturas { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; margin-top: 20px; padding: 0 20px; text-align: center; }
-                .linha-ass { border-top: 1px solid #000; padding-top: 4px; font-weight: bold; font-size: 11px; }
-            </style>
-        </head>
-        <body>
-            <div class="header-container">
-                <div class="header-left">
-                    <img src="assets/logoverde.png" alt="Serrana Log">
-                </div>
-                <div class="header-center">
-                    <h1>ORDEM DE SERVIÇO DE MANUTENÇÃO E FROTAS</h1>
-                    <h2>CCOL - Centro de Controle Operacional Logístico</h2>
-                </div>
-                <div class="header-right">
-                    O.S. Nº<br>
-                    <strong>${numeroOSFormatado}</strong>
-                </div>
-            </div>
-            <table class="info-table">
-                <tr>
-                    <td><strong>Conjunto (Cavalo):</strong> ${os.placa || '-'}</td>
-                    <td><strong>Abertura:</strong> ${dataAberturaFormatada}</td>
-                    <td><strong>Status:</strong> ${os.status}</td>
-                    <td><strong>Emitido por :</strong> <span style="font-size: 13px; font-weight: bold;">${infoAbertoPor}</span></td>
-                </tr>
-                <tr>
-                    <td><strong>Motorista Solicitante:</strong> ${os.motorista || '-'}</td>
-                    <td><strong>Conclusão:</strong> ${dataConclusaoFormatada}</td>
-                    <td><strong>Prioridade:</strong> ${os.prioridade || '-'}</td>
-                    <td><strong>Tipo de Serviço:</strong> ${os.tipo || '-'}</td>
-                </tr>
-                <tr>
-                    <td><strong>Hodômetro:</strong> ${os.hodometro || '-'}</td>
-                    <td colspan="3"></td>
-                </tr>
-            </table>
-            <table style="margin-bottom: 5px;">
-                <tr>
-                    <td style="background-color: #f0f0f0; font-weight: bold; width: 20%; text-align: center;">Composição Atual</td>
-                    <td style="width: 26%;"><strong>Frota:</strong> ${frota.go || '-'}</td>
-                    <td style="width: 26%;"><strong>Carretas:</strong> ${frota.carreta1 || '-'} | ${frota.carreta2 || '-'} | ${frota.carreta3 || '-'}</td>
-                    <td style="width: 28%;"><strong>Cor do Cavalo:</strong> ${frota.cor || '-'}</td>
-                </tr>
-            </table>
-            ${painelBorracharia}
-            <div class="section-title">Diagnóstico Inicial do Condutor / Problema</div>
-            <div class="box-content">
-                ${os.problema ? os.problema.replace(/\n/g, '<br>') : ''}
-            </div>
-            <div class="section-title">Serviços Executados (Preenchimento da Oficina)</div>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 50%;">Descrição do Serviço</th>
-                        <th style="width: 15%;">Início</th>
-                        <th style="width: 20%;">Mecânico</th>
-                        <th style="width: 15%;">Fim</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${linhasServicos}
-                </tbody>
-            </table>
-            <div class="section-title">Materiais e Peças Utilizados (CCOL / Estoque)</div>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 15%;">Código</th>
-                        <th style="width: 45%;">Descrição da Peça / Material Utilizado</th>
-                        <th style="width: 10%;">Qtd</th>
-                        <th style="width: 15%;">Data/Hora Solicit.</th>
-                        <th style="width: 15%;">Data/Hora Retirada</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${linhasPecas}
-                </tbody>
-            </table>
-            <div class="section-title" style="border-bottom: 1px solid #000; margin-bottom: 0;">Observações Gerais / Pendências</div>
-            <div class="box-content" style="border-top: none; min-height: 25px; margin-bottom: 5px;">
-                ${os.observacoes ? os.observacoes.replace(/\n/g, '<br>') : ''}
-            </div>
-            <div class="assinaturas">
-                <div class="linha-ass">Motorista / Responsável</div>
-                <div class="linha-ass">Mecânico / Oficina</div>
-                <div class="linha-ass">CCOL / Gestor</div>
-            </div>
-            
-            <script>
-                window.onload = function() { setTimeout(() => { window.print(); }, 250); }
-            </script>
-        </body>
-        </html>
-    `);
-    printWindow.document.close();
-}
-
-window.imprimirTodasOSFiltradas = async function() {
-    const numFilter = document.getElementById('filtroHistOSNum')?.value.trim();
-    const placaFilter = document.getElementById('filtroHistPlaca')?.value;
-    const motoristaFilter = document.getElementById('filtroHistMotorista')?.value;
-    const tipoFilter = document.getElementById('filtroHistTipo')?.value;
-    const mesAnoFilter = document.getElementById('filtroHistMesAno')?.value;
-    const inicioFilter = document.getElementById('filtroHistDataInicio')?.value;
-    const fimFilter = document.getElementById('filtroHistDataFim')?.value;
-
-    let osParaImprimir = ordensServico.filter(os => {
-        if (numFilter && os.id.toString() !== numFilter && (os.numero_os && os.numero_os.toString() !== numFilter)) return false;
-        if (placaFilter && os.placa !== placaFilter) return false;
-        if (motoristaFilter && os.motorista !== motoristaFilter) return false;
-        if (tipoFilter && os.tipo !== tipoFilter) return false;
-
-        if (mesAnoFilter && os.data_abertura) {
-            const dataOs = new Date(os.data_abertura);
-            const mesOs = String(dataOs.getMonth() + 1).padStart(2, '0');
-            const anoOs = dataOs.getFullYear();
-            if (`${mesOs}/${anoOs}` !== mesAnoFilter) return false;
-        }
-
-        if (inicioFilter || fimFilter) {
-            const dataOs = new Date(os.data_abertura).toISOString().split('T')[0];
-            if (inicioFilter && dataOs < inicioFilter) return false;
-            if (fimFilter && dataOs > fimFilter) return false;
-        }
-
-        return true;
-    });
-
-    if (osParaImprimir.length === 0) {
-        alert('Nenhuma O.S. encontrada com os filtros atuais para imprimir.');
-        return;
-    }
-
-    if (osParaImprimir.length > 50) {
-        if (!confirm(`Você está prestes a imprimir ${osParaImprimir.length} Ordens de Serviço de uma vez. Deseja continuar?`)) {
-            return;
-        }
-    }
-
-    let conteudoImpressao = '';
-    const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
-
-    osParaImprimir.forEach((os, index) => {
-        const frota = frotasManutencao.find(f => f.cavalo === os.placa) || {};
-        const infoAbertoPor = os.aberto_por || os.usuario || 'Não Informado';
-        const numeroOSFormatado = String(os.id).padStart(4, '0');
-        let dataAberturaFormatada = os.data_abertura;
-        let dataConclusaoFormatada = os.data_conclusao || 'Em andamento';
-
-        try {
-            if(typeof formatarDataHoraBrasil === 'function') {
-                dataAberturaFormatada = formatarDataHoraBrasil(os.data_abertura);
-                if(os.data_conclusao) dataConclusaoFormatada = formatarDataHoraBrasil(os.data_conclusao);
-            } else if (os.data_abertura) {
-                dataAberturaFormatada = new Date(os.data_abertura).toLocaleString('pt-BR');
-                if(os.data_conclusao) dataConclusaoFormatada = new Date(os.data_conclusao).toLocaleString('pt-BR');
-            }
-        } catch(e) {}
-
-        let painelBorracharia = '';
-        if (os.tipo === 'Borracharia (PNEU)') {
-            painelBorracharia = `
-                <div class="box-content" style="margin-top: 5px;">
-                    <strong>🛠️ DETALHES DE BORRACHARIA:</strong>
-                    Posição: <b>${os.pneu_posicao || '-'}</b> &nbsp;|&nbsp; Serviço: <b>${os.pneu_servico || '-'}</b> &nbsp;|&nbsp; Motivo: <b>${os.pneu_motivo || '-'}</b>
-                </div>
-            `;
-        }
-
-        let linhasServicos = '';
-        for(let i=0; i<5; i++) {
-            linhasServicos += `
-            <tr style="height: 25px;">
-                <td></td>
-                <td></td>
-                <td style="text-align:center; font-size:10px; font-weight:bold;">1 (&nbsp;&nbsp;)&nbsp;&nbsp;2 (&nbsp;&nbsp;)&nbsp;&nbsp;3 (&nbsp;&nbsp;)</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-            </tr>`;
-        }
-
-        let linhasPecas = '';
-        for(let i=0; i<5; i++) {
-            linhasPecas += `
-            <tr style="height: 25px;">
-                <td></td>
-                <td></td>
-                <td style="text-align:center; font-size:10px; font-weight:bold;">1 (&nbsp;&nbsp;)&nbsp;&nbsp;2 (&nbsp;&nbsp;)&nbsp;&nbsp;3 (&nbsp;&nbsp;)</td>
-                <td></td>
-                <td></td>
-                <td></td>
-            </tr>`;
-        }
-
-        // Estilo de quebra de página a partir da segunda O.S. em diante
-        const pageBreak = index < osParaImprimir.length - 1 ? 'page-break-after: always;' : '';
-
-        conteudoImpressao += `
-            <div class="os-page" style="${pageBreak}">
-                <div class="header-container">
-                    <div class="header-left">
-                        <img src="assets/logoverde.png" alt="Serrana Log">
-                    </div>
-                    <div class="header-center">
-                        <h1>ORDEM DE SERVIÇO DE MANUTENÇÃO E FROTAS</h1>
-                        <h2>CCOL - Centro de Controle Operacional Logístico</h2>
-                    </div>
-                    <div class="header-right">
-                        O.S. Nº<br>
-                        <strong>${numeroOSFormatado}</strong>
-                    </div>
-                </div>
-                <table class="info-table">
-                    <tr>
-                        <td><strong>Conjunto (Cavalo):</strong> ${os.placa || '-'}</td>
-                        <td><strong>Abertura:</strong> ${dataAberturaFormatada}</td>
-                        <td><strong>Status:</strong> ${os.status}</td>
-                        <td><strong>Emitido por :</strong> <span style="font-size: 13px; font-weight: bold;">${infoAbertoPor}</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>Motorista Solicitante:</strong> ${os.motorista || '-'}</td>
-                        <td><strong>Conclusão:</strong> ${dataConclusaoFormatada}</td>
-                        <td><strong>Prioridade:</strong> ${os.prioridade || '-'}</td>
-                        <td><strong>Tipo de Serviço:</strong> ${os.tipo || '-'}</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Hodômetro:</strong> ${os.hodometro || '-'}</td>
-                        <td colspan="3"></td>
-                    </tr>
-                </table>
-                <table style="margin-bottom: 5px;">
-                    <tr>
-                        <td style="background-color: #f0f0f0; font-weight: bold; width: 20%; text-align: center;">Composição Atual</td>
-                        <td style="width: 26%;"><strong>Frota:</strong> ${frota.go || '-'}</td>
-                        <td style="width: 26%;"><strong>Carretas:</strong> ${frota.carreta1 || '-'} | ${frota.carreta2 || '-'} | ${frota.carreta3 || '-'}</td>
-                        <td style="width: 28%;"><strong>Cor do Cavalo:</strong> ${frota.cor || '-'}</td>
-                    </tr>
-                </table>
-                ${painelBorracharia}
-                <div class="section-title">Diagnóstico Inicial do Condutor / Problema</div>
-                <div class="box-content">
-                    ${os.problema ? os.problema.replace(/\n/g, '<br>') : ''}
-                </div>
-                <div class="section-title">Serviços Executados (Preenchimento da Oficina)</div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width: 50%;">Descrição do Serviço</th>
-                            <th style="width: 15%;">Início</th>
-                            <th style="width: 20%;">Mecânico</th>
-                            <th style="width: 15%;">Fim</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${linhasServicos}
-                    </tbody>
-                </table>
-                <div class="section-title">Materiais e Peças Utilizados (CCOL / Estoque)</div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width: 15%;">Código</th>
-                            <th style="width: 45%;">Descrição da Peça / Material Utilizado</th>
-                            <th style="width: 10%;">Qtd</th>
-                            <th style="width: 15%;">Data/Hora Solicit.</th>
-                            <th style="width: 15%;">Data/Hora Retirada</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${linhasPecas}
-                    </tbody>
-                </table>
-                <div class="section-title" style="border-bottom: 1px solid #000; margin-bottom: 0;">Observações Gerais / Pendências</div>
-                <div class="box-content" style="border-top: none; min-height: 25px; margin-bottom: 5px;">
-                    ${os.observacoes ? os.observacoes.replace(/\n/g, '<br>') : ''}
-                </div>
-                <div class="assinaturas">
-                    <div class="linha-ass">Motorista / Responsável</div>
-                    <div class="linha-ass">Mecânico / Oficina</div>
-                    <div class="linha-ass">CCOL / Gestor</div>
-                </div>
-            </div>
-        `;
-    });
-
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <html>
-        <head>
-            <base href="${baseUrl}">
-            <title>Impressão Lote - Ordens de Serviço</title>
-            <style>
-                @page { size: landscape; margin: 10mm; }
-                body {
-                    font-family: Arial, sans-serif;
-                    font-size: 11px;
-                    color: #000;
-                    margin: 0;
-                    padding: 0;
-                    -webkit-print-color-adjust: exact;
-                    print-color-adjust: exact;
-                }
-                
-                .os-page {
-                    width: 100%;
-                }
-
-                .header-container { display: flex; border: 2px solid #000; margin-bottom: 5px; }
-                .header-left { padding: 10px; border-right: 2px solid #000; display: flex; align-items: center; justify-content: center; width: 140px; }
-                .header-left img { max-height: 45px; max-width: 100%; object-fit: contain; }
-                .header-center { flex: 1; text-align: center; padding: 10px; }
-                .header-center h1 { margin: 0; font-size: 16px; text-transform: uppercase; }
-                .header-center h2 { margin: 2px 0 0 0; font-size: 12px; font-weight: normal; }
-                .header-right { padding: 10px; border-left: 2px solid #000; text-align: center; display: flex; flex-direction: column; justify-content: center; background: #f0f0f0; }
-                .header-right strong { font-size: 18px; color: red; }
-                table { width: 100%; border-collapse: collapse; margin-bottom: 5px; }
-                th, td { border: 1px solid #000; padding: 3px 5px; font-size: 11px; text-align: left; }
-                th { background-color: #f0f0f0; font-weight: bold; text-align: center; }
-
-                .info-table td { width: 25%; }
-
-                .section-title { font-weight: bold; background-color: #f0f0f0; border: 1px solid #000; border-bottom: none; padding: 4px; font-size: 11px; text-align: center; text-transform: uppercase; margin-bottom: 0; }
-                .box-content { border: 1px solid #000; padding: 5px; font-size: 11px; min-height: 35px; margin-bottom: 5px; }
-
-                .assinaturas { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; margin-top: 20px; padding: 0 20px; text-align: center; }
-                .linha-ass { border-top: 1px solid #000; padding-top: 4px; font-weight: bold; font-size: 11px; }
-            </style>
-        </head>
-        <body>
-            ${conteudoImpressao}
-            <script>
-                window.onload = function() { setTimeout(() => { window.print(); }, 500); }
-            </script>
-        </body>
-        </html>
-    `);
-    printWindow.document.close();
 };
-
-
-// =========================================================================
-// FUNÇÕES DE EXPORTAÇÃO E CARREGAMENTO DE FILTROS RESTAURADAS
-// =========================================================================
 
 window.carregarFiltrosSelectHistoricoOS = function() {
     const selectPlaca = document.getElementById('filtroHistPlaca');
@@ -927,11 +603,11 @@ window.exportarHistoricoOSExcel = function() {
         alert("Nenhuma tabela encontrada para exportar.");
         return;
     }
-    let csvContent = "\uFEFF"; // Para garantir a acentuação correta no Excel
+    let csvContent = "\uFEFF";
     const rows = table.querySelectorAll('tr');
     for (let i = 0; i < rows.length; i++) {
         let row = [], cols = rows[i].querySelectorAll('td, th');
-        for (let j = 0; j < cols.length - 1; j++) { // Ignora a última coluna (Ações)
+        for (let j = 0; j < cols.length - 1; j++) {
             row.push('"' + cols[j].innerText.replace(/"/g, '""') + '"');
         }
         csvContent += row.join(';') + "\n";
