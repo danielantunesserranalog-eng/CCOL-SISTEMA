@@ -1,10 +1,9 @@
 <div class="action-bar" style="display: flex; justify-content: center; align-items: center; position: relative; margin-bottom: 30px; padding: 10px 0;">
-    <h2 style="color: #fff; margin: 0; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">📊 Disponibilidade de Equipamento</h2>
+    <h2 style="color: #fff; margin: 0; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">Disponibilidade de Equipamento</h2>
     <div style="position: absolute; right: 0; top: 50%; transform: translateY(-50%);">
         <img src="assets/logo.png" alt="Serrana Log" style="height: 45px; object-fit: contain; filter: drop-shadow(0 0 5px rgba(255,255,255,0.2));">
     </div>
 </div>
-
 <script>
     window.getDatasFiltroGlobal = function() {
         const filtro = document.getElementById('filtroGlobalPeriodo').value;
@@ -12,7 +11,6 @@
         let inicio = new Date(hoje);
         inicio.setHours(0,0,0,0);
         hoje.setHours(23,59,59,999);
-
         if (filtro === 'dia_atual') {
             // inicio já é hoje às 00:00
         } else if (filtro === 'semana_atual') {
@@ -25,11 +23,8 @@
         }
         return { inicio: inicio, fim: hoje, valorBruto: filtro };
     };
-
     window.dispararFiltrosGlobais = function() {
-        // Agora todos os KPIs e Rankings também vão obedecer ao filtro de data
         if(typeof renderizarRelatorioGerencialOS === 'function') renderizarRelatorioGerencialOS();
-        
         if(typeof renderizarGraficoEvolucaoDM === 'function') renderizarGraficoEvolucaoDM();
         if(typeof renderizarGraficoStatusFrotaHorario === 'function') renderizarGraficoStatusFrotaHorario();
         if(typeof renderizarGraficoEvolucaoDMDiaria === 'function') renderizarGraficoEvolucaoDMDiaria();
@@ -39,7 +34,7 @@
         if(hiddenFiltroTabela) {
             let val = document.getElementById('filtroGlobalPeriodo').value;
             if(val === 'dia_atual') val = '1';
-            else if(val === 'semana_atual') val = '7'; 
+            else if(val === 'semana_atual') val = '7';
             hiddenFiltroTabela.value = val;
             if(typeof renderizarRelatorioDM === 'function') renderizarRelatorioDM();
         }
@@ -110,26 +105,53 @@
     <div class="panel-header" style="padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); flex-wrap: wrap; gap: 10px;">
         <h3 style="color: #3b82f6; margin: 0; display: flex; align-items: center; gap: 10px;">
             <span style="width: 8px; height: 8px; background: #3b82f6; border-radius: 50%;"></span>
-            📈 Evolução Horária da Disponibilidade Mecânica (Dia Atual)
+            Evolução Horária da Disponibilidade Mecânica (Dia Atual)
         </h3>
         <div style="display: flex; gap: 10px; align-items: center;">
-            <button class="btn-secondary-dark" onclick="exportarGraficoPNG('graficoEvolucaoDM', 'Evolucao_DM')" style="border-radius: 6px; background: #334155; padding: 5px 12px; font-size: 0.8rem; height: 32px;">📸 Exportar</button>
+            <button class="btn-secondary-dark" onclick="exportarGraficoPNG('graficoEvolucaoDM', 'Evolucao_DM')" style="border-radius: 6px; background: #334155; padding: 5px 12px; font-size: 0.8rem; height: 32px;">Exportar</button>
         </div>
     </div>
     <div style="width: 100%; height: 350px; padding: 20px;" id="graficoEvolucaoDM"></div>
 </div>
 
+<!-- ================= PAINEL MODIFICADO: DM DIÁRIA COM MINI-KPIS ================= -->
 <div class="content-panel" style="grid-column: 1 / -1; margin-bottom: 25px; border: 1px solid rgba(16, 185, 129, 0.3); background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(10px); border-radius: 16px; overflow: hidden;">
     <div class="panel-header" style="padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); flex-wrap: wrap; gap: 10px;">
         <h3 style="color: #10b981; margin: 0; display: flex; align-items: center; gap: 10px;">
             <span style="width: 8px; height: 8px; background: #10b981; border-radius: 50%;"></span>
-            📅 Evolução Diária da Disponibilidade Mecânica (Média DM/Dia)
+            Evolução Diária da Disponibilidade Mecânica (Média DM/Dia)
         </h3>
         <div style="display: flex; gap: 10px; align-items: center;">
-            <button class="btn-secondary-dark" onclick="exportarGraficoPNG('graficoEvolucaoDMDiaria', 'Evolucao_DM_Diaria')" style="border-radius: 6px; background: #334155; padding: 5px 12px; font-size: 0.8rem; height: 32px;">📸 Exportar</button>
+            <span style="color: #94a3b8; font-size: 0.85rem; font-weight: 600;">Filtrar Mês:</span>
+            <select id="filtroMesEvolucaoDMDiaria" class="dark-select" onchange="renderizarGraficoEvolucaoDMDiaria()" style="background: #1e293b; border: 1px solid #334155; color: white; padding: 5px 12px; border-radius: 6px; height: 34px; font-size: 0.9rem; outline: none; cursor: pointer;">
+                <!-- Preenchido via JS -->
+            </select>
+            <button class="btn-secondary-dark" onclick="exportarGraficoPNG('graficoEvolucaoDMDiaria', 'Evolucao_DM_Diaria')" style="border-radius: 6px; background: #334155; padding: 5px 12px; font-size: 0.8rem; height: 32px;">Exportar</button>
         </div>
     </div>
-    <div style="width: 100%; height: 350px; padding: 20px;" id="graficoEvolucaoDMDiaria"></div>
+    
+    <!-- BARRA DE MINI KPIs DO MÊS SELECIONADO -->
+    <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 10px; padding: 15px 20px; background: rgba(0,0,0,0.25); border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <div style="text-align: center; flex: 1; min-width: 150px;">
+            <span style="color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; font-weight: bold;">Média DM do Período</span><br>
+            <span id="kpiMiniDM" style="color: #10b981; font-size: 1.5rem; font-weight: 900;">0%</span>
+        </div>
+        <div style="text-align: center; flex: 1; min-width: 150px; border-left: 1px dashed rgba(255,255,255,0.1);">
+            <span style="color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; font-weight: bold;">Total de O.S. (Período)</span><br>
+            <span id="kpiMiniTotalOS" style="color: #fff; font-size: 1.5rem; font-weight: 900;">0</span>
+        </div>
+        <div style="text-align: center; flex: 1; min-width: 150px; border-left: 1px dashed rgba(255,255,255,0.1);">
+            <span style="color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; font-weight: bold;">O.S. Concluídas</span><br>
+            <span id="kpiMiniConcluidas" style="color: #3b82f6; font-size: 1.5rem; font-weight: 900;">0</span>
+        </div>
+        <div style="text-align: center; flex: 1; min-width: 150px; border-left: 1px dashed rgba(255,255,255,0.1);">
+            <span style="color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; font-weight: bold;">Tempo Médio Conclusão</span><br>
+            <span id="kpiMiniTempo" style="color: #a855f7; font-size: 1.5rem; font-weight: 900;">0h 0m</span>
+        </div>
+    </div>
+
+    <!-- Gráfico com altura de 400px para ficar mais alto -->
+    <div style="width: 100%; height: 400px; padding: 20px;" id="graficoEvolucaoDMDiaria"></div>
 </div>
 
 <div class="content-panel" style="grid-column: 1 / -1; margin-bottom: 25px; border: 1px solid rgba(245, 158, 11, 0.5); background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); border-radius: 16px; overflow: hidden; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);">
@@ -137,18 +159,16 @@
         <div style="display: flex; align-items: center; gap: 15px;">
             <img src="assets/logo.png" alt="Serrana Log" style="height: 40px; object-fit: contain; filter: drop-shadow(0 0 5px rgba(255,255,255,0.2));">
             <h3 style="color: #f59e0b; margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.3rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
-                📊 Disponibilidade Horária de Equipamentos
+                Disponibilidade Horária de Equipamentos
             </h3>
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
             <span style="color: #94a3b8; font-size: 0.85rem; font-weight: 600;">Filtrar Dia:</span>
             <input type="date" id="filtroDataEspecificaHoraria" class="dark-select" onchange="renderizarGraficoStatusFrotaHorario()" style="background: #1e293b; border: 1px solid #334155; color: white; padding: 5px 12px; border-radius: 6px; height: 34px; font-size: 0.9rem;">
-            <button class="btn-secondary-dark" onclick="exportarGraficoPNG('graficoStatusFrotaHorario', 'Disponibilidade_Horaria')" style="border-radius: 6px; background: #334155; padding: 6px 14px; font-size: 0.85rem; height: 34px; font-weight: 600; transition: all 0.3s ease;">📸 Exportar</button>
+            <button class="btn-secondary-dark" onclick="exportarGraficoPNG('graficoStatusFrotaHorario', 'Disponibilidade_Horaria')" style="border-radius: 6px; background: #334155; padding: 6px 14px; font-size: 0.85rem; height: 34px; font-weight: 600; transition: all 0.3s ease;">Exportar</button>
         </div>
     </div>
-
     <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 15px; padding: 15px 20px; background: rgba(0,0,0,0.25); border-bottom: 1px solid rgba(255,255,255,0.05);">
-        
         <div style="display: flex; align-items: center; gap: 12px; background: rgba(16, 185, 129, 0.05); padding: 10px 20px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.2); flex: 1; min-width: 200px; justify-content: center;">
             <div style="background: rgba(16, 185, 129, 0.2); padding: 12px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
                 <i class="fas fa-truck-moving" style="color: #10b981; font-size: 1.4rem;"></i>
@@ -161,7 +181,6 @@
                 </div>
             </div>
         </div>
-
         <div style="display: flex; align-items: center; gap: 12px; background: rgba(245, 158, 11, 0.05); padding: 10px 20px; border-radius: 12px; border: 1px solid rgba(245, 158, 11, 0.2); flex: 1; min-width: 200px; justify-content: center;">
             <div style="background: rgba(245, 158, 11, 0.2); padding: 12px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
                 <i class="fas fa-tools" style="color: #f59e0b; font-size: 1.4rem;"></i>
@@ -174,7 +193,6 @@
                 </div>
             </div>
         </div>
-
         <div style="display: flex; align-items: center; gap: 12px; background: rgba(239, 68, 68, 0.05); padding: 10px 20px; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.2); flex: 1; min-width: 200px; justify-content: center;">
             <div style="background: rgba(239, 68, 68, 0.2); padding: 12px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
                 <i class="fas fa-exclamation-triangle" style="color: #ef4444; font-size: 1.4rem;"></i>
@@ -187,40 +205,34 @@
                 </div>
             </div>
         </div>
-
     </div>
-
     <div style="width: 100%; height: 350px; padding: 20px;" id="graficoStatusFrotaHorario"></div>
 </div>
 
 <div class="content-panel" style="grid-column: 1 / -1; margin-bottom: 20px; border: 1px solid #a855f7; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); border-radius: 16px; overflow: hidden; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);">
     <div class="panel-header" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
         <h3 style="color: #a855f7; margin: 0; display: flex; align-items: center; gap: 10px;">
-            <i class="fas fa-chart-area"></i> 🎯 DM Específica por Frota (Veículo)
+            <i class="fas fa-chart-area"></i> DM Específica por Frota (Veículo)
         </h3>
         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-            
             <div style="display: flex; align-items: center; gap: 5px; border-right: 1px solid rgba(255,255,255,0.1); padding-right: 10px;">
                 <span style="color: #94a3b8; font-size: 0.85rem;">De:</span>
                 <input type="date" id="dataInicioDMInd" class="dark-select" style="background: #1e293b; border: 1px solid #334155; color: white; padding: 5px 8px; border-radius: 6px; height: 34px; font-size: 0.85rem; outline: none; cursor: pointer;">
                 <span style="color: #94a3b8; font-size: 0.85rem; margin-left: 5px;">Até:</span>
                 <input type="date" id="dataFimDMInd" class="dark-select" style="background: #1e293b; border: 1px solid #334155; color: white; padding: 5px 8px; border-radius: 6px; height: 34px; font-size: 0.85rem; outline: none; cursor: pointer;">
-                
                 <button class="btn-primary-blue" onclick="renderizarDMIndividual()" style="border-radius: 6px; background: #3b82f6; color: #fff; padding: 0 12px; font-size: 0.85rem; height: 34px; margin-left: 5px; border: none; cursor: pointer; font-weight: bold; transition: 0.3s;" title="Filtrar por data" onmouseover="this.style.background='#2563eb';" onmouseout="this.style.background='#3b82f6';">
                     <i class="fas fa-search"></i> Filtrar
                 </button>
-
                 <button class="btn-secondary-dark" onclick="document.getElementById('dataInicioDMInd').value=''; document.getElementById('dataFimDMInd').value=''; renderizarDMIndividual();" style="border-radius: 6px; background: rgba(239, 68, 68, 0.2); color: #ef4444; padding: 0 10px; font-size: 0.85rem; height: 34px; margin-left: 5px; border: 1px solid rgba(239, 68, 68, 0.5); cursor: pointer; transition: 0.3s;" title="Limpar Filtro de Datas" onmouseover="this.style.background='#ef4444'; this.style.color='#fff';" onmouseout="this.style.background='rgba(239, 68, 68, 0.2)'; this.style.color='#ef4444';">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-
             <select id="filtroPlacaDMInd" class="dark-select" style="background: #1e293b; border: 1px solid #334155; color: white; padding: 5px 12px; border-radius: 6px; height: 34px; font-size: 0.9rem;" onchange="renderizarDMIndividual()">
                 <option value="">Selecione um Veículo...</option>
             </select>
             <div style="display: flex; gap: 5px;">
-                <button class="btn-secondary-dark" onclick="exportarGraficoPNG('graficoDmIndividual', 'DM_Individual_Frota')" style="border-radius: 6px; background: #334155; padding: 6px 14px; font-size: 0.85rem; height: 34px; font-weight: 600;">📸 Exportar PNG</button>
-                <button class="btn-primary-green" onclick="exportarDMIndividualExcel()" style="border-radius: 6px; padding: 6px 14px; font-size: 0.85rem; height: 34px; font-weight: 600;">📥 Exportar Excel</button>
+                <button class="btn-secondary-dark" onclick="exportarGraficoPNG('graficoDmIndividual', 'DM_Individual_Frota')" style="border-radius: 6px; background: #334155; padding: 6px 14px; font-size: 0.85rem; height: 34px; font-weight: 600;">Exportar PNG</button>
+                <button class="btn-primary-green" onclick="exportarDMIndividualExcel()" style="border-radius: 6px; padding: 6px 14px; font-size: 0.85rem; height: 34px; font-weight: 600;">Exportar Excel</button>
             </div>
         </div>
     </div>
@@ -232,21 +244,23 @@
 <div class="content-panel" style="grid-column: 1 / -1; margin-bottom: 20px; border: 1px solid #0ea5e9; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); border-radius: 16px; overflow: hidden; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);">
     <div class="panel-header" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
         <h3 style="color: #0ea5e9; margin: 0; display: flex; align-items: center; gap: 10px;">
-            <i class="fas fa-chart-bar"></i> 📊 Análise de Ocorrências por Tipo de Serviço
+            <i class="fas fa-chart-bar"></i> Análise de Ocorrências por Tipo de Serviço
         </h3>
         <div style="display: flex; gap: 10px; align-items: center;">
-            <button class="btn-secondary-dark" onclick="exportarGraficoPNG('graficoOcorrenciasTipoBarra', 'Ocorrencias_Por_Tipo')" style="border-radius: 6px; background: #334155; padding: 6px 14px; font-size: 0.85rem; height: 34px; font-weight: 600;">📸 Exportar PNG</button>
+            <button class="btn-secondary-dark" onclick="exportarGraficoPNG('graficoOcorrenciasTipoBarra', 'Ocorrencias_Por_Tipo')" style="border-radius: 6px; background: #334155; padding: 6px 14px; font-size: 0.85rem; height: 34px; font-weight: 600;">Exportar PNG</button>
         </div>
     </div>
     <div style="width: 100%; height: 380px; padding: 20px;" id="graficoOcorrenciasTipoBarra">
         <div style="color:#94a3b8; display:flex; justify-content:center; align-items:center; height:100%;">Carregando gráfico...</div>
     </div>
 </div>
+
 <div class="content-panel" style="grid-column: 1 / -1; margin-bottom: 20px; border: 1px solid var(--ccol-green-bright);">
     <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px;">
-        <h3 style="color: var(--ccol-green-bright); margin: 0;">📊 Disponibilidade Mecânica (DM) por Cavalo</h3>
+        <h3 style="color: var(--ccol-green-bright); margin: 0;">Disponibilidade Mecânica (DM) por Cavalo</h3>
         <div class="form-group-dark" style="margin: 0; display: flex; align-items: center; gap: 10px;">
-            <input type="hidden" id="filtroPeriodoDM" value="mes_atual"> <button class="btn-primary-green" onclick="exportarRelatorioDMExcel()" style="padding: 6px 12px; font-size: 0.85rem;">📥 Exportar Tabela Completa (Excel)</button>
+            <input type="hidden" id="filtroPeriodoDM" value="mes_atual"> 
+            <button class="btn-primary-green" onclick="exportarRelatorioDMExcel()" style="padding: 6px 12px; font-size: 0.85rem;">Exportar Tabela Completa (Excel)</button>
         </div>
     </div>
     <div class="table-modern-wrapper">
@@ -269,19 +283,19 @@
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
     <div class="content-panel">
         <div class="panel-header">
-            <h3 style="color: var(--ccol-rust-bright);">🚨 Top 5 Caminhões que Mais Quebram (Geral)</h3>
+            <h3 style="color: var(--ccol-rust-bright);">Top 5 Caminhões que Mais Quebram (Geral)</h3>
         </div>
         <div style="padding: 15px;" id="rankingCavalosOS"></div>
     </div>
     <div class="content-panel">
         <div class="panel-header">
-            <h3 style="color: var(--ccol-blue-bright);">🛠️ Ocorrências por Tipo de Serviço</h3>
+            <h3 style="color: var(--ccol-blue-bright);">Ocorrências por Tipo de Serviço</h3>
         </div>
         <div style="padding: 15px;" id="graficoTipoOS"></div>
     </div>
     <div class="content-panel">
         <div class="panel-header">
-            <h3 style="color: #fde047;">⚠️ Alertas de Prioridade</h3>
+            <h3 style="color: #fde047;">Alertas de Prioridade</h3>
         </div>
         <div style="padding: 15px;" id="graficoPrioridadeOS"></div>
     </div>
