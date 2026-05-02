@@ -5,12 +5,10 @@ window.carregarDadosDashboardSerrana = async function() {
     carregarOcorrenciasTvSerrana();
     carregarFrotasParadasSerrana();
       
-    // Pequeno atraso para garantir que a tela HTML carregou as larguras corretas do gráfico
     setTimeout(() => {
         renderizarGraficoEvolucaoDmSerrana();
     }, 300);
     
-    // Atualização em Tempo Real (A cada 60s)
     setInterval(() => {
         carregarOcorrenciasTvSerrana();
         carregarFrotasParadasSerrana();
@@ -62,13 +60,15 @@ async function atualizarPonteirosSerrana() {
             osData.forEach(os => {
                 const placaLimpa = os.placa.trim().toUpperCase();
                 
-                if (os.status === 'Sinistrado') {
-                    placasUnicasGeral.add(placaLimpa);
-                    if (listaDeCavalos.includes(placaLimpa)) setCavalosSinistro.add(placaLimpa);
-                    
-                } else if (os.status === 'Aguardando Oficina' || os.status === 'Em Manutenção') {
-                    placasUnicasGeral.add(placaLimpa);
-                    if (listaDeCavalos.includes(placaLimpa)) setCavalosManut.add(placaLimpa);
+                // SÓ PROCESSA SE FOR UM CAVALO VÁLIDO (Ignora O.S de GO)
+                if (listaDeCavalos.includes(placaLimpa)) {
+                    if (os.status === 'Sinistrado') {
+                        placasUnicasGeral.add(placaLimpa);
+                        setCavalosSinistro.add(placaLimpa);
+                    } else if (os.status === 'Aguardando Oficina' || os.status === 'Em Manutenção') {
+                        placasUnicasGeral.add(placaLimpa);
+                        setCavalosManut.add(placaLimpa);
+                    }
                 }
             });
 
@@ -108,13 +108,13 @@ async function atualizarPonteirosSerrana() {
     if(elManut) elManut.textContent = contadorEmManutencaoGlobal;
 }
 
-// =========================================================================
-// LISTA: FROTAS PARADAS + CÁLCULO DE TEMPO + ORDENAÇÃO + TIPO DE O.S.
-// =========================================================================
 async function carregarFrotasParadasSerrana() {
     const container = document.getElementById('lista-frotas-paradas');
     if(!container) return;
     try {
+        const { data: frotaData } = await supabaseClient.from('frotas_manutencao').select('cavalo');
+        const listaCavalos = frotaData ? frotaData.map(f => f.cavalo.trim().toUpperCase()) : [];
+
         const { data: osData } = await supabaseClient
             .from('ordens_servico')
             .select('placa, problema, status, tipo, data_abertura')
@@ -123,9 +123,11 @@ async function carregarFrotasParadasSerrana() {
         let html = '';
         const agora = new Date();
         
-        if (osData && osData.length > 0) {
-            // 1. Processar dados para calcular o tempo
-            let frotasProcessadas = osData.map(os => {
+        // Filtra as OS para exibir APENAS cavalos
+        const osFiltradas = osData ? osData.filter(os => listaCavalos.includes(os.placa.trim().toUpperCase())) : [];
+        
+        if (osFiltradas && osFiltradas.length > 0) {
+            let frotasProcessadas = osFiltradas.map(os => {
                 let diffMs = 0;
                 let textoTempo = 'N/I';
                 if (os.data_abertura) {
@@ -154,23 +156,20 @@ async function carregarFrotasParadasSerrana() {
                 return { ...os, diffMs, textoTempo };
             });
 
-            // 2. ORDENAÇÃO: Maior tempo parado no topo
             frotasProcessadas.sort((a, b) => b.diffMs - a.diffMs);
 
-            // 3. Montar o HTML
             frotasProcessadas.forEach(os => {
-                let corBorder = '#ef4444'; // vermelho
+                let corBorder = '#ef4444'; 
                 let icon = 'fas fa-tools';
                 
                 if (os.status === 'Em Manutenção') {
-                    corBorder = '#f59e0b'; // laranja
+                    corBorder = '#f59e0b'; 
                     icon = 'fas fa-wrench';
                 } else if (os.status === 'Sinistrado') {
-                    corBorder = '#b91c1c'; // vermelho escuro
+                    corBorder = '#b91c1c'; 
                     icon = 'fas fa-exclamation-triangle';
                 }
 
-                // Trata o campo TIPO para não ficar vazio
                 const tipoTexto = os.tipo ? os.tipo : 'Não Informado';
 
                 html += `
@@ -267,9 +266,6 @@ async function carregarFrentesTvSerrana() {
     } catch(e) { console.error("Erro Frentes:", e); }
 }
 
-// =========================================================================
-// GRÁFICO EVOLUÇÃO DIÁRIA (POR HORA) DA DISPONIBILIDADE MECÂNICA (DM) 
-// =========================================================================
 async function renderizarGraficoEvolucaoDmSerrana() {
     const chartDom = document.getElementById('graficoEvolucaoDmSerrana');
     if (!chartDom) return;
@@ -289,17 +285,13 @@ async function renderizarGraficoEvolucaoDmSerrana() {
         }
 
         const { data: osData } = await supabaseClient.from('ordens_servico').select('placa, data_abertura, data_conclusao, status').neq('status', 'Agendada');
-        let ordensServico = osData || [];
-
-        const limpaPlaca = p => String(p || 'DESCONHECIDO').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
         
-        // Mantemos os sinistrados apenas para controle na hora de iterar,
-        // mas não reduzimos o tamanho da frota global:
-        const placasSinistradas = new Set(
-            ordensServico.filter(os => os.status === 'Sinistrado').map(os => limpaPlaca(os.placa))
-        );
+        const limpaPlaca = p => String(p || 'DESCONHECIDO').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+        const frotasCavalosArray = frotas.map(c => limpaPlaca(c));
+        
+        // Remove OS de GO para não afetar o gráfico
+        let ordensServico = (osData || []).filter(os => frotasCavalosArray.includes(limpaPlaca(os.placa)));
 
-        // MODIFICAÇÃO: A frota válida continua mantendo todos os veículos
         let totalFrotasValidas = totalFrotas;
         if(totalFrotasValidas < 0) totalFrotasValidas = 0;
 
@@ -319,9 +311,6 @@ async function renderizarGraficoEvolucaoDmSerrana() {
             let msManutencaoNestaHora = 0;
 
             placasEmOS.forEach(placaOS => {
-                // MODIFICAÇÃO: Removido o filtro de ignorar os sinistrados,
-                // eles contabilizam o tempo de parada para baixar o ponteiro/DM
-                
                 let tempoParadoDoCavalo = 0;
                 const osDesteCavalo = ordensServico.filter(o => limpaPlaca(o.placa) === placaOS);
                 

@@ -71,7 +71,7 @@ async function atualizarPonteiros() {
     let totalCavalos = 0;
     let listaDeCavalos = [];
     
-    // 1. Busca todos os Cavalos na Frota para saber o TOTAL DE CAVALOS real
+    // Busca todos os Cavalos válidos
     try {
         const { data: frotaData, error } = await supabaseClient.from('frotas_manutencao').select('cavalo');
         if (!error && frotaData) {
@@ -80,11 +80,11 @@ async function atualizarPonteiros() {
         }
     } catch (e) { console.error("Erro Placas:", e); }
 
-    let contadorEmManutencaoGlobal = 0; // Quantidade que vai aparecer na caixinha do meio (Conta GO e Cavalo)
-    let cavalosEmManutencao = 0; // Para descontar APENAS da DM / Disponível
-    let cavalosSinistrados = 0; // Para descontar APENAS da DM / Disponível
+    let contadorEmManutencaoGlobal = 0; 
+    let cavalosEmManutencao = 0; 
+    let cavalosSinistrados = 0; 
 
-    // 2. Verifica as Ordens de Serviço
+    // Verifica as Ordens de Serviço
     try {
         const { data: osData, error: osError } = await supabaseClient
             .from('ordens_servico')
@@ -98,19 +98,19 @@ async function atualizarPonteiros() {
             osData.forEach(os => {
                 const placaLimpa = os.placa.trim().toUpperCase();
                 
-                if (os.status === 'Sinistrado') {
-                    placasUnicasGeral.add(placaLimpa);
-                    // Só adiciona na conta de perda de DM se for um Cavalo
-                    if (listaDeCavalos.includes(placaLimpa)) setCavalosSinistro.add(placaLimpa);
-                    
-                } else if (os.status === 'Aguardando Oficina' || os.status === 'Em Manutenção') {
-                    placasUnicasGeral.add(placaLimpa);
-                    // Só adiciona na conta de perda de DM se for um Cavalo
-                    if (listaDeCavalos.includes(placaLimpa)) setCavalosManut.add(placaLimpa);
+                // IGNORA COMPLETAMENTE SE FOR GO (Só processa se for Cavalo)
+                if (listaDeCavalos.includes(placaLimpa)) {
+                    if (os.status === 'Sinistrado') {
+                        placasUnicasGeral.add(placaLimpa);
+                        setCavalosSinistro.add(placaLimpa);
+                        
+                    } else if (os.status === 'Aguardando Oficina' || os.status === 'Em Manutenção') {
+                        placasUnicasGeral.add(placaLimpa);
+                        setCavalosManut.add(placaLimpa);
+                    }
                 }
             });
 
-            // Evita contar um cavalo duas vezes
             setCavalosSinistro.forEach(placa => { setCavalosManut.delete(placa); });
             
             contadorEmManutencaoGlobal = placasUnicasGeral.size;
@@ -119,7 +119,6 @@ async function atualizarPonteiros() {
         }
     } catch (e) { console.error("Erro O.S.:", e); }
 
-    // MODIFICAÇÃO: A frota em operação ignora manutenções de GO (não diminui)
     let frotaDisponivel = totalCavalos - cavalosEmManutencao - cavalosSinistrados;
     if(frotaDisponivel < 0) frotaDisponivel = 0;
 
@@ -128,7 +127,6 @@ async function atualizarPonteiros() {
 
     if (elGaugeFill && totalCavalos > 0) {
         const perc = (frotaDisponivel / totalCavalos) * 100;
-        
         const fillRotation = -225 + (1.8 * perc);
         elGaugeFill.style.transform = `rotate(${fillRotation}deg)`;
         if (elPonteiro) {
@@ -146,8 +144,6 @@ async function atualizarPonteiros() {
 
     if(elFrotaDisp) elFrotaDisp.textContent = frotaDisponivel;
     if(elFrotaTotal) elFrotaTotal.textContent = totalCavalos;
-    
-    // Na TV mostra as Frotas + Cavalos parados
     if(elManut) elManut.textContent = contadorEmManutencaoGlobal;
 }
 
@@ -201,6 +197,10 @@ async function carregarFrentesTv() {
 
 async function carregarFrotasParadas() {
     try {
+        // Pega a lista de cavalos válidos para filtrar os GOs da tela
+        const { data: frotaData } = await supabaseClient.from('frotas_manutencao').select('cavalo');
+        const listaCavalos = frotaData ? frotaData.map(f => f.cavalo.trim().toUpperCase()) : [];
+
         const { data, error } = await supabaseClient
             .from('ordens_servico')
             .select('placa, tipo, status')
@@ -210,7 +210,11 @@ async function carregarFrotasParadas() {
         const container = document.getElementById('frotas-paradas-list');
         if(!container) return;
         container.innerHTML = ''; 
-        if (!data || data.length === 0) {
+        
+        // Filtra para exibir APENAS cavalos
+        const osFiltradas = data ? data.filter(os => listaCavalos.includes(os.placa.trim().toUpperCase())) : [];
+
+        if (!osFiltradas || osFiltradas.length === 0) {
             container.innerHTML = `
                 <div class="empty-state" style="text-align: center; margin-top: 20px;">
                       Nenhuma frota parada no momento.
@@ -218,7 +222,8 @@ async function carregarFrotasParadas() {
             `;
             return;
         }
-        data.forEach(os => {
+        
+        osFiltradas.forEach(os => {
             let tipoString = os.tipo ? os.tipo.toLowerCase() : 'corretiva';
             let classeCss = 'corretiva'; 
             let icone = 'fas fa-wrench';
